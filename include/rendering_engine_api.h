@@ -6,7 +6,7 @@ extern "C" {
 
 void rendering_engine_init(void* mtlLayer, int width, int height);
 void rendering_engine_shutdown();
-void rendering_engine_draw();
+void rendering_engine_draw(void* drawable);
 
 #ifdef __cplusplus
 }

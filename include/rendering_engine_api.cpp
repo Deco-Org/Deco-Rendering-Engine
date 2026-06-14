@@ -15,7 +15,6 @@ void rendering_engine_init(void* mtlLayer, int width, int height)
     CA::MetalLayer *layer = reinterpret_cast<CA::MetalLayer*>(mtlLayer);
     engine = new RenderingEngine();
     engine->init(layer, width, height);
-    // engine->run();
 }
 
 void rendering_engine_shutdown()
@@ -25,9 +24,10 @@ void rendering_engine_shutdown()
     engine = nullptr;
 }
 
-void rendering_engine_draw()
+void rendering_engine_draw(void *drawablePtr)
 {
-    engine->draw();
+    CA::MetalDrawable *drawable = reinterpret_cast<CA::MetalDrawable*>(drawablePtr);
+    engine->draw(drawable);
 }
 
 #ifdef __cplusplus

@@ -1,13 +1,15 @@
 // harness/main.mm
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
-#import <QuartzCore/CADisplayLink.h>
+#import <QuartzCore/CAMetalDisplayLink.h>
 
 #include "rendering_engine_api.h"
 
-@interface HarnessDelegate : NSObject <NSApplicationDelegate>
+@interface HarnessDelegate : NSObject <NSApplicationDelegate, CAMetalDisplayLinkDelegate>
 @property (strong) NSWindow *window;
-@property (strong) CADisplayLink *displayLink;
+@property (strong) CAMetalDisplayLink *displayLink;
+@property (strong) CAMetalLayer *metalLayer;
+@property (assign) BOOL shouldStopLooping;
 @end;
 
 @implementation HarnessDelegate
@@ -23,11 +25,12 @@
 
         self.window.title = @"Deco Rendering Engine";
 
-        CAMetalLayer *layer = [CAMetalLayer layer];
-        layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-        layer.opaque = YES;
-        self.window.contentView.layer = layer;
+        // CAMetalLayer *layer = [CAMetalLayer layer];
+        self.metalLayer = [CAMetalLayer layer];
+        self.metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+        self.metalLayer.opaque = YES;
         self.window.contentView.wantsLayer = YES;
+        self.window.contentView.layer = self.metalLayer;
 
         [self.window makeKeyAndOrderFront:nil];
         [self.window center];
@@ -37,27 +40,37 @@
         int width = (int)backing.size.width;
         int height = (int)backing.size.height;
 
-        rendering_engine_init((__bridge void*)layer, width, height);
-        
-        // The screen should be in the main thread, so we grab it before detaching a new thread
-        NSScreen *screen = self.window.screen;
-        [NSThread detachNewThreadSelector:@selector(renderLoopWithScreen:)
+        rendering_engine_init((__bridge void*)self.metalLayer, width, height);
+
+        // Grabbing the display link while in the main thread
+        self.displayLink = [[CAMetalDisplayLink alloc] initWithMetalLayer:self.metalLayer];
+        self.displayLink.delegate = self;
+        self.displayLink.preferredFrameRateRange = CAFrameRateRangeMake(60, 120, 60);
+
+        [NSThread detachNewThreadSelector:@selector(renderLoop)
             toTarget:self
             withObject:nil];
     }
 
-    - (void)renderLoopWithScreen:(NSScreen*)screen {
-        self.displayLink = [screen displayLinkWithTarget:self selector:@selector(render:)];
-        NSRunLoop* runLoop = [NSRunLoop currentRunLoop];
+    - (void)renderLoop {
+        NSRunLoop *runLoop = [NSRunLoop currentRunLoop];
+        // We set up a mach port to keep the run loop alive.
+        [runLoop addPort:[NSMachPort port] forMode:NSDefaultRunLoopMode];
         [self.displayLink addToRunLoop:runLoop forMode:NSDefaultRunLoopMode];
-        [runLoop run];
+        
+        while(!self.shouldStopLooping && [runLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]]) {};
+
+        NSLog(@"Run loop ended");
     }
 
-    - (void)render:(CADisplayLink*)sender {
-        rendering_engine_draw();
+    - (void)metalDisplayLink:(CAMetalDisplayLink*)link
+                 needsUpdate:(CAMetalDisplayLinkUpdate*)update {
+        rendering_engine_draw((__bridge void*)update.drawable);
     }
 
     - (void)applicationWillTerminate:(NSNotification*)notification {
+        self.shouldStopLooping = YES;
+        [NSThread sleepForTimeInterval:0.2]; // gives time for "run loop ended" log to print
         [self.displayLink invalidate];
         self.displayLink = nil;
         rendering_engine_shutdown();

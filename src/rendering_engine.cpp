@@ -44,8 +44,6 @@ void RenderingEngine::setupLayer(CA::MetalLayer *mtlLayer, int width, int height
     metalLayer->setDevice(metalDevice);
     metalLayer->setPixelFormat(MTL::PixelFormat::PixelFormatBGRA8Unorm);
     metalLayer->setDrawableSize(CGSizeMake(width, height));
-
-    metalDrawable = metalLayer->nextDrawable();
 }
 
 void RenderingEngine::createBuffers()
@@ -169,7 +167,7 @@ void RenderingEngine::createRenderPassDescriptor()
     MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = renderPassDescriptor->depthAttachment();
 
     colorAttachment->setTexture(msaaRenderTargetTexture);
-    colorAttachment->setResolveTexture(metalDrawable->texture());
+    // colorAttachment->setResolveTexture(metalDrawable->texture());
     colorAttachment->setLoadAction(MTL::LoadActionClear);
     // Setting the background color
     colorAttachment->setClearColor(MTL::ClearColor(41.0f/255.0f, 42.0f/255.0f, 48.0f/255.0f, 1.0));
@@ -181,23 +179,24 @@ void RenderingEngine::createRenderPassDescriptor()
     depthAttachment->setClearDepth(1.0);
 }
 
-void RenderingEngine::updateRenderPassDescriptor()
+void RenderingEngine::updateRenderPassDescriptor(CA::MetalDrawable *drawable)
 {
     renderPassDescriptor->colorAttachments()->object(0)->setTexture(msaaRenderTargetTexture);
-    renderPassDescriptor->colorAttachments()->object(0)->setResolveTexture(metalDrawable->texture());
+    renderPassDescriptor->colorAttachments()->object(0)->setResolveTexture(drawable->texture());
     renderPassDescriptor->depthAttachment()->setTexture(depthTexture);
 }
 
-void RenderingEngine::draw()
+void RenderingEngine::draw(CA::MetalDrawable *drawable)
 {
-    sendRenderCommand();
+    sendRenderCommand(drawable);
 }
 
-void RenderingEngine::sendRenderCommand()
+void RenderingEngine::sendRenderCommand(CA::MetalDrawable *drawable)
 {
+    metalDrawable = drawable;
     metalCommandBuffer = metalCommandQueue->commandBuffer();
 
-    updateRenderPassDescriptor();
+    updateRenderPassDescriptor(drawable);
 
     MTL::RenderCommandEncoder *renderCommandEncoder = metalCommandBuffer->renderCommandEncoder(renderPassDescriptor);
     encodeRenderCommand(renderCommandEncoder);
@@ -221,13 +220,14 @@ void RenderingEngine::encodeRenderCommand(MTL::RenderCommandEncoder *renderComma
     simd::float3 U = simd::float3 { 0, 1, 0 }; // Unit-Up
     simd::float3 F = simd::float3 { 0, 0, -1}; // Unit-Forward
     simd::float3 P = simd::float3 { 0, 0, 0 }; // Camera Position in world space
-    
+
     matrix_float4x4 viewMatrix = matrix_make_rows(
-        R[0], R[1], R[2], dot(-R, P),
-        U[1], U[1], U[2], dot(-U, P),
-        -F[1], -F[2], -F[3], dot(F, P),
+        R[0], R[1], R[2], simd_dot(-R, P),
+        U[0], U[1], U[2], simd_dot(-U, P),
+        -F[0], -F[1], -F[2], simd_dot(F, P),
         0, 0, 0, 1
     );
+
     CGSize size = metalLayer->drawableSize();
     float aspectRatio = (size.width / size.height);
     float fov = 90 * (M_PI / 180.0f);

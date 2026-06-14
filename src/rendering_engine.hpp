@@ -19,9 +19,8 @@
 class RenderingEngine {
     public:
     void init(CA::MetalLayer *mtlLayer, int width, int height);
-    // void run();
     void cleanup();
-    void draw();
+    void draw(CA::MetalDrawable *drawable);
 
     private:
     void initDevice();
@@ -39,10 +38,10 @@ class RenderingEngine {
 
     void createDepthAndMsaaTextures();
     void createRenderPassDescriptor();
-    void updateRenderPassDescriptor();
+    void updateRenderPassDescriptor(CA::MetalDrawable *drawable);
 
     void encodeRenderCommand(MTL::RenderCommandEncoder* renderEncoder);
-    void sendRenderCommand();
+    void sendRenderCommand(CA::MetalDrawable *drawable);
     // void draw();
 
     MTL::Device *metalDevice;
