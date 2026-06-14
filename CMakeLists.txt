@@ -7,8 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(rendering_engine STATIC
     src/rendering_engine.cpp
     include/rendering_engine_api.cpp
-    src/AAPLMathUtilities.cpp
     src/metal_implementation.cpp
+    src/utils/AAPLMathUtilities.cpp
 )
 
 target_include_directories(rendering_engine
@@ -25,7 +25,7 @@ target_link_libraries(rendering_engine PUBLIC
 # metal-cpp
 target_include_directories(rendering_engine PRIVATE
     external/metal-cpp
-}
+)
 
 # Harness
 option(BUILD_HARNESS "Build the rendering test harness" ON)

@@ -7,12 +7,9 @@
 #pragma once
 
 #include <Metal/Metal.hpp>
-// #include <Metal/Metal.h>
 #include <QuartzCore/CAMetalLayer.hpp>
-// #include <QuartzCore/CAMetalLayer.h>
-// #include <QuartzCore/QuartzCore.hpp>
 
-#include "AAPLMathUtilities.h"
+#include "utils/AAPLMathUtilities.h"
 
 #include <simd/simd.h>
 #include <filesystem>

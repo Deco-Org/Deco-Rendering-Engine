@@ -41,7 +41,7 @@
         
         // The screen should be in the main thread, so we grab it before detaching a new thread
         NSScreen *screen = self.window.screen;
-        [NSThread detachNewThreadSelector:@selector(renderLoopWithScreen)
+        [NSThread detachNewThreadSelector:@selector(renderLoopWithScreen:)
             toTarget:self
             withObject:nil];
     }
@@ -53,7 +53,7 @@
         [runLoop run];
     }
 
-    - (void)render {
+    - (void)render:(CADisplayLink*)sender {
         rendering_engine_draw();
     }
 
