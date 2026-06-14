@@ -25,12 +25,20 @@ void RenderingEngine::init(CA::MetalLayer *mtlLayer, int width, int height)
 }
 
 void RenderingEngine::cleanup() {
+    sphereVertexBuffer->release();
+    sphereIndexBuffer->release();
+    lightVertexBuffer->release();
     sphereTransformationBuffer->release();
     lightTransformationBuffer->release();
     msaaRenderTargetTexture->release();
     depthTexture->release();
     renderPassDescriptor->release();
-    metalDevice->release();
+    metalDefaultLibrary->release();
+    metalCommandQueue->release();
+    metalRenderPSO->release();
+    metalLightSourceRenderPSO->release();
+    depthStencilState->release();
+    metalDevice->release(); 
 }
 
 void RenderingEngine::initDevice()
@@ -107,6 +115,7 @@ void RenderingEngine::createRenderPipeline()
     renderPipelineDescriptor->release();
     vertexShader->release();
     fragmentShader->release();
+    depthStencilDescriptor->release();
 }
 
 void RenderingEngine::createLightSourceRenderPipeline()
