@@ -23,13 +23,7 @@ struct VertexOut {
     float4 position [[position]];
     float4 normal [[user(normal)]];
     float4 fragmentPosition [[user(fragpos)]];
-    float2 uv [[user(uv)]];
-
-    // Since this member does not have a special attribute, the rasterizer
-    // interpolates its value with the values of the other triangle vertices
-    // and then passes the interpolated value to the fragment shader for each
-    // fragment in the triangle.
-//    float2 textureCoordinate;
+    float2 uv;
 };
 
 vertex VertexOut sphereVertexShader(
@@ -46,7 +40,6 @@ vertex VertexOut sphereVertexShader(
 }
 
 fragment float4 sphereFragmentShader(VertexOut in [[stage_in]],
-                               // constant float4& sphereColor                      [[buffer(0)]],
                                texture2d<float> texture                        [[texture(0)]],
                                constant float4& lightColor                     [[buffer(1)]],
                                constant float4& lightPosition                  [[buffer(2)]],
@@ -69,7 +62,6 @@ fragment float4 sphereFragmentShader(VertexOut in [[stage_in]],
     float specularStrength = 0.75f;
     float3 viewDirection = normalize(cameraPosition.xyz - in.fragmentPosition.xyz);
     float3 halfwayDirection = normalize(lightDirection + viewDirection);
-//    float spec = pow(max(dot(float4(norm, 1.0), halfwayDirection), 0.0), 32);
     float spec = pow(max(dot(norm, halfwayDirection), 0.0), 32);
     float4 specular = specularStrength * spec * lightColor;
     
