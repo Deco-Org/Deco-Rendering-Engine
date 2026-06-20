@@ -13,7 +13,6 @@ class Texture
 {
     public:
     Texture(MTL::Device* device, MTL::PixelFormat pixelFormat = MTL::PixelFormat::PixelFormatBGRA8Unorm);
-    ~Texture();
 
     MTL::Texture* loadTexture(char* filePath);
 

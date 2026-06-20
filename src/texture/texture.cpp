@@ -12,11 +12,6 @@ Texture::Texture(MTL::Device* device, MTL::PixelFormat pixelFmt)
     pixelFormat = pixelFmt;
 }
 
-Texture::~Texture()
-{
-
-}
-
 MTL::Texture* Texture::loadTexture(char* filePath)
 {
     // Checking to make sure the file actually exists
