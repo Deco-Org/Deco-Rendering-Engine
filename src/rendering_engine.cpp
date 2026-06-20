@@ -16,6 +16,30 @@ void RenderingEngine::init(CA::MetalLayer *mtlLayer, int width, int height)
     Texture texture = Texture(metalDevice, MTL::PixelFormatBGRA8Unorm);
     earthTexture = texture.loadTexture("assets/climate_map.png");
 
+    // Temporary
+    Mesh mesh = Mesh();
+    MeshData *meshData = mesh.loadModel("assets/test_cube.fbx");
+    if (meshData == nullptr)
+    {
+        std::cerr << "Mesh data is nullptr" << std::endl;
+    } else {
+        for (size_t i = 0; i < meshData->vertices.size(); ++i)
+        {
+            VertexData data = meshData->vertices[i];
+            
+            printf("Vertex: {%.3f, %.3f, %.3f}    \tIndices: ", data.position, data.normal, data.textureCoordinate);
+            for (size_t j = 0; j < meshData->indices.size(); ++j)
+            {
+                if (i == meshData->indices[j])
+                {
+                    printf("%d ", j);
+                }
+            }
+            printf("\n");
+        }
+        delete meshData;
+        meshData = nullptr;
+    }
 
     createSphere();
     createLight();

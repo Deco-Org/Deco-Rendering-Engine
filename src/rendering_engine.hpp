@@ -16,6 +16,7 @@
 
 #include "vertex_data.hpp"
 #include "texture/texture.hpp"
+#include "mesh/mesh.hpp"
 
 class RenderingEngine {
     public:
