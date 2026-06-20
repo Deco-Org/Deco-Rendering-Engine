@@ -12,6 +12,11 @@ void RenderingEngine::init(CA::MetalLayer *mtlLayer, int width, int height)
     initDevice();
     setupLayer(mtlLayer, width, height);
 
+    // Temporary
+    Texture texture = Texture(metalDevice, MTL::PixelFormatBGRA8Unorm);
+    earthTexture = texture.loadTexture("assets/climate_map.png");
+
+
     createSphere();
     createLight();
 
@@ -25,6 +30,8 @@ void RenderingEngine::init(CA::MetalLayer *mtlLayer, int width, int height)
 }
 
 void RenderingEngine::cleanup() {
+    if (earthTexture) earthTexture->release(); // Temporary
+
     sphereVertexBuffer->release();
     sphereIndexBuffer->release();
     lightVertexBuffer->release();
@@ -93,11 +100,50 @@ void RenderingEngine::createRenderPipeline()
     assert(renderPipelineDescriptor);
     
     MTL::PixelFormat pixelFormat = (MTL::PixelFormat)metalLayer->pixelFormat();
-    renderPipelineDescriptor->colorAttachments()->object(0)->setPixelFormat(pixelFormat);
+    
+    // Color attachment
+    MTL::RenderPipelineColorAttachmentDescriptor* colorAttachment = renderPipelineDescriptor->colorAttachments()->object(0);
+    colorAttachment->setPixelFormat(pixelFormat);
+    colorAttachment->setBlendingEnabled(true);
+    colorAttachment->setRgbBlendOperation(MTL::BlendOperationAdd);
+    colorAttachment->setAlphaBlendOperation(MTL::BlendOperationAdd);
+    colorAttachment->setSourceRGBBlendFactor(MTL::BlendFactorSourceAlpha);
+    colorAttachment->setSourceAlphaBlendFactor(MTL::BlendFactorSourceAlpha);
+    colorAttachment->setDestinationRGBBlendFactor(MTL::BlendFactorOneMinusSourceAlpha);
+    colorAttachment->setDestinationAlphaBlendFactor(MTL::BlendFactorOneMinusSourceAlpha);
+
     renderPipelineDescriptor->setSampleCount(sampleCount);
     renderPipelineDescriptor->setLabel(NS::String::string("Sphere Render Pipeline", NS::UTF8StringEncoding));
     renderPipelineDescriptor->setDepthAttachmentPixelFormat(MTL::PixelFormatDepth32Float);
     renderPipelineDescriptor->setTessellationOutputWindingOrder(MTL::WindingClockwise);
+
+    MTL::VertexDescriptor* vertexDescriptor = MTL::VertexDescriptor::alloc()->init();
+
+    NS::UInteger currentOffset = 0;
+
+    // Position attribute
+    vertexDescriptor->attributes()->object(0)->setFormat(MTL::VertexFormatFloat3);
+    vertexDescriptor->attributes()->object(0)->setOffset(0);
+    vertexDescriptor->attributes()->object(0)->setBufferIndex(offsetof(VertexData, position));
+    currentOffset += sizeof(simd::float3);
+
+    // Normal attribute
+    vertexDescriptor->attributes()->object(1)->setFormat(MTL::VertexFormatFloat3);
+    vertexDescriptor->attributes()->object(1)->setOffset(offsetof(VertexData, normal));
+    vertexDescriptor->attributes()->object(1)->setBufferIndex(0);
+    currentOffset += sizeof(simd::float3);
+
+    // UV (Texture Coordinate) attribute
+    vertexDescriptor->attributes()->object(2)->setFormat(MTL::VertexFormatFloat2);
+    vertexDescriptor->attributes()->object(2)->setOffset(offsetof(VertexData, textureCoordinate));
+    vertexDescriptor->attributes()->object(2)->setBufferIndex(0);
+    currentOffset += sizeof(simd::float2);
+
+    // Setting the stride
+    vertexDescriptor->layouts()->object(0)->setStride(sizeof(VertexData));
+
+    renderPipelineDescriptor->setVertexDescriptor(vertexDescriptor);
+    vertexDescriptor->release();
 
     NS::Error* error;
     metalRenderPSO = metalDevice->newRenderPipelineState(renderPipelineDescriptor, &error);
@@ -252,7 +298,8 @@ void RenderingEngine::encodeRenderCommand(MTL::RenderCommandEncoder *renderComma
     simd_float4 lightPosition = simd_make_float4(-2.5, 1.5, 1.0, 1);
     simd_float4 cameraPosition = simd_make_float4(simd_make_float3(P[0], P[1], P[2]), 1.0);
     
-    renderCommandEncoder->setFragmentBytes(&sphereColor, sizeof(sphereColor), 0);
+    renderCommandEncoder->setFragmentTexture(earthTexture, 0); // Temporary
+    // renderCommandEncoder->setFragmentBytes(&sphereColor, sizeof(sphereColor), 0);
     renderCommandEncoder->setFragmentBytes(&lightColor, sizeof(lightColor), 1);
     renderCommandEncoder->setFragmentBytes(&lightPosition, sizeof(lightPosition), 2);
     renderCommandEncoder->setFragmentBytes(&cameraPosition, sizeof(cameraPosition), 3);
@@ -308,6 +355,7 @@ void RenderingEngine::createSphere(int numOfLatitudeLines, int numOfLongitudeLin
             // Defining the corners of the square that will form the bounds of the sphere
             std::array<simd::float3, 4> squareVertices;
             std::array<simd::float3, 4> normals;
+            std::array<simd::float2, 4> uv;
             
             for (int i = 0; i < 4; ++i) {
                 float theta = (lat + (i / 2)) * PI / numOfLatitudeLines;
@@ -321,12 +369,17 @@ void RenderingEngine::createSphere(int numOfLatitudeLines, int numOfLongitudeLin
                 
                 // Normal of the vertex, same as its position on a unit sphere
                 normals[i] = simd::normalize(squareVertices[i]);
+
+                uv[i] = {
+                    1.0f - (float)(lon + (i % 2)) / numOfLongitudeLines,
+                    (float)(lat + (i / 2)) / numOfLatitudeLines
+                };
             }
             
-            vertices.push_back(VertexData{ squareVertices[0], normals[0] });
-            vertices.push_back(VertexData{ squareVertices[1], normals[1] });
-            vertices.push_back(VertexData{ squareVertices[2], normals[2] });
-            vertices.push_back(VertexData{ squareVertices[3], normals[3] });
+            vertices.push_back(VertexData{ squareVertices[0], normals[0], uv[0] });
+            vertices.push_back(VertexData{ squareVertices[1], normals[1], uv[1] });
+            vertices.push_back(VertexData{ squareVertices[2], normals[2], uv[2] });
+            vertices.push_back(VertexData{ squareVertices[3], normals[3], uv[3] });
             
             NS::UInteger baseIndex = vertices.size() - 4;
             indices.push_back(baseIndex);

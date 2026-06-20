@@ -15,6 +15,7 @@
 #include <filesystem>
 
 #include "vertex_data.hpp"
+#include "texture/texture.hpp"
 
 class RenderingEngine {
     public:
@@ -74,4 +75,6 @@ class RenderingEngine {
 
     NS::UInteger vertexCount;
     NS::UInteger indexCount;
+
+    MTL::Texture* earthTexture; // Temporary
 };
