@@ -25,6 +25,7 @@ target_link_libraries(rendering_engine PUBLIC
 # metal-cpp
 target_include_directories(rendering_engine PRIVATE
     external/metal-cpp
+    external/stb
 )
 
 # Harness
