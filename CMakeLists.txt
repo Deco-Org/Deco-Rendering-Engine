@@ -8,7 +8,9 @@ add_library(rendering_engine STATIC
     src/rendering_engine.cpp
     include/rendering_engine_api.cpp
     src/metal_implementation.cpp
+    src/stb_image_impl.cpp
     src/utils/AAPLMathUtilities.cpp
+    src/texture/texture.cpp
 )
 
 target_include_directories(rendering_engine
