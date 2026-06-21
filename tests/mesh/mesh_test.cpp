@@ -34,7 +34,28 @@ static const MeshData cubeMeshData = {
     .indices = { 0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4, 8, 9, 10, 10, 11, 8, 12, 13, 14, 14, 15, 12, 16, 17, 18, 18, 19, 16, 20, 21, 22, 22, 23, 20 }
 };
 
-void REQUIRE_MESHDATA_MESHDATA_FLOATING_NEAR(
+void REQUIRE_FLOAT2_FLOAT2_NEAR(
+    const simd::float2& actual,
+    const simd::float2& expected,
+    double margin = 1e-6
+)
+{
+    REQUIRE_THAT(actual[0], Catch::Matchers::WithinAbs(expected[0], margin));
+    REQUIRE_THAT(actual[1], Catch::Matchers::WithinAbs(expected[1], margin));
+}
+
+void REQUIRE_FLOAT3_NEAR(
+    const simd::float3& actual,
+    const simd::float3& expected,
+    double margin = 1e-6
+)
+{
+    REQUIRE_THAT(actual[0], Catch::Matchers::WithinAbs(expected[0], margin));
+    REQUIRE_THAT(actual[1], Catch::Matchers::WithinAbs(expected[1], margin));
+    REQUIRE_THAT(actual[2], Catch::Matchers::WithinAbs(expected[2], margin));
+}
+
+void REQUIRE_MESHDATA_NEAR(
     const MeshData& actual,
     const MeshData& expected,
     double margin = 1e-6)
@@ -54,17 +75,9 @@ void REQUIRE_MESHDATA_MESHDATA_FLOATING_NEAR(
             const simd::float3 expectedNormal = expectedVertexData[i].normal;
             const simd::float2 expectedTextureCoordinate = expectedVertexData[i].textureCoordinate;
 
-            REQUIRE_THAT(actualPosition[0], Catch::Matchers::WithinAbs(expectedPosition[0], margin));
-            REQUIRE_THAT(actualPosition[1], Catch::Matchers::WithinAbs(expectedPosition[1], margin));
-            REQUIRE_THAT(actualPosition[2], Catch::Matchers::WithinAbs(expectedPosition[2], margin));
-
-            REQUIRE_THAT(actualNormal[0], Catch::Matchers::WithinAbs(expectedNormal[0], margin));
-            REQUIRE_THAT(actualNormal[1], Catch::Matchers::WithinAbs(expectedNormal[1], margin));
-            REQUIRE_THAT(actualNormal[2], Catch::Matchers::WithinAbs(expectedNormal[2], margin));
-
-            REQUIRE_THAT(actualTextureCoordinate[0], Catch::Matchers::WithinAbs(expectedTextureCoordinate[0], margin));
-            REQUIRE_THAT(actualTextureCoordinate[1], Catch::Matchers::WithinAbs(expectedTextureCoordinate[1], margin));
-            REQUIRE_THAT(actualTextureCoordinate[2], Catch::Matchers::WithinAbs(expectedTextureCoordinate[2], margin));
+            REQUIRE_FLOAT3_NEAR(actualPosition, expectedPosition);
+            REQUIRE_FLOAT3_NEAR(actualNormal, expectedNormal);
+            REQUIRE_FLOAT2_FLOAT2_NEAR(actualTextureCoordinate, expectedTextureCoordinate);
         }
     }
 
@@ -81,7 +94,7 @@ TEST_CASE(" models can be loaded ")
     {
         MeshData *meshData = Mesh::loadModel("assets/test_cube.fbx");
 
-        REQUIRE_MESHDATA_MESHDATA_FLOATING_NEAR(*meshData, cubeMeshData);
+        REQUIRE_MESHDATA_NEAR(*meshData, cubeMeshData);
 
         delete meshData;
         meshData = nullptr;
