@@ -23,20 +23,6 @@ void RenderingEngine::init(CA::MetalLayer *mtlLayer, int width, int height)
     {
         std::cerr << "Mesh data is nullptr" << std::endl;
     } else {
-        for (size_t i = 0; i < meshData->vertices.size(); ++i)
-        {
-            VertexData data = meshData->vertices[i];
-            
-            printf("Vertex: {%.3f, %.3f, %.3f}    \tIndices: ", data.position, data.normal, data.textureCoordinate);
-            for (size_t j = 0; j < meshData->indices.size(); ++j)
-            {
-                if (i == meshData->indices[j])
-                {
-                    printf("%d ", j);
-                }
-            }
-            printf("\n");
-        }
         delete meshData;
         meshData = nullptr;
     }
