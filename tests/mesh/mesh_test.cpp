@@ -50,17 +50,21 @@ void REQUIRE_MESHDATA_MESHDATA_FLOATING_NEAR(
             const simd::float3 actualNormal = actualVertexData[i].normal;
             const simd::float2 actualTextureCoordinate = actualVertexData[i].textureCoordinate;
 
-            REQUIRE_THAT(actualPosition[0], Catch::Matchers::WithinAbs(expectedVertexData[i].position[0], margin));
-            REQUIRE_THAT(actualPosition[1], Catch::Matchers::WithinAbs(expectedVertexData[i].position[1], margin));
-            REQUIRE_THAT(actualPosition[2], Catch::Matchers::WithinAbs(expectedVertexData[i].position[2], margin));
+            const simd::float3 expectedPosition = expectedVertexData[i].position;
+            const simd::float3 expectedNormal = expectedVertexData[i].normal;
+            const simd::float2 expectedTextureCoordinate = expectedVertexData[i].textureCoordinate;
 
-            REQUIRE_THAT(actualNormal[0], Catch::Matchers::WithinAbs(expectedVertexData[i].normal[0], margin));
-            REQUIRE_THAT(actualNormal[1], Catch::Matchers::WithinAbs(expectedVertexData[i].normal[1], margin));
-            REQUIRE_THAT(actualNormal[2], Catch::Matchers::WithinAbs(expectedVertexData[i].normal[2], margin));
+            REQUIRE_THAT(actualPosition[0], Catch::Matchers::WithinAbs(expectedPosition[0], margin));
+            REQUIRE_THAT(actualPosition[1], Catch::Matchers::WithinAbs(expectedPosition[1], margin));
+            REQUIRE_THAT(actualPosition[2], Catch::Matchers::WithinAbs(expectedPosition[2], margin));
 
-            REQUIRE_THAT(actualTextureCoordinate[0], Catch::Matchers::WithinAbs(expectedVertexData[i].textureCoordinate[0], margin));
-            REQUIRE_THAT(actualTextureCoordinate[1], Catch::Matchers::WithinAbs(expectedVertexData[i].textureCoordinate[1], margin));
-            REQUIRE_THAT(actualTextureCoordinate[2], Catch::Matchers::WithinAbs(expectedVertexData[i].textureCoordinate[2], margin));
+            REQUIRE_THAT(actualNormal[0], Catch::Matchers::WithinAbs(expectedNormal[0], margin));
+            REQUIRE_THAT(actualNormal[1], Catch::Matchers::WithinAbs(expectedNormal[1], margin));
+            REQUIRE_THAT(actualNormal[2], Catch::Matchers::WithinAbs(expectedNormal[2], margin));
+
+            REQUIRE_THAT(actualTextureCoordinate[0], Catch::Matchers::WithinAbs(expectedTextureCoordinate[0], margin));
+            REQUIRE_THAT(actualTextureCoordinate[1], Catch::Matchers::WithinAbs(expectedTextureCoordinate[1], margin));
+            REQUIRE_THAT(actualTextureCoordinate[2], Catch::Matchers::WithinAbs(expectedTextureCoordinate[2], margin));
         }
     }
 
