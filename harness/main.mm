@@ -65,7 +65,9 @@
 
     - (void)metalDisplayLink:(CAMetalDisplayLink*)link
                  needsUpdate:(CAMetalDisplayLinkUpdate*)update {
-        rendering_engine_draw((__bridge void*)update.drawable);
+        @autoreleasepool {
+            rendering_engine_draw((__bridge void*)update.drawable);
+        }
     }
 
     - (void)applicationWillTerminate:(NSNotification*)notification {
