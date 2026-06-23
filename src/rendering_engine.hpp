@@ -17,12 +17,19 @@
 #include "vertex_data.hpp"
 #include "texture/texture.hpp"
 #include "mesh/mesh.hpp"
+// #include "rendering_engine_api.h"
+
+typedef uint16_t RenderableHandle;
 
 class RenderingEngine {
     public:
     void init(CA::MetalLayer *mtlLayer, int width, int height);
     void cleanup();
     void draw(CA::MetalDrawable *drawable);
+
+    // These should be moved to another class
+    const RenderableHandle loadModel(const char* path);
+    void unloadModel(const RenderableHandle handle);
 
     private:
     void initDevice();
@@ -60,10 +67,12 @@ class RenderingEngine {
     MTL::Buffer* sphereVertexBuffer;
     MTL::Buffer* sphereIndexBuffer;
     MTL::Buffer* lightVertexBuffer;
+    MeshAsset* meshAsset;
 
     // Transformation buffers
     MTL::Buffer* sphereTransformationBuffer;
     MTL::Buffer* lightTransformationBuffer;
+    MTL::Buffer* modelTransformationBuffer;
 
     MTL::DepthStencilState* depthStencilState;
     
@@ -77,5 +86,8 @@ class RenderingEngine {
     NS::UInteger vertexCount;
     NS::UInteger indexCount;
 
+    RenderableHandle currentRenderableHandle;
+    
     MTL::Texture* earthTexture; // Temporary
+    MTL::Texture* cubeTexture; // Temporary
 };

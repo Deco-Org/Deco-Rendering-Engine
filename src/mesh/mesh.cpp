@@ -1,28 +1,11 @@
 #include "mesh.hpp"
 #include <stdio.h>
 
-Mesh::Mesh()
+MTL::Device *Mesh::metalDevice = nullptr;
+
+Mesh::Mesh(MTL::Device *device)
 {
-    // ufbx_load_opts opts = { };
-    // opts.target_axes = ufbx_axes_right_handed_y_up;
-    // opts.target_unit_meters = 1.0f;
-
-    // ufbx_error error;
-    // ufbx_scene *scene = ufbx_load_file("assets/test_cube.fbx", &opts, &error);
-    // if (!scene) {
-    //     fprintf(stderr, "Failed to load scene: %s\n", error.description.data);
-    //     return;
-    // }
-
-    // for (ufbx_node *node : scene->nodes) {
-    //     if (!node) {
-    //         printf("Node is nullptr\n");
-    //         continue;
-    //     }
-    //     printf("%s\n", node->name.data);
-    // }
-
-    // ufbx_free_scene(scene);
+    metalDevice = device;
 }
 
 Mesh::~Mesh()
@@ -30,7 +13,12 @@ Mesh::~Mesh()
 
 }
 
-MeshData* Mesh::loadModel(char *path)
+void Mesh::setMetalDevice(MTL::Device* device)
+{
+    metalDevice = device;
+}
+
+MeshAsset* Mesh::loadModel(const char *path)
 {
     ufbx_load_opts opts = { };
     opts.target_axes = ufbx_axes_right_handed_y_up;
@@ -44,13 +32,10 @@ MeshData* Mesh::loadModel(char *path)
     }
 
     ufbx_node *node = scene->nodes.data[0];
-    printf("Node '%s'\n", node->name.data);
 
     node = scene->nodes.data[1];
-    printf("Node '%s'\n", node->name.data);
-    printf("Node attribute: %s\n", node->attrib->name.data);
 
-    MeshData *meshData = nullptr;
+    MeshData meshData;
 
     for (ufbx_mesh *mesh : scene->meshes)
     {
@@ -59,12 +44,27 @@ MeshData* Mesh::loadModel(char *path)
             continue;
         }
         printf("Mesh is %s\n", mesh->name.data);
-        meshData = new MeshData(getDataForBuffer(mesh));
+        meshData = MeshData(getDataForBuffer(mesh));
     }
 
     ufbx_free_scene(scene);
 
-    return meshData;
+    // TODO: At some point, we need to handle the file not being found, or the mesh data being empty
+
+    // Putting data into mesh asset
+    MeshAsset* asset = new MeshAsset;
+    asset->vertexBuffer = metalDevice->newBuffer(
+        meshData.vertices.data(),
+        sizeof(VertexData) * meshData.vertices.size(),
+        MTL::ResourceStorageModeShared
+    );
+    asset->indexBuffer = metalDevice->newBuffer(
+        meshData.indices.data(),
+        sizeof(uint32_t) * meshData.indices.size(),
+        MTL::ResourceStorageModeShared
+    );
+    asset->indexCount = meshData.indices.size();
+    return asset;
 }
 
 MeshData Mesh::getDataForBuffer(ufbx_mesh* mesh)
