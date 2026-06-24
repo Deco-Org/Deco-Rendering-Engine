@@ -16,6 +16,7 @@ add_executable(tests
 target_include_directories(tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/external/ufbx
+    ${CMAKE_SOURCE_DIR}/external/metal-cpp
 )
 
 target_link_libraries(tests PRIVATE

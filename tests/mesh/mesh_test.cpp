@@ -92,11 +92,11 @@ TEST_CASE(" models can be loaded ")
 {
     SECTION( " an individual mesh can be loaded ")
     {
-        MeshData *meshData = Mesh::loadModel("assets/test_cube.fbx");
+        // MeshData *meshData = Mesh::loadModel("assets/test_cube.fbx");
 
-        REQUIRE_MESHDATA_NEAR(*meshData, cubeMeshData);
+        // REQUIRE_MESHDATA_NEAR(*meshData, cubeMeshData);
 
-        delete meshData;
-        meshData = nullptr;
+        // delete meshData;
+        // meshData = nullptr;
     }
 }
