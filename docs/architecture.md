@@ -1,8 +1,10 @@
 # Deco Rendering Engine Architecture
 
 ## Layers
+The Deco Rendering Engine uses a combination of Object Oriented and Data Oriented Design. Data Oriented Design is used at low levels where efficiency is key (_see [AoS and SoA on Wikipedia](https://en.wikipedia.org/wiki/AoS_and_SoA)_).
 ### Core Systems
 #### Animation System
+Uses arrays of structures. There will be very few animated characters in a scene at once, so the ergonomic downsides of using structures as arrays are likely not worth the potential performance gains.
 ```cpp
 namespace Deco {
     using ClipHandle = uint32_t;
@@ -78,4 +80,23 @@ namespace Deco {
         void uploadToGPU();
     };
 }
+```
+
+### Asset Systems
+#### Mesh System
+The mesh system holds the information for all loaded meshes
+```cpp
+struct MeshSystem
+{
+    std::vector<MTL::Buffer*> vertexBuffers;
+    std::vector<MTL::Buffer*> indexBuffers;
+    std::vector<NS::UInteger> indexCounts;
+    std::vector<simd_float3> boundsMin; // Min bounds of meshes
+    std::vector<simd_flaot3> boundsMax; // Max bounds of meshes
+    std::vector<bool> isSkinned; // Basically whether or not something has bones
+    std::vector<uint32_t> boneCounts;
+    
+    MeshHandle load(const char* path);
+    void unload(MeshHandle handle);
+};
 ```
