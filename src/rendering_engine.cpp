@@ -12,13 +12,18 @@ void RenderingEngine::init(CA::MetalLayer *mtlLayer, int width, int height)
     initDevice();
     setupLayer(mtlLayer, width, height);
 
+    // Temporary mesh stuff
+    currentRenderableHandle = 0;
+    Mesh::setMetalDevice(metalDevice);
+
     // Temporary
     Texture texture = Texture(metalDevice, MTL::PixelFormatBGRA8Unorm);
     earthTexture = texture.loadTexture("assets/climate_map.png");
-
+    cubeTexture = texture.loadTexture("assets/test_cube_texture.png");
 
     createSphere();
     createLight();
+    meshAsset = Mesh::loadModel("assets/test_cube.fbx");
 
     createBuffers();
     createDefaultLibrary();
@@ -31,12 +36,17 @@ void RenderingEngine::init(CA::MetalLayer *mtlLayer, int width, int height)
 
 void RenderingEngine::cleanup() {
     if (earthTexture) earthTexture->release(); // Temporary
+    if (cubeTexture) cubeTexture->release();
 
     sphereVertexBuffer->release();
     sphereIndexBuffer->release();
     lightVertexBuffer->release();
+    unloadModel(currentRenderableHandle); // Temporary
+
     sphereTransformationBuffer->release();
     lightTransformationBuffer->release();
+    modelTransformationBuffer->release();
+
     msaaRenderTargetTexture->release();
     depthTexture->release();
     renderPassDescriptor->release();
@@ -46,6 +56,24 @@ void RenderingEngine::cleanup() {
     metalLightSourceRenderPSO->release();
     depthStencilState->release();
     metalDevice->release(); 
+}
+
+const RenderableHandle RenderingEngine::loadModel(const char *path)
+{
+    // Temporary implementation
+    meshAsset = Mesh::loadModel(path);
+    if (meshAsset == nullptr)
+    {
+        return -1;
+    }
+}
+
+void RenderingEngine::unloadModel(const RenderableHandle id)
+{
+    meshAsset->vertexBuffer->release();
+    meshAsset->indexBuffer->release();
+    delete meshAsset;
+    meshAsset = nullptr;
 }
 
 void RenderingEngine::initDevice()
@@ -65,6 +93,7 @@ void RenderingEngine::createBuffers()
 {
     sphereTransformationBuffer = metalDevice->newBuffer(sizeof(TransformationData), MTL::ResourceStorageModeShared);
     lightTransformationBuffer = metalDevice->newBuffer(sizeof(TransformationData), MTL::ResourceStorageModeShared);
+    modelTransformationBuffer = metalDevice->newBuffer(sizeof(TransformationData), MTL::ResourceStorageModeShared);
 }
 
 void RenderingEngine::createDefaultLibrary()
@@ -265,7 +294,7 @@ void RenderingEngine::sendRenderCommand(CA::MetalDrawable *drawable)
 void RenderingEngine::encodeRenderCommand(MTL::RenderCommandEncoder *renderCommandEncoder)
 {
     // Moves the sphere one unit down the negative Z axis
-    matrix_float4x4 translationMatrix = matrix4x4_translation(0.0f, 0.0f, -1.0);
+    matrix_float4x4 translationMatrix = matrix4x4_translation(1.0f, 1.0f, -2.0);
     matrix_float4x4 scaleMatrix = matrix4x4_scale(0.5, 0.5, 0.5);
     
     matrix_float4x4 modelMatrix = matrix_multiply(translationMatrix, scaleMatrix);
@@ -292,7 +321,7 @@ void RenderingEngine::encodeRenderCommand(MTL::RenderCommandEncoder *renderComma
     matrix_float4x4 perspectiveMatrix = matrix_perspective_right_hand(fov, aspectRatio, nearZ, farZ);
     TransformationData transformationData = { modelMatrix, viewMatrix, perspectiveMatrix, normalMatrix };
     memcpy(sphereTransformationBuffer->contents(), &transformationData, sizeof(transformationData));
-    
+
     simd_float4 sphereColor = simd_make_float4(0.5, 0.9, 0.7, 1.0);
     simd_float4 lightColor = simd_make_float4(1.0, 1.0, 1.0, 1.0);
     simd_float4 lightPosition = simd_make_float4(-2.5, 1.5, 1.0, 1);
@@ -319,6 +348,36 @@ void RenderingEngine::encodeRenderCommand(MTL::RenderCommandEncoder *renderComma
         indexCount,
         MTL::IndexTypeUInt16,
         sphereIndexBuffer,
+        (NS::UInteger)0
+    );
+
+    // TEMPORARY: Drawing the model
+
+    // Drawing the cube
+    scaleMatrix = matrix4x4_scale(1.0f, 1.0f, 1.0f);
+    translationMatrix = matrix4x4_translation(
+        simd_make_float3(0.0f, 0.0f, -3.0f)
+    );
+
+    float angleInDegrees = 45;
+    float angleInRadians = angleInDegrees * M_PI / 180.0f;
+    matrix_float4x4 rotationMatrix = matrix4x4_rotation(angleInRadians, angleInRadians, 1.0, 0.0);
+    
+    modelMatrix = simd_mul(translationMatrix, scaleMatrix);
+    modelMatrix = simd_mul(modelMatrix, rotationMatrix);
+    normalMatrix = matrix_inverse_transpose(modelMatrix);
+    
+    transformationData = { modelMatrix, viewMatrix, perspectiveMatrix, normalMatrix };
+    memcpy(modelTransformationBuffer->contents(), &transformationData, sizeof(transformationData));
+
+    renderCommandEncoder->setFragmentTexture(cubeTexture, 0);
+    renderCommandEncoder->setVertexBuffer(meshAsset->vertexBuffer, 0, 0);
+    renderCommandEncoder->setVertexBuffer(modelTransformationBuffer, 0, 1);
+    renderCommandEncoder->drawIndexedPrimitives(
+        typeTriangle,
+        meshAsset->indexCount,
+        MTL::IndexTypeUInt32,
+        meshAsset->indexBuffer,
         (NS::UInteger)0
     );
     

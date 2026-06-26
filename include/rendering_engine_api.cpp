@@ -30,6 +30,18 @@ void rendering_engine_draw(void *drawablePtr)
     engine->draw(drawable);
 }
 
+// Loading and unloading
+
+const RenderableHandle_t rendering_engine_load_model(const char* path)
+{
+    RenderableHandle_t id = RenderableId_INVALID;
+    if (engine)
+    {
+        id = engine->loadModel(path);
+    }
+    return id;
+}
+
 #ifdef __cplusplus
 }
 #endif

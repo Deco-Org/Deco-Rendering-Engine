@@ -11,6 +11,8 @@ add_library(rendering_engine STATIC
     src/stb_image_impl.cpp
     src/utils/AAPLMathUtilities.cpp
     src/texture/texture.cpp
+    src/ufbx_implementation.cpp
+    src/mesh/mesh.cpp
 )
 
 target_include_directories(rendering_engine
@@ -28,6 +30,7 @@ target_link_libraries(rendering_engine PUBLIC
 target_include_directories(rendering_engine PRIVATE
     external/metal-cpp
     external/stb
+    external/ufbx
 )
 
 # Harness
