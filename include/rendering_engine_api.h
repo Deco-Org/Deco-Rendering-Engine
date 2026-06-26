@@ -18,7 +18,7 @@ void rendering_engine_draw(void* drawable);
 /**
  * Load a model into memory
  * @param path The file path to the model
- * @returns An ID of the 
+ * @returns A handle of the model
  */
 const RenderableHandle_t rendering_engine_load_model(const char* path);
 
