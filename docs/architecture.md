@@ -115,8 +115,8 @@ struct PBRMaterial
 struct ToonMaterial
 {
     MTL::Texture* albedoTexture;
+    MTL::Texture* shadowThresholdTexture;
     simd_float4 baseColorFactor;
-    float shadowThreshold;
     float shadowSoftness;
 };
 
