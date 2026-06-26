@@ -100,3 +100,32 @@ struct MeshSystem
     void unload(MeshHandle handle);
 };
 ```
+#### Material System
+This holds information about materials.
+More research needs to be done on creating Toon and PBR shaders.
+```cpp
+struct PBRMaterial
+{
+    MTL::Texture* albedoTexture;
+    MTL::Texture* normalTexture;
+    MTL::Texture* metallicRoughnessAoTexture;
+    simd_float4 baseColorFactor;
+};
+
+struct ToonMaterial
+{
+    MTL::Texture* albedoTexture;
+    simd_float4 baseColorFactor;
+    float shadowThreshold;
+    float shadowSoftness;
+};
+
+struct MaterialSystem
+{
+    std::vector<PBRMaterial> pbrMaterials;
+    std::vector<ToonMaterial> toonMaterials;
+    
+    MaterialHandle addPBR(const PBRMaterial& material);
+    MaterialHandle addToon(const ToonMaterial& material);
+};
+```
