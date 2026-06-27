@@ -110,7 +110,7 @@ class AnimationSystem
 };
 ```
 #### Culling System
-Used for frustrum culling. Implementation of this is somewhat low priority due to the low number of objects that will be rendered at once, but this can still be useful in case something goes behind the camera. Deco should be as lightweight.
+Used for frustrum culling. Implementation of this is somewhat low priority due to the low number of objects that will be rendered at once, but this can still be useful in case something goes out of view.
 ```cpp
 class CullingSystem
 {
