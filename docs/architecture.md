@@ -13,7 +13,7 @@
         - [Residency Manager](#residency-manager)
         - [Command Allocator Pool](#command-allocator-pool)
         - [Argument Table Manager](#argument-table-manager)
-- [Draw Command](#draw-command)
+- [Draw Function](#draw-function)
 
 ## Layers
 The Deco Rendering Engine uses a combination of Object Oriented and Data Oriented Design. Data Oriented Design is used at low levels where efficiency is key (_see [AoS and SoA on Wikipedia](https://en.wikipedia.org/wiki/AoS_and_SoA)_).
@@ -40,6 +40,41 @@ class TransformationSystem
     std::vector<simd_float3> scales;
     std::vector<TransformationHandle> parentIndices;
     std::vector<matrix_float4x4> worldMatrices; // computed every frame
+};
+```
+
+#### Camera
+```cpp
+class Camera
+{
+    public:
+    Camera(
+        TransformationHandle handle, 
+        float w = 600,
+        float h = 400,
+        float fov = 90 * (M_PI / 180), 
+        float nZ = 0.1f, 
+        float fZ = 100.0f);
+    
+    simd_float4x4 getViewMatrix(const TransformationSystem& transformationSystem) const;
+    simd_float4x4 getPerspectiveMatrix() const;
+    TransformationHandle getTransformationHandle() const;
+
+    void setFov(float fov); // fov is in degrees
+    void setNearZ(float nz);
+    void setFarZ(float fz);
+    void setWidth(float width);
+    void setHeight(float height);
+    void setTransformationHandle(TransformationHandle handle);
+
+    private:
+    TransformationHandle transformationHandle;
+    float width;
+    float height;
+    float aspectRatio() const { return width / height; }
+    float fieldOfView; // This is stored in radians
+    float nearZ;
+    float farZ;
 };
 ```
 
@@ -291,4 +326,11 @@ class ArgumentTableManager
 };
 ```
 
-## Draw Command
+## Draw Function
+The draw function connects the systems together to actually draw the scene.
+```cpp
+void draw(CA::MetalDrawable* drawable)
+{
+
+}
+```
