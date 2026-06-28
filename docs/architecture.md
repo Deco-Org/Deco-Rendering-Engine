@@ -22,13 +22,14 @@ The Deco Rendering Engine uses a combination of Object Oriented and Data Oriente
 This applies transformations
 ```cpp
 using TransformationHandle = uint32_t;
-inline constexpr NO_TRANSFORMATION_PARENT = UINT32_MAX;
+inline constexpr TransformationHandle NO_TRANSFORMATION_PARENT = UINT32_MAX;
 
 // Used for transforming instances
 class TransformationSystem
 {
     public:
     TransformationHandle add(simd_float3 position, simd_quatf rotation, simd_float3 scale, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
+    TransformationHandle add(Transformation transformation, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
     void remove(TransformationHandle handle);
     void update(); // compute worldMatrices from positions / rotations / scale
     void uploadToGPU(); // copy worldMatrices into transformationBuffer
@@ -40,6 +41,16 @@ class TransformationSystem
     std::vector<simd_float3> scales;
     std::vector<TransformationHandle> parentIndices;
     std::vector<matrix_float4x4> worldMatrices; // computed every frame
+};
+```
+
+```cpp
+// Within CoreEngineTypes.h
+struct Transformation
+{
+    simd_float3 position;
+    simd_quatf rotation;
+    simd_float3 scale;
 };
 ```
 
@@ -59,7 +70,7 @@ class Camera
     simd_float4x4 getViewMatrix(const TransformationSystem& transformationSystem) const;
     simd_float4x4 getPerspectiveMatrix() const;
     TransformationHandle getTransformationHandle() const;
-
+    
     void setFov(float fov); // fov is in degrees
     void setNearZ(float nz);
     void setFarZ(float fz);
@@ -139,6 +150,9 @@ class AnimationSystem
     public:
 
     AnimationSystem(MTL::Device *device);
+
+    float getPlaybackTime(AnimationInstanceHandle instance) const;
+    Transformation sampleTrack(const BakedBoneTrack& track, float time) const;
     
     ClipHandle addClip(ufbx_scene* scene, ufbx_anim_stack* animation);
     AnimationInstanceHandle addInstance(ClipHandle clipIndex);
@@ -148,11 +162,10 @@ class AnimationSystem
     void stop(AnimationInstanceHandle instance);
     void update(float deltaTime); // advance all playing instances
     void setPlaybackSpeed(AnimationInstanceHandle instance, float speed);
-    float getPlaybackTime(AnimationInstanceHandle instance);
     void uploadToGPU();
     
-    // Holds all the bone matrices of the characters
-    MTL::Buffer* boneBuffer = nullptr;
+    // Holds all the skinning matrices of the characters
+    MTL::Buffer* skinningBuffer = nullptr;
 
     std::vector<AnimationClip> clips;
     std::vector<AnimationInstance> animationInstances;
@@ -200,8 +213,10 @@ class MeshSystem
 #### Material System
 This holds information about materials.
 More research needs to be done on creating Toon and PBR shaders.
+Values of Material Handles should be split up based on material type. For example, PBR materials could be `0` through `UINT16_MAX / 2 - 1`, while Toon materials could be `UINT16_MAX / 2` to `UINT16_MAX`.
 ```cpp
-using MaterialHandle = uint32_t;
+using MaterialHandle = uint16_t;
+inline constexpr MaterialHandle INVALID_MATERIAL = UINT16_MAX;
 
 struct PBRMaterial
 {
@@ -328,9 +343,70 @@ class ArgumentTableManager
 
 ## Draw Function
 The draw function connects the systems together to actually draw the scene.
-```cpp
-void draw(CA::MetalDrawable* drawable)
-{
 
-}
+```cpp
+struct DrawMeshCommandDescriptor
+{
+    MeshHandle mesh;
+    TransformationHandle transformation;
+    AnimationInstanceHandle animationInstance;
+    MaterialHandle material;
+};
 ```
+
+```cpp
+using SceneObjectHandle = uint32_t;
+
+struct SceneObject
+{
+    MeshHandle meshHandle;
+    TransformationHandle transformationHandle;
+    AnimationInstanceHandle animationInstanceHandle;
+    MaterialHandle materialHandle;
+};
+
+class SceneObjectSystem
+{
+    std::vector<MeshHandle> meshHandles;
+    std::vector<TransformationHandle> transformationHandles;
+    std::vector<AnimationInstanceHandle> animationInstanceHandles;
+    std::vector<MaterialHandle> materialHandles;
+    uint16_t numberOfSceneObjects;
+    
+    SceneObjectHandle add(SceneObject sceneObject);
+    void remove(SceneObjectHandle handle);
+};
+```
+
+Each frame:
+- The command allocator pool begins a frame
+- View matrix is put into vertex bytes
+- `TransformationSystem` copies world matrices into buffer
+- `AnimationSystem` calculates skinning matrices and then puts them into `skinningBuffer`
+- Perform frustum culling
+- Clear the render queue
+- Build the render queue
+	- For each scene object:
+		- If an object is visible (determiend through frustum culling operation):
+			- Determine pipeline based on material handle
+			- Create `DrawMeshCommandDescriptor` with mesh handle, transformation handle, animation instance handle, and material handle
+			- Push descriptor onto end of list at `renderQueue[pipelineIndex]`
+- Create Render command encoder from command buffer
+- For each pipeline:
+	- set render pipeline state
+	- For each `DrawMeshCommandDescriptor` in `renderQueue[pipeline]`:
+		- Update argument table (transformations buffer, skinning buffer, textures, material)
+			- Skinning buffer is only applied if the animation instance handle is not invalid
+		- Apply argument tables (vertex table, fragment table) to render command encoder
+		- Draw indexed primitives using index buffer
+- End encoding and release render command encoder
+- Wait for residency set to commit (this happens once other thread commits residency set — resources are streamed in and out on another thread, and the residency set is updated in parallel with encoding)
+- Commits command buffer
+- signal the drawable that the GPU is done with the render pass
+- present the drawable
+
+## Loading Models
+Loading models is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed. Once a residency set begins to update, the residency manager will halt execution of the rendering thread until the residency set has been committed.
+
+## Unloading Models
+Unloading models is also done on a thread that is separate from the rendering thread. Because unloading a model involves making it no longer resident, the residency manager will halt execution of the rendering thread until the update to the residency set has been committed.
