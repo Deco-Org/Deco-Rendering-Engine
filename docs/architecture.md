@@ -1,4 +1,19 @@
 # Deco Rendering Engine Architecture
+## Table of Contents
+- [Layers](#Layers)
+    - [Core Systems](#core-systems)
+        - [Transformation System](#transformation-system)
+        - [Animation System](#animation-system)
+        - [Culling System](#culling-system)
+    - [Asset Systems](#asset-systems)
+        - [Mesh System](#mesh-system)
+        - [Material System](#material-system)
+    - [Metal Backend](#metal-backend)
+        - [Pipeline Manager](#pipeline-manager)
+        - [Residency Manager](#residency-manager)
+        - [Command Allocator Pool](#command-allocator-pool)
+        - [Argument Table Manager](#argument-table-manager)
+- [Draw Command](#draw-command)
 
 ## Layers
 The Deco Rendering Engine uses a combination of Object Oriented and Data Oriented Design. Data Oriented Design is used at low levels where efficiency is key (_see [AoS and SoA on Wikipedia](https://en.wikipedia.org/wiki/AoS_and_SoA)_).
@@ -16,9 +31,9 @@ class TransformationSystem
     TransformationHandle add(simd_float3 position, simd_quatf rotation, simd_float3 scale, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
     void remove(TransformationHandle handle);
     void update(); // compute worldMatrices from positions / rotations / scale
-    void uploadToGPU(); // copy worldMatrices into transformBuffer
+    void uploadToGPU(); // copy worldMatrices into transformationBuffer
     
-    MTL::Buffer* transformBuffer = nullptr;
+    MTL::Buffer* transformationBuffer = nullptr;
     
     std::vector<simd_float3> positions;
     std::vector<simd_quatf> rotations;
@@ -275,3 +290,5 @@ class ArgumentTableManager
     MTL4::ArgumentTable* fragmentTable = nullptr;
 };
 ```
+
+## Draw Command
