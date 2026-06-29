@@ -13,7 +13,7 @@
         - [Residency Manager](#residency-manager)
         - [Command Allocator Pool](#command-allocator-pool)
         - [Argument Table Manager](#argument-table-manager)
-- [Draw Function](#draw-function)
+- [Drawing](#drawing)
 
 ## Layers
 The Deco Rendering Engine uses a combination of Object Oriented and Data Oriented Design. Data Oriented Design is used at low levels where efficiency is key (_see [AoS and SoA on Wikipedia](https://en.wikipedia.org/wiki/AoS_and_SoA)_).
@@ -213,7 +213,9 @@ class MeshSystem
 #### Material System
 This holds information about materials.
 More research needs to be done on creating Toon and PBR shaders.
-Values of Material Handles should be split up based on material type. For example, PBR materials could be `0` through `UINT16_MAX / 2 - 1`, while Toon materials could be `UINT16_MAX / 2` to `UINT16_MAX`.
+
+Values of Material Handles should be split up based on material type. 
+For example, the first bit is whether or not the material is opaque or translucent, the second bit is whether or not the material is skinned or static, and the third bit is whether or not the material is PBR or toon.
 ```cpp
 using MaterialHandle = uint16_t;
 inline constexpr MaterialHandle INVALID_MATERIAL = UINT16_MAX;
@@ -240,8 +242,8 @@ class MaterialSystem
     public:
     PBRMaterial getPBR(MaterialHandle handle) const;
     ToonMaterial getToon(MaterialHandle handle) const;
-    MaterialHandle addPBR(const PBRMaterial& material);
-    MaterialHandle addToon(const ToonMaterial& material);
+    MaterialHandle addPBR(const PBRMaterial& material, bool isOpaque = true);
+    MaterialHandle addToon(const ToonMaterial& material, bool isOpaque = true);
     
     std::vector<PBRMaterial> pbrMaterials;
     std::vector<ToonMaterial> toonMaterials;
@@ -251,14 +253,15 @@ class MaterialSystem
 Potential future optimizations include multithreading the encoding of command buffers.
 #### Pipeline Manager
 ```cpp
-enum class RenderPipeline
-{
-    PBRStatic = 0,
-    PBRSkinned = 1,
-    ToonStatic = 2,
-    ToonSkinned = 3,
-    Count
-};
+using RenderPipeline = uint8_t;
+namespace constexpr RenderPipelineFlags {
+    inline constexpr uint8_t Toon = 1 << 0;
+    inline constexpr uint8_t Skinned = 1 << 1;
+    inline constexpr uint8_t Translucent = 1 << 2;
+
+    inline constexpr uint8_t FlagCount = 3;
+    inline constexpr uint8_t PipelineCount = 1 << FlagCount;
+}
 
 class PipelineLibrary
 {
@@ -270,7 +273,7 @@ class PipelineLibrary
     void buildPipelines(MTL::PixelFormat pixelFormat);
     
     private:
-    MTL4::RenderPipelineState* pipelineStateObjects[(int)RenderPipeline::Count] = {};
+    MTL4::RenderPipelineState* pipelineStateObjects[(int)RenderPipelineFlags::PipelineCount] = {};
     MTL4::Compiler* compiler = nullptr;
     MTL::Device* device = nullptr;
 };
@@ -341,19 +344,106 @@ class ArgumentTableManager
 };
 ```
 
-## Draw Function
+## Drawing
 The draw function connects the systems together to actually draw the scene.
 
+### Drawing Structs and Classes
+#### DrawMeshCommandDescriptor
 ```cpp
+using DrawSortKey = uint64_t;
+
 struct DrawMeshCommandDescriptor
 {
     MeshHandle mesh;
     TransformationHandle transformation;
     AnimationInstanceHandle animationInstance;
     MaterialHandle material;
+
+    DrawSortKey sortKey() const
+    {
+        DrawSortKey = 0;
+        if (materialIsOpaque(material))
+        {
+            return (
+                ((DrawSortKey)) |
+            )
+        } else {
+            
+        }
+    }
 };
 ```
 
+#### Render Queue
+Lines up objects in the order that they should be drawn in.
+```cpp
+class RenderQueue
+{
+    public:
+    /**
+     * Adds a scene object to the render queue.
+     * More specifically, builds a `DrawMeshCommandDescriptor` using the information in the scene object handle.
+     * @param sceneObjectHandle The handle of the scene object to add to the render queue
+     * @param sceneObjectSystem
+     * @param camera
+     * @param transformationSystem
+     */
+    void add(
+        SceneObjectHandle sceneObjectHandle, 
+        const SceneObjectSystem& sceneObjectSystem, 
+        const Camera& camera,
+        const TransformationSystem& transformationSystem);
+    
+    /**
+     * Add an opaque object to the render queue.
+     */
+    void addOpaque(
+        SceneObjectHandle sceneObjectHandle, 
+        const SceneObjectSystem& sceneObjectSystem,
+        const Camera& camera,
+        const TransformationSystem& transformationSystem);
+    
+    /**
+     * Add an object supporting translucency to the render queue.
+     */
+    void addTranslucent(
+        SceneObjectHandle sceneObjectHandle,
+        const SceneObjectSystem& sceneObjectSystem,
+        const Camera& camera,
+        const TransformationSystem& transformationSystem);
+    
+    /**
+     * Clears the render queue, setting size to 0.
+     */
+    void clear();
+    
+    /**
+     * Sorts the render queue based on the Draw Sort Keys of each `DrawMeshCommandDescriptor`.
+     */
+    void sort();
+
+    std::vector<DrawMeshCommandDescriptor> queue;
+};
+```
+
+##### Sorting the Render Queue
+Opaque objects should be drawn from front to back to minimize overdraw. Translucent objects need to be drawn from back to front to ensure proper alpha blending (for example, red colored glass applying a red tint to the objects behind it). 24 bits have been reserved for future Z-prepasses.
+
+Bit packing for opaque materials:
+
+| 2 bits       | 16 bits     | 22 bits | 24 bits  |
+| ------------ | ----------- | ------- | -------- |
+| Translucency | Material ID | Mesh ID | Reserved |
+
+Bit packing for translucent materials (higher priority of bits reserved for depth):
+
+| 2 bits       | 24 bits  | 16 bits     | 22 bits |
+| ------------ | -------- | ----------- | ------- |
+| Translucency | Reserved | Material ID | Mesh ID |
+
+These keys can then be sorted using radix sort, giving us $O(d \cdot n)$ worst case performance and $O(d + n)$ worst case space complexity.
+
+#### Scene Object System
 ```cpp
 using SceneObjectHandle = uint32_t;
 
@@ -371,42 +461,97 @@ class SceneObjectSystem
     std::vector<TransformationHandle> transformationHandles;
     std::vector<AnimationInstanceHandle> animationInstanceHandles;
     std::vector<MaterialHandle> materialHandles;
-    uint16_t numberOfSceneObjects;
+    std::vector<uint64_t> staticSortKeyParts; // Sort keys are built off of these based on per-frame calculations
+    uint32_t numberOfSceneObjects;
     
     SceneObjectHandle add(SceneObject sceneObject);
     void remove(SceneObjectHandle handle);
 };
 ```
 
+### Draw Function
+
 Each frame:
+- Flush [deletion queue](#deletion-queue)
 - The command allocator pool begins a frame
-- View matrix is put into vertex bytes
-- `TransformationSystem` copies world matrices into buffer
-- `AnimationSystem` calculates skinning matrices and then puts them into `skinningBuffer`
+- [TransformationSystem](#transformation-system) copies world matrices into buffer
+- [AnimationSystem](#animation-system) calculates skinning matrices and then puts them into `skinningBuffer`
 - Perform frustum culling
-- Clear the render queue
+- Clear the [render queue](#render-queue)
 - Build the render queue
 	- For each scene object:
-		- If an object is visible (determiend through frustum culling operation):
-			- Determine pipeline based on material handle
-			- Create `DrawMeshCommandDescriptor` with mesh handle, transformation handle, animation instance handle, and material handle
-			- Push descriptor onto end of list at `renderQueue[pipelineIndex]`
+		- If an object is visible (determined through frustum culling operation):
+            - Create a `DrawMeshCommandDescriptor` from the information in the [Scene Object System](#scene-object-system)
+            Add the `DrawMeshCommandDescriptor` to the render queue.
+    - [Sort the render queue](#sorting-the-render-queue) by sortKey.
+- Update render pass descriptor
 - Create Render command encoder from command buffer
-- For each pipeline:
-	- set render pipeline state
-	- For each `DrawMeshCommandDescriptor` in `renderQueue[pipeline]`:
-		- Update argument table (transformations buffer, skinning buffer, textures, material)
-			- Skinning buffer is only applied if the animation instance handle is not invalid
-		- Apply argument tables (vertex table, fragment table) to render command encoder
-		- Draw indexed primitives using index buffer
+- Set depth stencil state
+- Put view matrix into vertex bytes
+- Put perspective matrix into vertex bytes
+- For each `DrawMeshCommandDescriptor` in the render queue:
+    - If the pipeline flags (these are stored in the material handle) do not match the current pipeline flags, switch the pipeline state.
+    - If translucency flag of material handle changes, switch depth stencil state
+    - Update argument table:
+        - Transformations buffer
+        - Textures for the material
+        - If the animation instance handle is not invalid, the skinning buffer
+    - Apply argument tables (vertex table, fragment table) to the render command encoder
+    - Draw indexed primitives using the index buffer.
 - End encoding and release render command encoder
 - Wait for residency set to commit (this happens once other thread commits residency set — resources are streamed in and out on another thread, and the residency set is updated in parallel with encoding)
 - Commits command buffer
-- signal the drawable that the GPU is done with the render pass
-- present the drawable
+- Signal the drawable that the GPU is done with the render pass
+- Present the drawable
+
+```cpp
+void DecoEngine::draw(CA::MetalDrawable* drawable)
+{
+    // Beginning a frame
+    commandAllocatorPoool.beginFrame(commandQueue);
+    // Putting view matrix into vertex bytes
+    encodeViewMatrix(camera.getViewMatrix(transformationSystem));
+    // Copying matrices into buffers
+    transformationSystem.update();
+    animationSystem.update(deltaTime); // deltaTime is time between frames
+    transformationSystem.uploadToGPU();
+    animationSystem.uploadToGPU();
+
+    // Frustum culling
+    cullingSystem.cull();
+
+    // Render Queue
+    renderQueue.clear();
+    renderQueue.build();
+    renderQueue.sort();
+
+    MTL4::RenderCommandEncoder* renderCommandEncoder = metalDevice->newCommandBuffer();
+    
+}
+```
 
 ## Loading Models
 Loading models is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed. Once a residency set begins to update, the residency manager will halt execution of the rendering thread until the residency set has been committed.
 
 ## Unloading Models
 Unloading models is also done on a thread that is separate from the rendering thread. Because unloading a model involves making it no longer resident, the residency manager will halt execution of the rendering thread until the update to the residency set has been committed.
+
+### Deletion Queue
+When items are unloaded, they should be added to a deletion queue with the condition that they are safe to delete at frame $i + k$, where $i$ is the current frame number and $k$ is the maximum number of frames in flight (3 by default).
+
+```cpp
+struct DeletionQueueEntry
+{
+    // The frame that it is safe to delete the object after
+    uint64_t safeToDeleteAfterFrame;
+
+    MTL::Resource* resource;
+};
+
+std::queue<DeletionQueueEntry> deletionQueue;
+
+/**
+ * Deletes items at the front of the deletion queue that were last used in a prior frame.
+ */
+void flushDeletionQueue(uint64_t frame);
+```
