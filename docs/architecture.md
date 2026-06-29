@@ -486,7 +486,7 @@ Each frame:
     - [Sort the render queue](#sorting-the-render-queue) by sortKey.
 - Update render pass descriptor
 - Create Render command encoder from command buffer
-- Set depth stencil state
+- Configure the render command encoder (involves setting depth stencil state)
 - Put view matrix into vertex bytes
 - Put perspective matrix into vertex bytes
 - For each `DrawMeshCommandDescriptor` in the render queue:
@@ -507,28 +507,64 @@ Each frame:
 ```cpp
 void DecoEngine::draw(CA::MetalDrawable* drawable)
 {
+    flushDeletionQueue(frameNumber);
+    
     // Beginning a frame
-    commandAllocatorPoool.beginFrame(commandQueue);
-    // Putting view matrix into vertex bytes
-    encodeViewMatrix(camera.getViewMatrix(transformationSystem));
+    commandAllocatorPool.beginFrame(commandQueue);
+    
     // Copying matrices into buffers
     transformationSystem.update();
     animationSystem.update(deltaTime); // deltaTime is time between frames
     transformationSystem.uploadToGPU();
     animationSystem.uploadToGPU();
-
+    
     // Frustum culling
     cullingSystem.cull();
-
+    
     // Render Queue
     renderQueue.clear();
-    renderQueue.build();
+    renderQueue.build(
+        sceneObjectSystem, 
+        transformationSystem, 
+        cullingSystem, 
+        camera);
     renderQueue.sort();
-
-    MTL4::RenderCommandEncoder* renderCommandEncoder = metalDevice->newCommandBuffer();
     
+    // Update the render pass descriptor
+    updateRenderPassDescriptor(drawable);
+    
+    MTL4::CommandBuffer* commandBuffer = commandAllocatorPool.getCommandBuffer();
+    MTL4::RenderCommandEncoder* renderCommandEncoder = commandBuffer->renderCommandEncoder(renderPassDescriptor);
+    
+    configureRenderCommandEncoder();
+    
+    // Put view and perspective matrices into vertex bytes
+    encodeViewMatrix(camera.getViewMatrix(transformationSystem));
+    encodePerspectiveMatrix(camera.getPerspectiveMatrix());
+    
+    // Drawing
+    drawObjectsInRenderQueue();
+    
+    // End encoding
+    renderCommandEncoder->endEncoding();
+    renderCommandEncoder->release();
+    
+    // Wait for residency set to commit
+    residencyManager->waitForCommit();
+    
+    // Committing the command buffer
+    commandBuffer->commit();
+    
+    // Signaling the drawable that the GPU is done with the render pass
+    commandQueue->signalDrawable(drawable);
+    
+    // Presenting the drawable
+    drawable->present();
 }
 ```
+
+#### Potential Future Drawing Optimizations
+- Not calculating skinning matrices for animation instances outside of frustum
 
 ## Loading Models
 Loading models is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed. Once a residency set begins to update, the residency manager will halt execution of the rendering thread until the residency set has been committed.
