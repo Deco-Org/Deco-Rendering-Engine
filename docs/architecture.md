@@ -8,12 +8,23 @@
     - [Asset Systems](#asset-systems)
         - [Mesh System](#mesh-system)
         - [Material System](#material-system)
+    - [Scene Systems](#scene-systems)
+        - [Scene Object System](#scene-object-system)
+        - [Camera](#camera)
     - [Metal Backend](#metal-backend)
         - [Pipeline Manager](#pipeline-manager)
         - [Residency Manager](#residency-manager)
         - [Command Allocator Pool](#command-allocator-pool)
         - [Argument Table Manager](#argument-table-manager)
 - [Drawing](#drawing)
+    - [Drawing Structs and Classes](#drawing-structs-and-classes)
+        - [Draw Mesh Command Descriptor](#draw-mesh-command-descriptor)
+        - [Render Queue](#render-queue)
+            - [Sorting the Render Queue](#sorting-the-render-queue)
+    - [Draw Function](#draw-function)
+- [Loading Models](#loading-models)
+- [Unloading Models](#unloading-models)
+    - [Deletion Queue](#deletion-queue)
 
 ## Layers
 The Deco Rendering Engine uses a combination of Object Oriented and Data Oriented Design. Data Oriented Design is used at low levels where efficiency is key (_see [AoS and SoA on Wikipedia](https://en.wikipedia.org/wiki/AoS_and_SoA)_).
@@ -51,41 +62,6 @@ struct Transformation
     simd_float3 position;
     simd_quatf rotation;
     simd_float3 scale;
-};
-```
-
-#### Camera
-```cpp
-class Camera
-{
-    public:
-    Camera(
-        TransformationHandle handle, 
-        float w = 600,
-        float h = 400,
-        float fov = 90 * (M_PI / 180), 
-        float nZ = 0.1f, 
-        float fZ = 100.0f);
-    
-    simd_float4x4 getViewMatrix(const TransformationSystem& transformationSystem) const;
-    simd_float4x4 getPerspectiveMatrix() const;
-    TransformationHandle getTransformationHandle() const;
-    
-    void setFov(float fov); // fov is in degrees
-    void setNearZ(float nz);
-    void setFarZ(float fz);
-    void setWidth(float width);
-    void setHeight(float height);
-    void setTransformationHandle(TransformationHandle handle);
-
-    private:
-    TransformationHandle transformationHandle;
-    float width;
-    float height;
-    float aspectRatio() const { return width / height; }
-    float fieldOfView; // This is stored in radians
-    float nearZ;
-    float farZ;
 };
 ```
 
@@ -173,7 +149,7 @@ class AnimationSystem
 };
 ```
 #### Culling System
-Used for frustrum culling. Implementation of this is somewhat low priority due to the low number of objects that will be rendered at once, but this can still be useful in case something goes out of view.
+Used for frustrum culling.
 ```cpp
 class CullingSystem
 {
@@ -214,8 +190,6 @@ class MeshSystem
 This holds information about materials.
 More research needs to be done on creating Toon and PBR shaders.
 
-Values of Material Handles should be split up based on material type. 
-For example, the first bit is whether or not the material is opaque or translucent, the second bit is whether or not the material is skinned or static, and the third bit is whether or not the material is PBR or toon.
 ```cpp
 using MaterialHandle = uint16_t;
 inline constexpr MaterialHandle INVALID_MATERIAL = UINT16_MAX;
@@ -249,12 +223,77 @@ class MaterialSystem
     std::vector<ToonMaterial> toonMaterials;
 };
 ```
+
+### Scene Systems
+
+#### Scene Object System
+```cpp
+using SceneObjectHandle = uint32_t;
+
+struct SceneObject
+{
+    MeshHandle meshHandle;
+    TransformationHandle transformationHandle;
+    AnimationInstanceHandle animationInstanceHandle;
+    MaterialHandle materialHandle;
+};
+
+class SceneObjectSystem
+{
+    std::vector<MeshHandle> meshHandles;
+    std::vector<TransformationHandle> transformationHandles;
+    std::vector<AnimationInstanceHandle> animationInstanceHandles;
+    std::vector<MaterialHandle> materialHandles;
+    std::vector<RenderPipeline> pipelineFlags;
+    std::vector<uint64_t> staticSortKeyParts; // Sort keys are built off of these based on per-frame calculations
+    uint32_t numberOfSceneObjects;
+    
+    SceneObjectHandle add(SceneObject sceneObject);
+    void remove(SceneObjectHandle handle);
+};
+```
+
+#### Camera
+```cpp
+class Camera
+{
+    public:
+    Camera(
+        TransformationHandle handle, 
+        float w = 600,
+        float h = 400,
+        float fov = 90 * (M_PI / 180), 
+        float nZ = 0.1f, 
+        float fZ = 100.0f);
+    
+    simd_float4x4 getViewMatrix(const TransformationSystem& transformationSystem) const;
+    simd_float4x4 getPerspectiveMatrix() const;
+    TransformationHandle getTransformationHandle() const;
+    
+    void setFov(float fov); // fov is in degrees
+    void setNearZ(float nz);
+    void setFarZ(float fz);
+    void setWidth(float width);
+    void setHeight(float height);
+    void setTransformationHandle(TransformationHandle handle);
+
+    private:
+    TransformationHandle transformationHandle;
+    float width;
+    float height;
+    float aspectRatio() const { return width / height; }
+    float fieldOfView; // This is stored in radians
+    float nearZ;
+    float farZ;
+};
+```
+
 ### Metal Backend
 Potential future optimizations include multithreading the encoding of command buffers.
 #### Pipeline Manager
 ```cpp
 using RenderPipeline = uint8_t;
-namespace constexpr RenderPipelineFlags {
+namespace RenderPipelineFlags {
     inline constexpr uint8_t Toon = 1 << 0;
     inline constexpr uint8_t Skinned = 1 << 1;
     inline constexpr uint8_t Translucent = 1 << 2;
@@ -294,7 +333,7 @@ class ResidencyManager
     void removeDynamic(MTL::Buffer* buffer);
     void removeDynamic(MTL::Texture* texture);
     void commit(); // call after adding / removing dynamic resources
-    void waitForCommit(uint64_t commitValue);
+    void waitForCommit();
     
     private:
     MTL::ResidencySet* persistentSet = nullptr;
@@ -314,7 +353,7 @@ class CommandAllocatorPool
     public:
     CommandAllocatorPool(MTL::Device* device);
     ~CommandAllocatorPool();
-
+    
     MTL4::CommandBuffer* getCommandBuffer();
     uint64_t getFrameCount();
     void beginFrame(MTL4::CommandQueue* queue);
@@ -348,7 +387,7 @@ class ArgumentTableManager
 The draw function connects the systems together to actually draw the scene.
 
 ### Drawing Structs and Classes
-#### DrawMeshCommandDescriptor
+#### Draw Mesh Command Descriptor
 ```cpp
 using DrawSortKey = uint64_t;
 
@@ -358,18 +397,30 @@ struct DrawMeshCommandDescriptor
     TransformationHandle transformation;
     AnimationInstanceHandle animationInstance;
     MaterialHandle material;
-
-    DrawSortKey sortKey() const
+    
+    /**
+     * The sort key of the descriptor.
+     * @param staticSortKeyParts Precalculated bits for the pipeline flags, Material ID, and Mesh ID.
+     */
+    DrawSortKey sortKey(uint64_t staticSortKeyParts = UINT64_MAX) const
     {
-        DrawSortKey = 0;
-        if (materialIsOpaque(material))
-        {
-            return (
-                ((DrawSortKey)) |
-            )
-        } else {
-            
-        }
+        /**
+         * The material ID, Mesh ID, and pipeline flags may be precalculated.
+         * 
+         * If opaque:
+         *     First two bits: 00
+         *     Next 3 bits: Pipeline Flags
+         *     Next 16 bits: Material ID
+         *     Next 22 bits: Mesh ID
+         *     Last 21 bits: Reserved (depth)
+         * 
+         * If translucent:
+         *     First two bits: 01
+         *     Next 21 bits: Reserved (depth)
+         *     Next 3 bits: Pipeline Flags
+         *     Next 16 bits: Material ID
+         *     Last 22 bits: Mesh ID
+         */
     }
 };
 ```
@@ -380,6 +431,20 @@ Lines up objects in the order that they should be drawn in.
 class RenderQueue
 {
     public:
+    
+    /**
+     * Builds an unsorted render queue.
+     * @param sceneObjectSystem
+     * @param transformationSystem
+     * @param cullingSystem
+     * @param camera
+     */
+    void build(
+        const SceneObjectSystem& sceneObjectSystem, 
+        const TransformationSystem& transformationSystem, 
+        const CullingSystem& cullingSystem, 
+        const Camera& camera);
+    
     /**
      * Adds a scene object to the render queue.
      * More specifically, builds a `DrawMeshCommandDescriptor` using the information in the scene object handle.
@@ -391,24 +456,6 @@ class RenderQueue
     void add(
         SceneObjectHandle sceneObjectHandle, 
         const SceneObjectSystem& sceneObjectSystem, 
-        const Camera& camera,
-        const TransformationSystem& transformationSystem);
-    
-    /**
-     * Add an opaque object to the render queue.
-     */
-    void addOpaque(
-        SceneObjectHandle sceneObjectHandle, 
-        const SceneObjectSystem& sceneObjectSystem,
-        const Camera& camera,
-        const TransformationSystem& transformationSystem);
-    
-    /**
-     * Add an object supporting translucency to the render queue.
-     */
-    void addTranslucent(
-        SceneObjectHandle sceneObjectHandle,
-        const SceneObjectSystem& sceneObjectSystem,
         const Camera& camera,
         const TransformationSystem& transformationSystem);
     
@@ -431,43 +478,17 @@ Opaque objects should be drawn from front to back to minimize overdraw. Transluc
 
 Bit packing for opaque materials:
 
-| 2 bits       | 16 bits     | 22 bits | 24 bits  |
-| ------------ | ----------- | ------- | -------- |
-| Translucency | Material ID | Mesh ID | Reserved |
+| 2 bits       | 3 bits         | 16 bits     | 22 bits | 21 bits  |
+| ------------ | -------------- | ----------- | ------- | -------- |
+| Translucency | pipeline flags | Material ID | Mesh ID | Reserved |
 
 Bit packing for translucent materials (higher priority of bits reserved for depth):
 
-| 2 bits       | 24 bits  | 16 bits     | 22 bits |
-| ------------ | -------- | ----------- | ------- |
-| Translucency | Reserved | Material ID | Mesh ID |
+| 2 bits       | 21 bits  | 3 bits         | 16 bits     | 22 bits |
+| ------------ | -------- | -------------- | ----------- | ------- |
+| Translucency | Reserved | pipeline flags | Material ID | Mesh ID |
 
 These keys can then be sorted using radix sort, giving us $O(d \cdot n)$ worst case performance and $O(d + n)$ worst case space complexity.
-
-#### Scene Object System
-```cpp
-using SceneObjectHandle = uint32_t;
-
-struct SceneObject
-{
-    MeshHandle meshHandle;
-    TransformationHandle transformationHandle;
-    AnimationInstanceHandle animationInstanceHandle;
-    MaterialHandle materialHandle;
-};
-
-class SceneObjectSystem
-{
-    std::vector<MeshHandle> meshHandles;
-    std::vector<TransformationHandle> transformationHandles;
-    std::vector<AnimationInstanceHandle> animationInstanceHandles;
-    std::vector<MaterialHandle> materialHandles;
-    std::vector<uint64_t> staticSortKeyParts; // Sort keys are built off of these based on per-frame calculations
-    uint32_t numberOfSceneObjects;
-    
-    SceneObjectHandle add(SceneObject sceneObject);
-    void remove(SceneObjectHandle handle);
-};
-```
 
 ### Draw Function
 
@@ -490,7 +511,7 @@ Each frame:
 - Put view matrix into vertex bytes
 - Put perspective matrix into vertex bytes
 - For each `DrawMeshCommandDescriptor` in the render queue:
-    - If the pipeline flags (these are stored in the material handle) do not match the current pipeline flags, switch the pipeline state.
+    - If the pipeline flags do not match the current pipeline flags, switch the pipeline state.
     - If translucency flag of material handle changes, switch depth stencil state
     - Update argument table:
         - Transformations buffer
@@ -536,24 +557,24 @@ void DecoEngine::draw(CA::MetalDrawable* drawable)
     MTL4::CommandBuffer* commandBuffer = commandAllocatorPool.getCommandBuffer();
     MTL4::RenderCommandEncoder* renderCommandEncoder = commandBuffer->renderCommandEncoder(renderPassDescriptor);
     
-    configureRenderCommandEncoder();
+    configureRenderCommandEncoder(renderCommandEncoder);
     
     // Put view and perspective matrices into vertex bytes
-    encodeViewMatrix(camera.getViewMatrix(transformationSystem));
-    encodePerspectiveMatrix(camera.getPerspectiveMatrix());
+    encodeViewMatrix(camera.getViewMatrix(transformationSystem), renderCommandEncoder);
+    encodePerspectiveMatrix(camera.getPerspectiveMatrix(), renderCommandEncoder);
     
     // Drawing
-    drawObjectsInRenderQueue();
+    drawObjectsInRenderQueue(renderQueue);
     
     // End encoding
     renderCommandEncoder->endEncoding();
     renderCommandEncoder->release();
     
     // Wait for residency set to commit
-    residencyManager->waitForCommit();
+    residencyManager.waitForCommit();
     
     // Committing the command buffer
-    commandBuffer->commit();
+    commandQueue->commit(commandBuffer);
     
     // Signaling the drawable that the GPU is done with the render pass
     commandQueue->signalDrawable(drawable);
@@ -565,15 +586,16 @@ void DecoEngine::draw(CA::MetalDrawable* drawable)
 
 #### Potential Future Drawing Optimizations
 - Not calculating skinning matrices for animation instances outside of frustum
+- Frustum culling split into passes of increasing precision.
 
 ## Loading Models
 Loading models is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed. Once a residency set begins to update, the residency manager will halt execution of the rendering thread until the residency set has been committed.
 
 ## Unloading Models
-Unloading models is also done on a thread that is separate from the rendering thread. Because unloading a model involves making it no longer resident, the residency manager will halt execution of the rendering thread until the update to the residency set has been committed.
+Unloading models is done on a thread that is separate from the rendering thread. Because unloading a model involves making it no longer resident, the residency manager will halt execution of the rendering thread until the update to the residency set has been committed.
 
 ### Deletion Queue
-When items are unloaded, they should be added to a deletion queue with the condition that they are safe to delete at frame $i + k$, where $i$ is the current frame number and $k$ is the maximum number of frames in flight (3 by default).
+When items are unloaded, they should be added to a deletion queue with the specification that they are safe to delete at frame $i + k$, where $i$ is the current frame number and $k$ is the maximum number of frames in flight (3 by default).
 
 ```cpp
 struct DeletionQueueEntry
@@ -587,7 +609,8 @@ struct DeletionQueueEntry
 std::queue<DeletionQueueEntry> deletionQueue;
 
 /**
- * Deletes items at the front of the deletion queue that were last used in a prior frame.
+ * Deletes items at the front of the deletion queue that are safe
+ * to delete in the specified frame.
  */
 void flushDeletionQueue(uint64_t frame);
 ```
