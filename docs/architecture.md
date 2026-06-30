@@ -165,12 +165,12 @@ class AnimationSystem
     void setPlaybackSpeed(AnimationInstanceHandle instance, float speed);
     void updateSkinningBuffer();
     
+    // Holds all the skinning matrices of the characters
+    MTL::Buffer* skinningBuffer = nullptr;
+    
     std::vector<ClipHandle> freeClipHandles;
     std::vector<AnimationInstanceHandle> freeAnimationInstanceHandles;
     std::vector<SkeletonHandle> freeSkeletonHandles;
-    
-    // Holds all the skinning matrices of the characters
-    MTL::Buffer* skinningBuffer = nullptr;
     
     std::vector<AnimationClip> clips;
     std::vector<AnimationInstance> animationInstances;
