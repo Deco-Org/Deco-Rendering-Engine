@@ -11,7 +11,7 @@ class TransformationSystem
 {
     public:
 
-    TransformationSystem();
+    TransformationSystem(MTL::Device* device);
     ~TransformationSystem();
     
     /**
