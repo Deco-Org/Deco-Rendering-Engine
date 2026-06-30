@@ -61,8 +61,7 @@ class TransformationSystem
     std::vector<matrix_float4x4> worldMatrices; // computed every frame
     
     std::vector<uint32_t> handleToIndex; // Maps handles to the indices in the arrays
-    std::vector<TransformationHandle> indexToHandle; // Used in swap fixups
-    std::vector<TransformationHandle> freeHandles; // Newly added transformations first try to get handles from the freeHandles list.
+    std::vector<TransformationHandle> indexToHandle; // Maps indices in the arrays to handles
 };
 ```
 
