@@ -167,14 +167,15 @@ class AnimationSystem
     
     // Holds all the skinning matrices of the characters
     MTL::Buffer* skinningBuffer = nullptr;
-
-    std::vector<ClipHandle> freeClipHandles;
-    std::vector<AnimationInstanceHandle> freeAnimationInstanceHandles;
-    std::vector<SkeletonHandle> freeSkeletonHandles;
     
     std::vector<AnimationClip> clips;
     std::vector<AnimationInstance> animationInstances;
     std::vector<Skeleton> skeletons;
+    
+    private:
+    std::vector<ClipHandle> freeClipHandles;
+    std::vector<AnimationInstanceHandle> freeAnimationInstanceHandles;
+    std::vector<SkeletonHandle> freeSkeletonHandles;
 };
 ```
 
@@ -213,6 +214,9 @@ class MeshSystem
     std::vector<simd_float3> boundsMax; // Max bounds of meshes
     std::vector<bool> isSkinned; // Basically whether or not something has bones
     std::vector<uint32_t> boneCounts;
+
+    private:
+    std::vector<MeshHandle> freeMeshHandles;
 };
 ```
 #### Material System
@@ -250,6 +254,9 @@ class MaterialSystem
     
     std::vector<PBRMaterial> pbrMaterials;
     std::vector<ToonMaterial> toonMaterials;
+    
+    private:
+    std::vector<MaterialHandle> freeMaterialHandles;
 };
 ```
 
@@ -280,9 +287,6 @@ class SceneObjectSystem
     
     SceneObjectHandle add(SceneObject sceneObject);
     void remove(SceneObjectHandle handle);
-
-    private:
-    std::vector<SceneObjectHandle> freeSceneObjectHandles;
 };
 ```
 
@@ -397,6 +401,7 @@ class CommandAllocatorPool
     MTL::SharedEvent* frameEvent = nullptr; // This fires every time a frame finishes
     uint64_t frameCount = 0;
 };
+
 ```
 #### Argument Table Manager
 ```cpp
