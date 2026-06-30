@@ -46,10 +46,14 @@ class TransformationSystem
     void updateWorldMatrixBuffer(); // copy worldMatrices into transformationBuffer
     
     MTL::Buffer* transformationBuffer = nullptr;
+
+    /**
+     * Because position, rotation, and scale are almost always accessed 
+     * together, it makes more sense to have a Transformation structure
+     * than to have separate arrays for position, rotation, and scale.
+     */
+    std::vector<Transformation> localTransforms; 
     
-    std::vector<simd_float3> positions;
-    std::vector<simd_quatf> rotations;
-    std::vector<simd_float3> scales;
     std::vector<TransformationHandle> parentHandles;
     std::vector<matrix_float4x4> worldMatrices; // computed every frame
 
