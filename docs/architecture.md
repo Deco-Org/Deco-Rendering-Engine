@@ -39,7 +39,6 @@ inline constexpr TransformationHandle NO_TRANSFORMATION_PARENT = UINT32_MAX;
 class TransformationSystem
 {
     public:
-    TransformationHandle add(simd_float3 position, simd_quatf rotation, simd_float3 scale, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
     /**
      * Add a transformation to the Transformation System
      */
