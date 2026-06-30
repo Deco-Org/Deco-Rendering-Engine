@@ -167,7 +167,7 @@ class AnimationSystem
     
     // Holds all the skinning matrices of the characters
     MTL::Buffer* skinningBuffer = nullptr;
-    
+
     std::vector<ClipHandle> freeClipHandles;
     std::vector<AnimationInstanceHandle> freeAnimationInstanceHandles;
     std::vector<SkeletonHandle> freeSkeletonHandles;
@@ -177,6 +177,7 @@ class AnimationSystem
     std::vector<Skeleton> skeletons;
 };
 ```
+
 #### Culling System
 Used for frustrum culling.
 ```cpp
@@ -279,6 +280,9 @@ class SceneObjectSystem
     
     SceneObjectHandle add(SceneObject sceneObject);
     void remove(SceneObjectHandle handle);
+
+    private:
+    std::vector<SceneObjectHandle> freeSceneObjectHandles;
 };
 ```
 
