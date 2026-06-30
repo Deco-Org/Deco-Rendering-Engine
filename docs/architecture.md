@@ -145,18 +145,19 @@ struct Skeleton
 class AnimationSystem
 {
     public:
-
+    
     AnimationSystem(MTL::Device *device);
-
+    
     float getPlaybackTime(AnimationInstanceHandle instance) const;
     Transformation sampleTrack(const BakedBoneTrack& track, float time) const;
     
     ClipHandle addClip(ufbx_scene* scene, ufbx_anim_stack* animation);
     AnimationInstanceHandle addInstance(ClipHandle clipIndex);
     SkeletonHandle addSkeleton(ufbx_scene* scene, ufbx_skin_deformer* skin);
-    void removeClip(ClipHandle);
-    void removeInstance(AnimationInstanceHandle);
-    void removeSkeleton(SkeletonHandle);
+    void removeClip(ClipHandle clip);
+    void removeInstance(AnimationInstanceHandle animationInstance);
+    void removeSkeleton(SkeletonHandle skeleton);
+    
     void play(AnimationInstanceHandle instance);
     void play(AnimationInstanceHandle instance, ClipHandle clip, bool loop = false);
     void stop(AnimationInstanceHandle instance);
@@ -164,9 +165,13 @@ class AnimationSystem
     void setPlaybackSpeed(AnimationInstanceHandle instance, float speed);
     void updateSkinningBuffer();
     
+    std::vector<ClipHandle> freeClipHandles;
+    std::vector<AnimationInstanceHandle> freeAnimationInstanceHandles;
+    std::vector<SkeletonHandle> freeSkeletonHandles;
+    
     // Holds all the skinning matrices of the characters
     MTL::Buffer* skinningBuffer = nullptr;
-
+    
     std::vector<AnimationClip> clips;
     std::vector<AnimationInstance> animationInstances;
     std::vector<Skeleton> skeletons;
