@@ -40,7 +40,14 @@ class TransformationSystem
 {
     public:
     TransformationHandle add(simd_float3 position, simd_quatf rotation, simd_float3 scale, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
+    /**
+     * Add a transformation to the Transformation System
+     */
     TransformationHandle add(Transformation transformation, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
+
+    /**
+     * Remove a transformation from the Transformation System
+     */
     void remove(TransformationHandle handle);
     void update(); // compute worldMatrices from positions / rotations / scale
     void updateWorldMatrixBuffer(); // copy worldMatrices into transformationBuffer
@@ -52,7 +59,7 @@ class TransformationSystem
      * together, it makes more sense to have a Transformation structure
      * than to have separate arrays for position, rotation, and scale.
      */
-    std::vector<Transformation> localTransforms; 
+    std::vector<Transformation> localTransformations;
     
     std::vector<TransformationHandle> parentHandles;
     std::vector<matrix_float4x4> worldMatrices; // computed every frame
@@ -73,10 +80,13 @@ struct Transformation
 };
 ```
 
-As with other systems using structures of arrays and lookup handles, removing items is not trivial. If handles were used as the direct lookup values, removing items would result in either 1) expensive shifting of every item after it, as well as changing handles for all following items, or 2) empty spaces in the array, resulting in a sparse array.
-These issues can be resolved as follows:
-- Handles map to indices in the arrays rather than being indices themselves
-- Upon removal, the item at the end of the array is swapped with the item being removed, and the item to be removed is popped from the end of the array. The handle of the removed item is added to a list of free handles to be recycled later.
+Removing and reparenting items are not trivial, as we want to keep our arrays dense and we need to ensure that parent transformations are calculated before child transformations. To do this:
+- Handles are mapped to indices in the arrays
+- When a transformation is added, it is added to the end of the array.
+- When a transformation is removed, everything after the removed transformation must be shifted. At worst, this results in $O(n)$ time complexity.
+- When a transformation receives a new parent:
+    - If the transformation is before the new parent, everything from the transformation until the new parent must be moved to be after the new parent. If implemented using `memmove()` and a large temporary block of data, this could have $O(k)$ space complexity at the worst case, where $k$ is the amount of memory between the transformation and the new parent.
+    - If the transformation is after the new parent, everything's good! No shifting needed
 
 Issues with this solution include:
 - Indirection: Instead of simply looking up an item in the array using the handle as the index, getting a transformation instead requires getting the index associated with the handle, then looking up the transformation by index.
