@@ -43,7 +43,7 @@ class TransformationSystem
      * Add a transformation to the Transformation System
      */
     TransformationHandle add(Transformation transformation, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
-
+    
     /**
      * Remove a transformation from the Transformation System
      */
@@ -52,17 +52,14 @@ class TransformationSystem
     void updateWorldMatrixBuffer(); // copy worldMatrices into transformationBuffer
     
     MTL::Buffer* transformationBuffer = nullptr;
-
-    /**
-     * Because position, rotation, and scale are almost always accessed 
-     * together, it makes more sense to have a Transformation structure
-     * than to have separate arrays for position, rotation, and scale.
-     */
-    std::vector<Transformation> localTransformations;
+    
+    std::vector<simd_float3> positions;
+    std::vector<simd_quatf> rotations;
+    std::vector<simd_float3> scales;
     
     std::vector<TransformationHandle> parentHandles;
     std::vector<matrix_float4x4> worldMatrices; // computed every frame
-
+    
     std::vector<uint32_t> handleToIndex; // Maps handles to the indices in the arrays
     std::vector<TransformationHandle> indexToHandle; // Used in swap fixups
     std::vector<TransformationHandle> freeHandles; // Newly added transformations first try to get handles from the freeHandles list.
