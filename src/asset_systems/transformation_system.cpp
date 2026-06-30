@@ -28,3 +28,8 @@ TransformationHandle TransformationSystem::add(Transformation transformation, Tr
     parentIndices.push_back(parent);
     return handle;
 }
+
+void TransformationSystem::remove(TransformationHandle transformation)
+{
+    
+}
