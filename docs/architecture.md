@@ -92,9 +92,8 @@ Uses arrays of structures. There will be very few animated characters in a scene
 using ClipHandle = uint32_t;
 using AnimationInstanceHandle = uint32_t;
 using SkeletonHandle = uint32_t;
-using BoneHandle = uint32_t;
 
-inline constexpr BoneHandle NO_BONE_PARENT = UINT32_MAX;
+inline constexpr uint32_t NO_BONE_PARENT = UINT32_MAX;
 inline constexpr ClipHandle INVALID_CLIP = UINT32_MAX;
 inline constexpr AnimationInstanceHandle INVALID_INSTANCE = UINT32_MAX;
 inline constexpr SkeletonHandle INVALID_SKELETON = UINT32_MAX;
@@ -138,7 +137,7 @@ struct AnimationInstance
 struct Skeleton
 {
     std::vector<matrix_float4x4> inverseBindMatrices;
-    std::vector<BoneHandle> parentIndices;
+    std::vector<uint32_t> parentIndices;
     uint32_t boneCount;
 };
 
