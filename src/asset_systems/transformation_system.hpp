@@ -11,18 +11,8 @@ class TransformationSystem
 {
     public:
 
-    TransformationSystem(MTL::Device* device);
+    TransformationSystem(MTL::Device* device = nullptr);
     ~TransformationSystem();
-    
-    /**
-     * Add transformation to the Transformation system
-     */
-    TransformationHandle add(
-        simd_float3 position,
-        simd_quatf rotation,
-        simd_float3 scale,
-        TransformationHandle parent = NO_TRANSFORMATION_PARENT
-    );
 
     /**
      * Add transformation to the Transformation system
