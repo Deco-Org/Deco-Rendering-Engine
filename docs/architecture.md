@@ -155,9 +155,8 @@ class CullingSystem
 {
     public:
     CullingSystem(std::vector<simd_float3>* min, std::vector<simd_float3>* max);
-
+    
     void cull();
-    void addBoundsArray(std::vector<simd_float3>* min, std::vector<simd_float3>* max);
     
     std::vector<simd_float3>* boundsMin = nullptr; // Pointer to mesh system bounds min
     std::vector<simd_float3>* boundsMax = nullptr; // Pointer to mesh system bounds max
@@ -240,6 +239,7 @@ struct SceneObject
 
 class SceneObjectSystem
 {
+    public:
     std::vector<MeshHandle> meshHandles;
     std::vector<TransformationHandle> transformationHandles;
     std::vector<AnimationInstanceHandle> animationInstanceHandles;
@@ -474,7 +474,7 @@ class RenderQueue
 ```
 
 ##### Sorting the Render Queue
-Opaque objects should be drawn from front to back to minimize overdraw. Translucent objects need to be drawn from back to front to ensure proper alpha blending (for example, red colored glass applying a red tint to the objects behind it). 24 bits have been reserved for future Z-prepasses.
+Opaque objects should be drawn from front to back to minimize overdraw. Translucent objects need to be drawn from back to front to ensure proper alpha blending (for example, red colored glass applying a red tint to the objects behind it). 21 bits have been reserved for sorting by depth.
 
 Bit packing for opaque materials:
 
@@ -564,7 +564,7 @@ void DecoEngine::draw(CA::MetalDrawable* drawable)
     encodePerspectiveMatrix(camera.getPerspectiveMatrix(), renderCommandEncoder);
     
     // Drawing
-    drawObjectsInRenderQueue(renderQueue);
+    drawObjectsInRenderQueue();
     
     // End encoding
     renderCommandEncoder->endEncoding();
