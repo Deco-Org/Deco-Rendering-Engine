@@ -10,6 +10,9 @@
 class TransformationSystem
 {
     public:
+
+    TransformationSystem();
+    ~TransformationSystem();
     
     /**
      * Add transformation to the Transformation system
