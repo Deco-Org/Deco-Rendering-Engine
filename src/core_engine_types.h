@@ -5,6 +5,8 @@
 
 #pragma once
 #include <simd/simd.h>
+#include <memory>
+#include <Metal/Metal.hpp>
 
 using TransformationHandle = uint32_t;
 
@@ -16,3 +18,16 @@ struct Transformation
     simd_quatf rotation;
     simd_float3 scale;
 };
+
+struct BufferDeleter
+{
+    void operator()(MTL::Buffer* buffer) const
+    {
+        if (buffer)
+        {
+            buffer->release();
+        }
+    }
+};
+
+using MetalBufferPtr = std::unique_ptr<MTL::Buffer, BufferDeleter>;

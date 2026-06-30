@@ -5,7 +5,8 @@
 
 #pragma once
 #include "test_utils.hpp"
-#include "transformation_system.hpp"
+#include <utility>
+#include "asset_systems/transformation_system.hpp"
 
 inline TransformationSystem makeTransformationSystemWithNTransformations(uint32_t n)
 {
@@ -22,5 +23,5 @@ inline TransformationSystem makeTransformationSystemWithNTransformations(uint32_
             NO_TRANSFORMATION_PARENT
         );
     }
-    return system;
+    return std::move(system);
 }

@@ -3,7 +3,6 @@
  * @brief Unit tests for the transformation system
  */
 
-#pragma once
 #include <catch2/catch_test_macros.hpp>
 #include "asset_systems/transformation_system.hpp"
 #include "transformation_system_fixture.hpp"
@@ -124,4 +123,18 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
     REQUIRE(system.positions.size() == 2);
     REQUIRE(system.rotations.size() == 2);
     REQUIRE(system.scales.size() == 2);
+}
+
+TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    const simd_float3 *transformation0Position = &system.positions[system.handleToIndex[0]];
+    const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
+    const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
+
+    system.remove((TransformationHandle){2});
+
+    // Making sure indices and handles still line up
+    REQUIRE(transformation0Position == &system.positions[system.handleToIndex[0]]);
+    REQUIRE(transformation1Position == &system.positions[system.handleToIndex[1]]);
 }

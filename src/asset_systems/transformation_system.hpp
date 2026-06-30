@@ -12,7 +12,8 @@ class TransformationSystem
     public:
 
     TransformationSystem(MTL::Device* device = nullptr);
-    ~TransformationSystem();
+
+    TransformationSystem(TransformationSystem&&) = default;
 
     /**
      * Add transformation to the Transformation system
@@ -38,11 +39,18 @@ class TransformationSystem
      */
     void uploadToGPU();
 
-    MTL::Buffer* transformationBuffer = nullptr;
+    // MTL::Buffer* transformationBuffer = nullptr;
+    MetalBufferPtr transformationBuffer = nullptr;
     
     std::vector<simd_float3> positions;
     std::vector<simd_quatf> rotations;
     std::vector<simd_float3> scales;
     std::vector<TransformationHandle> parentIndices;
     std::vector<matrix_float4x4> worldMatrices;
+    
+    // Maps handles to the indices in the arrays
+    std::vector<uint32_t> handleToIndex;
+    
+    // Maps indices in the arrays to handles
+    std::vector<TransformationHandle> indexToHandle;
 };
