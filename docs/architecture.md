@@ -43,15 +43,19 @@ class TransformationSystem
     TransformationHandle add(Transformation transformation, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
     void remove(TransformationHandle handle);
     void update(); // compute worldMatrices from positions / rotations / scale
-    void uploadToGPU(); // copy worldMatrices into transformationBuffer
+    void updateWorldMatrixBuffer(); // copy worldMatrices into transformationBuffer
     
     MTL::Buffer* transformationBuffer = nullptr;
     
     std::vector<simd_float3> positions;
     std::vector<simd_quatf> rotations;
     std::vector<simd_float3> scales;
-    std::vector<TransformationHandle> parentIndices;
+    std::vector<TransformationHandle> parentHandles;
     std::vector<matrix_float4x4> worldMatrices; // computed every frame
+
+    std::vector<uint32_t> handleToIndex; // Maps handles to the indices in the arrays
+    std::vector<TransformationHandle> indexToHandle; // Used in swap fixups
+    std::vector<TransformationHandle> freeHandles; // Newly added transformations first try to get handles from the freeHandles list.
 };
 ```
 
@@ -64,6 +68,14 @@ struct Transformation
     simd_float3 scale;
 };
 ```
+
+As with other systems using structures of arrays and lookup handles, removing items is not trivial. If handles were used as the direct lookup values, removing items would result in either 1) expensive shifting of every item after it, as well as changing handles for all following items, or 2) empty spaces in the array, resulting in a sparse array.
+These issues can be resolved as follows:
+- Handles map to indices in the arrays rather than being indices themselves
+- Upon removal, the item at the end of the array is swapped with the item being removed, and the item to be removed is popped from the end of the array. The handle of the removed item is added to a list of free handles to be recycled later.
+
+Issues with this solution include:
+- Indirection: Instead of simply looking up an item in the array using the handle as the index, getting a transformation instead requires getting the index associated with the handle, then looking up the transformation by index.
 
 #### Animation System
 Uses arrays of structures. There will be very few animated characters in a scene at once, so the ergonomic downsides of using structures as arrays are likely not worth the potential performance gains.
@@ -133,12 +145,15 @@ class AnimationSystem
     ClipHandle addClip(ufbx_scene* scene, ufbx_anim_stack* animation);
     AnimationInstanceHandle addInstance(ClipHandle clipIndex);
     SkeletonHandle addSkeleton(ufbx_scene* scene, ufbx_skin_deformer* skin);
+    void removeClip(ClipHandle);
+    void removeInstance(AnimationInstanceHandle);
+    void removeSkeleton(SkeletonHandle);
     void play(AnimationInstanceHandle instance);
     void play(AnimationInstanceHandle instance, ClipHandle clip, bool loop = false);
     void stop(AnimationInstanceHandle instance);
     void update(float deltaTime); // advance all playing instances
     void setPlaybackSpeed(AnimationInstanceHandle instance, float speed);
-    void uploadToGPU();
+    void updateSkinningBuffer();
     
     // Holds all the skinning matrices of the characters
     MTL::Buffer* skinningBuffer = nullptr;
