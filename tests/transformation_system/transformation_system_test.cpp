@@ -120,5 +120,4 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
     REQUIRE(system.scales.size() == 3);
 
     system.remove((TransformationHandle) { 2 });
-
 }
