@@ -1,7 +1,7 @@
-//
-// core_engine_types.h
-// Created on 29 June 2026
-//
+/**
+ * @file core_engine_types.h
+ * @brief Holds core types for the Deco Engine
+ */
 
 #pragma once
 #include <simd/simd.h>
