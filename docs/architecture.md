@@ -246,7 +246,7 @@ class SceneObjectSystem
     std::vector<MaterialHandle> materialHandles;
     std::vector<RenderPipeline> pipelineFlags;
     std::vector<uint64_t> staticSortKeyParts; // Sort keys are built off of these based on per-frame calculations
-    uint32_t numberOfSceneObjects;
+    uint32_t numberOfSceneObjects() const { return meshHandles.size(); }
     
     SceneObjectHandle add(SceneObject sceneObject);
     void remove(SceneObjectHandle handle);
