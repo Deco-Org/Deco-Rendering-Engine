@@ -11,12 +11,14 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(tests 
     test.cpp
     mesh/mesh_test.cpp
+    transformation_system/transformation_system_test.cpp
 )
 
 target_include_directories(tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/external/ufbx
     ${CMAKE_SOURCE_DIR}/external/metal-cpp
+    ${CMAKE_SOURCE_DIR}/tests/utils
 )
 
 target_link_libraries(tests PRIVATE
