@@ -8,14 +8,6 @@
 #include "transformation_system_fixture.hpp"
 #include "test_utils.hpp"
 
-constexpr simd_float3 originPosition = { 0.0f, 0.0f, 0.0f };
-constexpr simd_quatf zeroQuaternion = { { 0.0f, 0.0f, 0.0f, 0.0f } };
-constexpr simd_float3 defaultScale = { 1.0f, 1.0f, 1.0f };
-
-constexpr simd_float3 somePosition = { 1.0f, 3.0f, 12.0f };
-constexpr simd_quatf someRotation = { { 0.3f, 0.5f, 0.9f, 0.8f } };
-constexpr simd_float3 someScale = { 0.5f, 2.0f, 3.6f };
-
 TEST_CASE("adding a transformation increases size", "[transformation][add]")
 {
     TransformationSystem system;
@@ -25,13 +17,11 @@ TEST_CASE("adding a transformation increases size", "[transformation][add]")
     REQUIRE(system.scales.size() == 0);
 
     TransformationHandle handle = system.add(
-        (Transformation) {
+        (Transformation){
             .position = originPosition,
             .rotation = zeroQuaternion,
-            .scale = defaultScale
-        },
-        NO_TRANSFORMATION_PARENT
-    );
+            .scale = defaultScale},
+        NO_TRANSFORMATION_PARENT);
 
     REQUIRE(system.positions.size() == 1);
     REQUIRE(system.rotations.size() == 1);
@@ -43,13 +33,11 @@ TEST_CASE("added transformation stores correct position", "[transformation][add]
     TransformationSystem system;
 
     TransformationHandle handle = system.add(
-        (Transformation) {
+        (Transformation){
             .position = somePosition,
             .rotation = zeroQuaternion,
-            .scale = defaultScale
-        },
-        NO_TRANSFORMATION_PARENT
-    );
+            .scale = defaultScale},
+        NO_TRANSFORMATION_PARENT);
 
     REQUIRE(simdFloat3Equal(somePosition, system.positions[handle]));
 }
@@ -59,13 +47,11 @@ TEST_CASE("added transformation stores correct rotation", "[transformation][add]
     TransformationSystem system;
 
     TransformationHandle handle = system.add(
-        (Transformation) {
+        (Transformation){
             .position = originPosition,
             .rotation = someRotation,
-            .scale = defaultScale
-        },
-        NO_TRANSFORMATION_PARENT
-    );
+            .scale = defaultScale},
+        NO_TRANSFORMATION_PARENT);
 
     REQUIRE(simdQuatfEqual(someRotation, system.rotations[handle]));
 }
@@ -75,13 +61,11 @@ TEST_CASE("added transformation stores correct scale", "[transformation][add]")
     TransformationSystem system;
 
     TransformationHandle handle = system.add(
-        (Transformation) {
+        (Transformation){
             .position = originPosition,
             .rotation = zeroQuaternion,
-            .scale = someScale
-        },
-        NO_TRANSFORMATION_PARENT
-    );
+            .scale = someScale},
+        NO_TRANSFORMATION_PARENT);
 
     REQUIRE(simdFloat3Equal(someScale, system.scales[handle]));
 }
@@ -91,22 +75,18 @@ TEST_CASE("added transformation stores correct parent", "[transformation][add]")
     TransformationSystem system;
 
     TransformationHandle parent = system.add(
-        (Transformation) {
+        (Transformation){
             .position = originPosition,
             .rotation = zeroQuaternion,
-            .scale = someScale
-        },
-        NO_TRANSFORMATION_PARENT
-    );
+            .scale = someScale},
+        NO_TRANSFORMATION_PARENT);
 
     TransformationHandle handle = system.add(
-        (Transformation) {
+        (Transformation){
             .position = originPosition,
             .rotation = zeroQuaternion,
-            .scale = someScale
-        },
-        parent
-    );
+            .scale = someScale},
+        parent);
 
     REQUIRE(parent == system.parentIndices[handle]);
 }
@@ -118,7 +98,7 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
     REQUIRE(system.rotations.size() == 3);
     REQUIRE(system.scales.size() == 3);
 
-    system.remove((TransformationHandle) { 2 });
+    system.remove((TransformationHandle){2});
 
     REQUIRE(system.positions.size() == 2);
     REQUIRE(system.rotations.size() == 2);
@@ -132,7 +112,7 @@ TEST_CASE("removing a transformation remaps handles to new indices", "[transform
     const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
     const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
 
-    system.remove((TransformationHandle) { 1 });
+    system.remove((TransformationHandle){1});
 
     // Making sure indices and handles still line up
     REQUIRE(transformation0Position == &system.positions[system.handleToIndex[0]]);
@@ -142,17 +122,19 @@ TEST_CASE("removing a transformation remaps handles to new indices", "[transform
 TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
 {
     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
-    
-    system.remove((TransformationHandle) { 1 });
 
-    TransformationHandle handle = system.add(
-        (Transformation) {
+    system.remove((TransformationHandle){1});
+
+    TransformationHandle handle1 = system.add(
+        (Transformation){
             .position = somePosition,
             .rotation = someRotation,
-            .scale = someScale
-        },
-        NO_TRANSFORMATION_PARENT
-    );
+            .scale = someScale},
+        NO_TRANSFORMATION_PARENT);
 
-    REQUIRE(handle == (TransformationHandle) {1});
+    REQUIRE(handle1 == (TransformationHandle){1});
+
+    TransformationHandle handle2 = someTransformationHandleForAddedTransformation(system);
+
+    REQUIRE(handle2 == (TransformationHandle){3});
 }
