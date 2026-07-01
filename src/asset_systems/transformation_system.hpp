@@ -53,4 +53,7 @@ class TransformationSystem
     
     // Maps indices in the arrays to handles
     std::vector<TransformationHandle> indexToHandle;
+
+    private:
+    std::vector<TransformationHandle> freeHandles;
 };

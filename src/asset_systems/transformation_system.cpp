@@ -15,12 +15,26 @@ TransformationSystem::TransformationSystem(MTL::Device* device)
 
 TransformationHandle TransformationSystem::add(Transformation transformation, TransformationHandle parent)
 {
-    const TransformationHandle handle = (TransformationHandle)positions.size();
+    TransformationHandle handle;
+    if (freeHandles.size() > 0)
+    {
+        handle = freeHandles.back();
+        freeHandles.pop_back();
+    } else {
+        handle = (TransformationHandle)positions.size();
+    }
     positions.push_back(transformation.position);
     rotations.push_back(transformation.rotation);
     scales.push_back(transformation.scale);
     parentIndices.push_back(parent);
 
+    uint32_t index;
+    if (handle > handleToIndex.size())
+    {
+        // If the handle is brand new, go ahead and expand handToIndex
+        index = (uint32_t)(handleToIndex.size());
+        handleToIndex.push_back(index);
+    }
     handleToIndex.push_back((uint32_t)handle);
     indexToHandle.push_back(handle);
     return handle;
@@ -44,4 +58,5 @@ void TransformationSystem::remove(TransformationHandle transformation)
     positions.pop_back();
     rotations.pop_back();
     scales.pop_back();
+    freeHandles.push_back(transformation);
 }
