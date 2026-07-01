@@ -50,6 +50,7 @@ class TransformationSystem
     void remove(TransformationHandle handle);
     void update(); // compute worldMatrices from positions / rotations / scale
     void updateWorldMatrixBuffer(); // copy worldMatrices into transformationBuffer
+    void setParent(TransformationHandle transformation, TransformationHandle parent);
     
     MTL::Buffer* transformationBuffer = nullptr;
     
