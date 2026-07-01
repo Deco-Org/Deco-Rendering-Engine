@@ -132,9 +132,27 @@ TEST_CASE("removing a transformation remaps handles to new indices", "[transform
     const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
     const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
 
-    system.remove((TransformationHandle){2});
+    system.remove((TransformationHandle) { 1 });
 
     // Making sure indices and handles still line up
     REQUIRE(transformation0Position == &system.positions[system.handleToIndex[0]]);
-    REQUIRE(transformation1Position == &system.positions[system.handleToIndex[1]]);
+    REQUIRE(transformation1Position == &system.positions[system.handleToIndex[2]]);
+}
+
+TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    
+    system.remove((TransformationHandle) { 1 });
+
+    TransformationHandle handle = system.add(
+        (Transformation) {
+            .position = somePosition,
+            .rotation = someRotation,
+            .scale = someScale
+        },
+        NO_TRANSFORMATION_PARENT
+    );
+
+    REQUIRE(handle == (TransformationHandle) {1});
 }
