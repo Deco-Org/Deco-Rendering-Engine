@@ -29,6 +29,8 @@ class TransformationSystem
      */
     void remove(TransformationHandle transformation);
 
+    void setParent(TransformationHandle transformation, TransformationHandle parent);
+
     /**
      * Computes world matrices from the positions, rotations, and scales of the transformations within the system
      */
