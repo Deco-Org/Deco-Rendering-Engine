@@ -125,7 +125,8 @@ struct AnimationClip
 
 struct AnimationInstance
 {
-    ClipHandle clipIndex;
+    ClipHandle clipHandle;
+    SkeletonHandle skeletonHandle
     float currentTime;
     bool isPlaying;
     bool loops;
@@ -196,6 +197,109 @@ class CullingSystem
 ```
 
 ### Asset Systems
+#### Model System
+The model system holds the information for all loaded models, and is responsible for loading in models.
+```cpp
+using ModelAssetHandle = uint32_t;
+
+inline constexpr ModelAssetHandle INVALID_MODEL_ASSET_HANDLE = UINT32_MAX;
+
+struct AssetHandles
+{
+    ModelAssetHandle modelHandle = INVALID_MODEL_ASSET_HANDLE;
+    std::vector<ClipHandle> animationClipHandles;
+}
+
+struct LoadedAssets
+{
+    ModelAsset modelAssets;
+    std::vector<ClipHandle> animationClipHandles;
+}
+
+struct ModelAsset
+{
+    std::vector<MeshHandle> meshes;
+    std::vector<MaterialHandle> materials;
+    SkeletonHandle skeleton;
+};
+
+struct ModelInstance
+{
+    ModelAssetHandle modelAssetHandle;
+    TransformationHandle transformationHandle;
+    AnimationInstanceHandle animationInstanceHandle;
+    std::optional<std::vector<MaterialHandle>> materialOverrides;
+};
+
+class AssetLoadingSystem
+{
+    public:
+    LoadedAssets* load(const char* path);
+    void unload(ModelAssetHandle model);
+    void unload(ClipHandle clipHandle);
+    void unload(ClipHandle* clipHandle, size_t count);
+};
+
+class AssetSystem
+{
+    public:
+    AssetSystem(
+        MeshSystem& meshSystem,
+        AnimationSystem& animationSystem,
+        MaterialSystem& materialSystem,
+    );
+
+    AssetHandles load(LoadedAssets* assets);
+    void unload(ModelAsset)
+
+    private:
+    MeshSystem& meshSystem;
+    AnimationSystem& animationSystem;
+    MaterialSystem& materialSystem;
+    AssetLoadingSystem assetLoadingSystem;
+};
+
+class ModelSystem
+{
+    public:
+    ModelSystem(Engine& engine);
+    
+    void add(LoadedAssets* assets);
+
+    std::vector<ModelAsset> modelAssets;
+
+    private:
+    Engine& engine;
+}
+
+// Within Engine:
+
+AssetHandles Engine::load(const char* path);
+void Engine::unload(ModelAssetHandle model);
+void Engine::unload(ModelAssetHandle* models, size_t count);
+void Engine::unload(ClipHandle clip);
+void Engine::unload(ClipHandle* clips, size_t count);
+
+AssetLoadingSystem Engine::assetLoadingSystem;
+std::vector<ModelAsset> Engine::modelAssets;
+
+class AssetManagementSystem
+{
+    public:
+    AssetHandles add(const char* path);
+    void remove(ModelAssetHandle model);
+    void remove(ClipHandle clipHandle);
+    void remove(ClipHandle* clipHandle, size_t count);
+
+    std::vector<ModelAsset> modelAssets;
+
+    private:
+    AssetLoadingSystem assetLoadingSystem;
+}
+
+// Model Instances are stored in an std::vector somewhere.
+```
+
 #### Mesh System
 The mesh system holds the information for all loaded meshes
 ```cpp
@@ -256,7 +360,8 @@ class MaterialSystem
     std::vector<ToonMaterial> toonMaterials;
     
     private:
-    std::vector<MaterialHandle> freeMaterialHandles;
+    std::vector<MaterialHandle> freePBRMaterialHandles;
+    std::vector<MaterialHandle> freeToonMaterialHandles;
 };
 ```
 
@@ -355,7 +460,7 @@ class PipelineLibrary
 };
 ```
 #### Residency Manager
-Asset loading should be done on a separate thread from rendering. Residency sets are updated in parallel with encoding, and the command buffer must wait for the residency manager to "commit" before it itself can be committed.
+Asset loading should be done on a separate thread from rendering. Residency sets are updated in parallel with encoding.
 ```cpp
 class ResidencyManager
 {
@@ -370,13 +475,11 @@ class ResidencyManager
     void removeDynamic(MTL::Buffer* buffer);
     void removeDynamic(MTL::Texture* texture);
     void commit(); // call after adding / removing dynamic resources
-    void waitForCommit();
     
     private:
     MTL::ResidencySet* persistentSet = nullptr;
     MTL::ResidencySet* dynamicSet = nullptr;
     
-    MTL::SharedEvent* commitEvent = nullptr;
     MTL4::CommandQueue* commandQueue = nullptr;
     std::atomic<uint64_t> latestCommitValue = 0;
 };
@@ -432,7 +535,7 @@ using DrawSortKey = uint64_t;
 struct DrawMeshCommandDescriptor
 {
     MeshHandle mesh;
-    TransformationHandle transformation;
+    uint32_t resolvedTransformationIndex;
     AnimationInstanceHandle animationInstance;
     MaterialHandle material;
     
@@ -532,6 +635,7 @@ These keys can then be sorted using radix sort, giving us $O(d \cdot n)$ worst c
 
 Each frame:
 - Flush [deletion queue](#deletion-queue)
+- Flush addition queues
 - The command allocator pool begins a frame
 - [TransformationSystem](#transformation-system) copies world matrices into buffer
 - [AnimationSystem](#animation-system) calculates skinning matrices and then puts them into `skinningBuffer`
@@ -541,7 +645,7 @@ Each frame:
 	- For each scene object:
 		- If an object is visible (determined through frustum culling operation):
             - Create a `DrawMeshCommandDescriptor` from the information in the [Scene Object System](#scene-object-system)
-            Add the `DrawMeshCommandDescriptor` to the render queue.
+            - Add the `DrawMeshCommandDescriptor` to the render queue.
     - [Sort the render queue](#sorting-the-render-queue) by sortKey.
 - Update render pass descriptor
 - Create Render command encoder from command buffer
@@ -558,8 +662,7 @@ Each frame:
     - Apply argument tables (vertex table, fragment table) to the render command encoder
     - Draw indexed primitives using the index buffer.
 - End encoding and release render command encoder
-- Wait for residency set to commit (this happens once other thread commits residency set — resources are streamed in and out on another thread, and the residency set is updated in parallel with encoding)
-- Commits command buffer
+- Commit the command buffer
 - Signal the drawable that the GPU is done with the render pass
 - Present the drawable
 
@@ -627,7 +730,27 @@ void DecoEngine::draw(CA::MetalDrawable* drawable)
 - Frustum culling split into passes of increasing precision.
 
 ## Loading Models
-Loading models is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed. Once a residency set begins to update, the residency manager will halt execution of the rendering thread until the residency set has been committed.
+Loading models is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed.
+
+When a model is loaded:
+- queue up the vertex buffer, index buffer, and index count for each mesh in the model (queuing up a mesh) for the mesh system
+- queue up the skeleton of the model for the animation system
+- queue up animation clips for the animation system
+- queue up any materials from textures that may be in the fbx file for the material system
+- At the start of each frame:
+    - For every mesh in the queue:
+        - Add the vertex buffer, index buffer, and index count to the arrays in the mesh system
+    - For every material in the queue:
+        - add the materials to the material array
+        - put the skeleton in the queue into the skeletons array of the animation system
+    - For every clip in the queue:
+        - Add the clip to the clips array in the animation system
+    
+
+When a model is added to the scene
+- Create an animation instance using the skeleton
+- Create the transformations for each mesh in the model based on information loaded in
+- Pass in the mesh handles, material handles, animation instance handles, and transformation handles
 
 ## Unloading Models
 Unloading models is done on a thread that is separate from the rendering thread. Because unloading a model involves making it no longer resident, the residency manager will halt execution of the rendering thread until the update to the residency set has been committed.
