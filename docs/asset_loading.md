@@ -27,7 +27,7 @@ loadingThread -->> caller: Loading complete callback
 sequenceDiagram
 
 box Loading Thread
-    actor caller as Caller
+    actor caller as Requster
     participant assetLoader as Asset Loader
     participant submeshSystem as Submesh System
     participant materialSystem as Material System
@@ -70,14 +70,14 @@ loop While queue is not empty
     animationSystemRenderT ->> animationSystem: Add added handles to array of used handles
     animationSystem ->> animationSystem: Update list of free skeleton handles
 end
-animationSystem -->> assetLoader: List of skeletons
+animationSystem -->> assetLoader: List of skeleton handles
 animationSystem ->> animationSystemRenderT: queue up animation clips to be added to animation system
 loop While queue is not empty
     animationSystemRenderT ->> animationSystemRenderT: Add animation clips to animation system
     animationSystemRenderT ->> animationSystem: Add added handles to array of used handles
     animationSystem ->> animationSystem: Update list of free clip handles
 end
-animationSystem -->> assetLoader: List of animation clips
+animationSystem -->> assetLoader: List of animation clip handles
 
 assetLoader -->> caller: Return loaded meshes, materials, skeletons, and animation clips
 ```
