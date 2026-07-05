@@ -27,24 +27,112 @@ loadingThread -->> caller: Loading complete callback
 sequenceDiagram
 
 box Loading Thread
+    actor caller as Caller
     participant assetLoader as Asset Loader
-    participant meshSystem as Mesh System
+    participant submeshSystem as Submesh System
     participant materialSystem as Material System
     participant animationSystem as Animation System
 end
 box Render Thread
-    participant meshSystemRenderT as Mesh System
+    participant submeshSystemRenderT as Submesh System
     participant materialSystemRenderT as Material System
     participant animationSystemRenderT as Animation System
 end
 
+caller ->> assetLoader: Request asset loaded from .fbx file
 assetLoader ->> assetLoader: Parse file using ufbx
 
-assetLoader ->> meshSystem: Load meshes from a list of ufbx_mesh
-meshSystem ->> meshSystem: Parse ufbx_mesh, create buffers, mesh system info
-meshSystem ->> meshSystemRenderT: queue up meshes to be added to mesh system
+assetLoader ->> submeshSystem: Load meshes from a list of ufbx_mesh
+submeshSystem ->> submeshSystem: Get material_parts for ufbx_mesh.
+submeshSystem ->> submeshSystem: Parse each ufbx_mesh_part (submesh) in the material_parts list, create buffers, submesh system info
+submeshSystem ->> submeshSystemRenderT: queue up submeshes to be added to submesh system
+loop While queue is not empty
+    submeshSystemRenderT ->> submeshSystemRenderT: Add submeshes to submesh system
+    submeshSystemRenderT ->> submeshSystem: Add added handles to array of used handles
+    submeshSystem ->> submeshSystem: Update list of free submesh handles
+end
+submeshSystem -->> assetLoader: List of submesh handles
 
 assetLoader ->> materialSystem: Load materials from a list of materials in model
+materialSystem ->> materialSystemRenderT: queue up materials to be added to material system
+loop While queue is not empty
+    materialSystemRenderT ->> materialSystemRenderT: Add materials to material system
+    materialSystemRenderT ->> materialSystem: Add added handles to array of used handles
+    materialSystem ->> materialSystem: Update list of free material handles
+end
+materialSystem -->> assetLoader: List of material handles
+
+assetLoader ->> animationSystem: Load skeletons
+assetLoader ->> animationSystem: Load animation clips
+animationSystem ->> animationSystemRenderT: queue up skeletons to be added to animation system
+loop While queue is not empty
+    animationSystemRenderT ->> animationSystemRenderT: Add skeletons to animation system
+    animationSystemRenderT ->> animationSystem: Add added handles to array of used handles
+    animationSystem ->> animationSystem: Update list of free skeleton handles
+end
+animationSystem -->> assetLoader: List of skeletons
+animationSystem ->> animationSystemRenderT: queue up animation clips to be added to animation system
+loop While queue is not empty
+    animationSystemRenderT ->> animationSystemRenderT: Add animation clips to animation system
+    animationSystemRenderT ->> animationSystem: Add added handles to array of used handles
+    animationSystem ->> animationSystem: Update list of free clip handles
+end
+animationSystem -->> assetLoader: List of animation clips
+
+assetLoader -->> caller: Return loaded meshes, materials, skeletons, and animation clips
+```
+
+```cpp
+using LoadedModelHandle = uint16_t;
+using LoadedMeshHandle = uint16_t;
+
+struct LoadedMeshInfo
+{
+    SubmeshHandle* submeshes;
+    MaterialHandle* materials;
+    MaterialType* materialTypes;
+    size_t submeshCount;
+    size_t materialCount;
+};
+
+struct LoadedSkeletonsInfo
+{
+    SkeletonHandle* skeletons;
+    size_t skeletonCount;
+};
+
+struct LoadedAnimationClipsInfo
+{
+    AnimationClip* animationClips;
+    size_t clipCount;
+};
+
+struct LoadedModelInfo
+{
+    LoadedMeshInfo* meshes;
+    LoadedSkeletonsInfo skeletons;
+    LoadedAnimationClipsInfo animationClips;
+    size_t meshCount;
+};
+```
+When removing a skeleton, the animation clips that use them must be removed first.
+```cpp
+class LoadedModelSystem
+{
+    public:
+    LoadedModelHandle add(LoadedModelInfo modelInfo);
+    void removeLoadedModel(LoadedModelHandle model, void* callback);
+    void removeAnimationClip(AnimationClipHandle animationClip, void* callback);
+    void removeSkeleton(SkeletonHandle skeleton, void* callback);
+    void removeMaterial(MaterialHandle material, void* callback);
+    void removeLoadedMesh(LoadedMeshHandle mesh, void* callback);
+
+    private:
+    std::vector<SubmeshHandle> submeshes;
+    std::vector<MaterialHandle> materials;
+    std::vector<MaterialType> materialTypes;
+    std::vector<SkeletonHandle> skeletons;
+}
 ```
 
 ### Loading Materials From .fbx Files
