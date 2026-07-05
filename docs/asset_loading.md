@@ -117,7 +117,7 @@ struct LoadedModelInfo
 ```
 When removing a skeleton, the animation clips that use them must be removed first.
 ```cpp
-class LoadedModelSystem
+class ModelLoadingSystem
 {
     public:
     LoadedModelHandle add(LoadedModelInfo modelInfo);

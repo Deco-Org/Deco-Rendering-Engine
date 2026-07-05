@@ -6,7 +6,7 @@
         - [Animation System](#animation-system)
         - [Culling System](#culling-system)
     - [Asset Systems](#asset-systems)
-        - [Mesh System](#mesh-system)
+        - [Submesh System](#submesh-system)
         - [Material System](#material-system)
     - [Scene Systems](#scene-systems)
         - [Scene Object System](#scene-object-system)
@@ -18,12 +18,12 @@
         - [Argument Table Manager](#argument-table-manager)
 - [Drawing](#drawing)
     - [Drawing Structs and Classes](#drawing-structs-and-classes)
-        - [Draw Mesh Command Descriptor](#draw-mesh-command-descriptor)
+        - [Draw Submesh Command Descriptor](#draw-submesh-command-descriptor)
         - [Render Queue](#render-queue)
             - [Sorting the Render Queue](#sorting-the-render-queue)
     - [Draw Function](#draw-function)
-- [Loading Models](#loading-models)
-- [Unloading Models](#unloading-models)
+- [Loading Assets](#loading-assets)
+- [Unloading Assets](#unloading-assets)
     - [Deletion Queue](#deletion-queue)
 
 ## Layers
@@ -190,8 +190,8 @@ class CullingSystem
     
     void cull();
     
-    std::vector<simd_float3>* boundsMin = nullptr; // Pointer to mesh system bounds min
-    std::vector<simd_float3>* boundsMax = nullptr; // Pointer to mesh system bounds max
+    std::vector<simd_float3>* boundsMin = nullptr; // Pointer to submesh system bounds min
+    std::vector<simd_float3>* boundsMax = nullptr; // Pointer to submesh system bounds max
     std::vector<bool> isVisible;
 };
 ```
@@ -218,7 +218,7 @@ struct LoadedAssets
 
 struct ModelAsset
 {
-    std::vector<MeshHandle> meshes;
+    std::vector<SubmeshHandle> submeshes;
     std::vector<MaterialHandle> materials;
     SkeletonHandle skeleton;
 };
@@ -244,7 +244,7 @@ class AssetSystem
 {
     public:
     AssetSystem(
-        MeshSystem& meshSystem,
+        SubmeshSystem& submeshSystem,
         AnimationSystem& animationSystem,
         MaterialSystem& materialSystem,
     );
@@ -253,7 +253,7 @@ class AssetSystem
     void unload(ModelAsset)
 
     private:
-    MeshSystem& meshSystem;
+    SubmeshSystem& submeshSystem;
     AnimationSystem& animationSystem;
     MaterialSystem& materialSystem;
     AssetLoadingSystem assetLoadingSystem;
@@ -300,28 +300,51 @@ class AssetManagementSystem
 // Model Instances are stored in an std::vector somewhere.
 ```
 
-#### Mesh System
-The mesh system holds the information for all loaded meshes
+#### Submesh System
+The submesh system holds the information for all loaded submeshes.
 ```cpp
+using SubmeshHandle = uint32_t;
 using MeshHandle = uint32_t;
 
-class MeshSystem
+class SubmeshSystem
 {
     public:
-    MeshHandle load(const char* path);
-    void unload(MeshHandle handle);
+    SubmeshHandle load(ufbx_mesh_part* part);
+    void unload(SubmeshHandle handle);
     
     std::vector<MTL::Buffer*> vertexBuffers;
     std::vector<MTL::Buffer*> indexBuffers;
     std::vector<NS::UInteger> indexCounts;
-    std::vector<simd_float3> boundsMin; // Min bounds of meshes
-    std::vector<simd_float3> boundsMax; // Max bounds of meshes
+    std::vector<simd_float3> boundsMin; // Min bounds of submeshes
+    std::vector<simd_float3> boundsMax; // Max bounds of submeshes
     std::vector<bool> isSkinned; // Basically whether or not something has bones
     std::vector<uint32_t> boneCounts;
 
     private:
-    std::vector<MeshHandle> freeMeshHandles;
+    std::vector<SubmeshHandle> freeSubmeshHandles;
 };
+```
+There is also a Mesh System, which pretty much only exists for user convenience.
+```cpp
+struct MeshInfo
+{
+    SubmeshHandle* submeshHandles;
+    MaterialHandle* materialHandles;
+    MaterialType* materialTypes;
+    size_t submeshCount;
+};
+
+class MeshSystem
+{
+    public:
+    MeshHandle add(std::vector<SubmeshHandle> submeshes);
+    void unload(MeshHandle meshHandle);
+
+    MeshInfo getMeshInfo(MeshHandle meshHandle);
+
+    private:
+    std::vector<MeshInfo> meshes;
+}
 ```
 #### Material System
 This holds information about materials.
@@ -330,6 +353,12 @@ More research needs to be done on creating Toon and PBR shaders.
 ```cpp
 using MaterialHandle = uint16_t;
 inline constexpr MaterialHandle INVALID_MATERIAL = UINT16_MAX;
+
+enum class MaterialType
+{
+    PBR,
+    Toon,
+};
 
 struct PBRMaterial
 {
@@ -348,6 +377,16 @@ struct ToonMaterial
     float shadowSoftness = 0.0f;
 };
 
+struct Material
+{
+    MaterialType type;
+    union
+    {
+        PBRMaterial pbrMaterial;
+        ToonMaterial toonMaterial;
+    };
+};
+
 class MaterialSystem
 {
     public:
@@ -355,6 +394,8 @@ class MaterialSystem
     ToonMaterial getToon(MaterialHandle handle) const;
     MaterialHandle addPBR(const PBRMaterial& material, bool isOpaque = true);
     MaterialHandle addToon(const ToonMaterial& material, bool isOpaque = true);
+
+    void updateMaterial(MaterialHandle handle, Material material);
     
     std::vector<PBRMaterial> pbrMaterials;
     std::vector<ToonMaterial> toonMaterials;
@@ -373,7 +414,7 @@ using SceneObjectHandle = uint32_t;
 
 struct SceneObject
 {
-    MeshHandle meshHandle;
+    SubmeshHandle submeshHandle;
     TransformationHandle transformationHandle;
     AnimationInstanceHandle animationInstanceHandle;
     MaterialHandle materialHandle;
@@ -382,13 +423,13 @@ struct SceneObject
 class SceneObjectSystem
 {
     public:
-    std::vector<MeshHandle> meshHandles;
+    std::vector<SubmeshHandle> submeshHandles;
     std::vector<TransformationHandle> transformationHandles;
     std::vector<AnimationInstanceHandle> animationInstanceHandles;
     std::vector<MaterialHandle> materialHandles;
     std::vector<RenderPipeline> pipelineFlags;
     std::vector<uint64_t> staticSortKeyParts; // Sort keys are built off of these based on per-frame calculations
-    uint32_t numberOfSceneObjects() const { return meshHandles.size(); }
+    uint32_t numberOfSceneObjects() const { return submeshHandles.size(); }
     
     SceneObjectHandle add(SceneObject sceneObject);
     void remove(SceneObjectHandle handle);
@@ -528,31 +569,31 @@ class ArgumentTableManager
 The draw function connects the systems together to actually draw the scene.
 
 ### Drawing Structs and Classes
-#### Draw Mesh Command Descriptor
+#### Draw Submesh Command Descriptor
 ```cpp
 using DrawSortKey = uint64_t;
 
-struct DrawMeshCommandDescriptor
+struct DrawSubmeshCommandDescriptor
 {
-    MeshHandle mesh;
+    SubmeshHandle submesh;
     uint32_t resolvedTransformationIndex;
     AnimationInstanceHandle animationInstance;
     MaterialHandle material;
     
     /**
      * The sort key of the descriptor.
-     * @param staticSortKeyParts Precalculated bits for the pipeline flags, Material ID, and Mesh ID.
+     * @param staticSortKeyParts Precalculated bits for the pipeline flags, Material ID, and Submesh ID.
      */
     DrawSortKey sortKey(uint64_t staticSortKeyParts = UINT64_MAX) const
     {
         /**
-         * The material ID, Mesh ID, and pipeline flags may be precalculated.
+         * The material ID, Submesh ID, and pipeline flags may be precalculated.
          * 
          * If opaque:
          *     First two bits: 00
          *     Next 3 bits: Pipeline Flags
          *     Next 16 bits: Material ID
-         *     Next 22 bits: Mesh ID
+         *     Next 22 bits: Submesh ID
          *     Last 21 bits: Reserved (depth)
          * 
          * If translucent:
@@ -560,7 +601,7 @@ struct DrawMeshCommandDescriptor
          *     Next 21 bits: Reserved (depth)
          *     Next 3 bits: Pipeline Flags
          *     Next 16 bits: Material ID
-         *     Last 22 bits: Mesh ID
+         *     Last 22 bits: Submesh ID
          */
     }
 };
@@ -588,7 +629,7 @@ class RenderQueue
     
     /**
      * Adds a scene object to the render queue.
-     * More specifically, builds a `DrawMeshCommandDescriptor` using the information in the scene object handle.
+     * More specifically, builds a `DrawSubmeshCommandDescriptor` using the information in the scene object handle.
      * @param sceneObjectHandle The handle of the scene object to add to the render queue
      * @param sceneObjectSystem
      * @param camera
@@ -606,11 +647,11 @@ class RenderQueue
     void clear();
     
     /**
-     * Sorts the render queue based on the Draw Sort Keys of each `DrawMeshCommandDescriptor`.
+     * Sorts the render queue based on the Draw Sort Keys of each `DrawSubmeshCommandDescriptor`.
      */
     void sort();
 
-    std::vector<DrawMeshCommandDescriptor> queue;
+    std::vector<DrawSubmeshCommandDescriptor> queue;
 };
 ```
 
@@ -619,15 +660,15 @@ Opaque objects should be drawn from front to back to minimize overdraw. Transluc
 
 Bit packing for opaque materials:
 
-| 2 bits       | 3 bits         | 16 bits     | 22 bits | 21 bits  |
-| ------------ | -------------- | ----------- | ------- | -------- |
-| Translucency | pipeline flags | Material ID | Mesh ID | Reserved |
+| 2 bits       | 3 bits         | 16 bits     | 22 bits    | 21 bits  |
+| ------------ | -------------- | ----------- | ---------- | -------- |
+| Translucency | pipeline flags | Material ID | Submesh ID | Reserved |
 
 Bit packing for translucent materials (higher priority of bits reserved for depth):
 
-| 2 bits       | 21 bits  | 3 bits         | 16 bits     | 22 bits |
-| ------------ | -------- | -------------- | ----------- | ------- |
-| Translucency | Reserved | pipeline flags | Material ID | Mesh ID |
+| 2 bits       | 21 bits  | 3 bits         | 16 bits     | 22 bits    |
+| ------------ | -------- | -------------- | ----------- | ---------- |
+| Translucency | Reserved | pipeline flags | Material ID | Submesh ID |
 
 These keys can then be sorted using radix sort, giving us $O(d \cdot n)$ worst case performance and $O(d + n)$ worst case space complexity.
 
@@ -644,15 +685,15 @@ Each frame:
 - Build the render queue
 	- For each scene object:
 		- If an object is visible (determined through frustum culling operation):
-            - Create a `DrawMeshCommandDescriptor` from the information in the [Scene Object System](#scene-object-system)
-            - Add the `DrawMeshCommandDescriptor` to the render queue.
+            - Create a `DrawSubmeshCommandDescriptor` from the information in the [Scene Object System](#scene-object-system)
+            - Add the `DrawSubmeshCommandDescriptor` to the render queue.
     - [Sort the render queue](#sorting-the-render-queue) by sortKey.
 - Update render pass descriptor
 - Create Render command encoder from command buffer
 - Configure the render command encoder (involves setting depth stencil state)
 - Put view matrix into vertex bytes
 - Put perspective matrix into vertex bytes
-- For each `DrawMeshCommandDescriptor` in the render queue:
+- For each `DrawSubmeshCommandDescriptor` in the render queue:
     - If the pipeline flags do not match the current pipeline flags, switch the pipeline state.
     - If translucency flag of material handle changes, switch depth stencil state
     - Update argument table:
@@ -729,17 +770,24 @@ void DecoEngine::draw(CA::MetalDrawable* drawable)
 - Not calculating skinning matrices for animation instances outside of frustum
 - Frustum culling split into passes of increasing precision.
 
-## Loading Models
-Loading models is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed.
+## Loading Assets
+Loading assets is done on a thread that is separate from the rendering thread. Model loading is primarily handled through the ufbx library. Once a model has been loaded into memory, the residency sets are updated, then committed.
+
+*See [Asset Loading](./asset_loading.md)*
+
+### Loading Models
+When requesting that a model be loaded in, the caller passes in the filepath to a `.fbx` file, as well as a callback function that is to be called once loading has finished.
+
+During loading, items are queued up to be inserted into different systems, with handles being assigned based on listed free handles and the number of entries in each system.
 
 When a model is loaded:
-- queue up the vertex buffer, index buffer, and index count for each mesh in the model (queuing up a mesh) for the mesh system
+- queue up the vertex buffer, index buffer, and index count for each submesh in the model (queuing up a submesh) for the submesh system
 - queue up the skeleton of the model for the animation system
 - queue up animation clips for the animation system
 - queue up any materials from textures that may be in the fbx file for the material system
 - At the start of each frame:
-    - For every mesh in the queue:
-        - Add the vertex buffer, index buffer, and index count to the arrays in the mesh system
+    - For every submesh in the queue:
+        - Add the vertex buffer, index buffer, and index count to the arrays in the submesh system
     - For every material in the queue:
         - add the materials to the material array
         - put the skeleton in the queue into the skeletons array of the animation system
@@ -749,10 +797,10 @@ When a model is loaded:
 
 When a model is added to the scene
 - Create an animation instance using the skeleton
-- Create the transformations for each mesh in the model based on information loaded in
-- Pass in the mesh handles, material handles, animation instance handles, and transformation handles
+- Create the transformations for each submesh in the model based on information loaded in
+- Pass in the submesh handles, material handles, animation instance handles, and transformation handles
 
-## Unloading Models
+## Unloading Assets
 Unloading models is done on a thread that is separate from the rendering thread. Because unloading a model involves making it no longer resident, the residency manager will halt execution of the rendering thread until the update to the residency set has been committed.
 
 ### Deletion Queue
