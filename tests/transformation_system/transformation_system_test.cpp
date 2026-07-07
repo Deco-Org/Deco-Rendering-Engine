@@ -88,7 +88,7 @@ TEST_CASE("added transformation stores correct parent", "[transformation][add]")
             .scale = someScale},
         parent);
 
-    REQUIRE(parent == system.parentIndices[handle]);
+    REQUIRE(parent == system.parentHandles[handle]);
 }
 
 TEST_CASE("removing a transformation decreases size", "[transformation][remove]")

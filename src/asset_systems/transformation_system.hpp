@@ -37,9 +37,9 @@ class TransformationSystem
     void computeWorldMatrices();
 
     /**
-     * Uploads the world matrices to the GPU
+     * Updates the world matrix buffer
      */
-    void uploadToGPU();
+    void updateWorldMatrixBuffer();
 
     // MTL::Buffer* transformationBuffer = nullptr;
     MetalBufferPtr transformationBuffer = nullptr;
@@ -47,7 +47,8 @@ class TransformationSystem
     std::vector<simd_float3> positions;
     std::vector<simd_quatf> rotations;
     std::vector<simd_float3> scales;
-    std::vector<TransformationHandle> parentIndices;
+
+    std::vector<TransformationHandle> parentHandles;
     std::vector<matrix_float4x4> worldMatrices;
     
     // Maps handles to the indices in the arrays

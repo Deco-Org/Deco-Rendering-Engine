@@ -26,7 +26,7 @@ TransformationHandle TransformationSystem::add(Transformation transformation, Tr
     positions.push_back(transformation.position);
     rotations.push_back(transformation.rotation);
     scales.push_back(transformation.scale);
-    parentIndices.push_back(parent);
+    parentHandles.push_back(parent);
 
     uint32_t index;
     if (handle > handleToIndex.size())
