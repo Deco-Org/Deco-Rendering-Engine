@@ -120,18 +120,15 @@ When removing a skeleton, the animation clips that use them must be removed firs
 class ModelLoadingSystem
 {
     public:
+    ModelLoadingSystem(TextureLoader& textureLoader);
+    
+    LoadedModelHandle load(std::filesystem::path filepath, void* callback);
     LoadedModelHandle add(LoadedModelInfo modelInfo);
     void removeLoadedModel(LoadedModelHandle model, void* callback);
     void removeAnimationClip(AnimationClipHandle animationClip, void* callback);
     void removeSkeleton(SkeletonHandle skeleton, void* callback);
     void removeMaterial(MaterialHandle material, void* callback);
     void removeLoadedMesh(LoadedMeshHandle mesh, void* callback);
-
-    private:
-    std::vector<SubmeshHandle> submeshes;
-    std::vector<MaterialHandle> materials;
-    std::vector<MaterialType> materialTypes;
-    std::vector<SkeletonHandle> skeletons;
 }
 ```
 
