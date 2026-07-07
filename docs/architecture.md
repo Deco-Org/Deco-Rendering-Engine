@@ -30,7 +30,8 @@
 The Deco Rendering Engine uses a combination of Object Oriented and Data Oriented Design. Data Oriented Design is used at low levels where efficiency is key (_see [AoS and SoA on Wikipedia](https://en.wikipedia.org/wiki/AoS_and_SoA)_).
 ### Core Systems
 #### Transformation System
-This applies transformations
+This applies transformations.
+Because child transformations are affected by their parents, parent transformations must be calculated before their children.
 ```cpp
 using TransformationHandle = uint32_t;
 inline constexpr TransformationHandle NO_TRANSFORMATION_PARENT = UINT32_MAX;
@@ -48,7 +49,7 @@ class TransformationSystem
      * Remove a transformation from the Transformation System
      */
     void remove(TransformationHandle handle);
-    void update(); // compute worldMatrices from positions / rotations / scale
+    void computeWorldMatrices(); // compute worldMatrices from positions / rotations / scale
     void updateWorldMatrixBuffer(); // copy worldMatrices into transformationBuffer
     void setParent(TransformationHandle transformation, TransformationHandle parent);
     
@@ -63,6 +64,17 @@ class TransformationSystem
     
     std::vector<uint32_t> handleToIndex; // Maps handles to the indices in the arrays
     std::vector<TransformationHandle> indexToHandle; // Maps indices in the arrays to handles
+
+    SynchronizedBuffer<TransformationEntry> renderThreadInputBuffer;
+    SynchronizedBuffer<TrasnformationHandle> renderThreadOutputBuffer;
+};
+```
+
+```cpp
+struct TransformationEntry
+{
+    Transformation transformation = {};
+    TransformationHandle parent = NO_TRANSFORMATION_PARENT;
 };
 ```
 
