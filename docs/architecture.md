@@ -197,109 +197,6 @@ class CullingSystem
 ```
 
 ### Asset Systems
-#### Model System
-The model system holds the information for all loaded models, and is responsible for loading in models.
-```cpp
-using ModelAssetHandle = uint32_t;
-
-inline constexpr ModelAssetHandle INVALID_MODEL_ASSET_HANDLE = UINT32_MAX;
-
-struct AssetHandles
-{
-    ModelAssetHandle modelHandle = INVALID_MODEL_ASSET_HANDLE;
-    std::vector<ClipHandle> animationClipHandles;
-}
-
-struct LoadedAssets
-{
-    ModelAsset modelAssets;
-    std::vector<ClipHandle> animationClipHandles;
-}
-
-struct ModelAsset
-{
-    std::vector<SubmeshHandle> submeshes;
-    std::vector<MaterialHandle> materials;
-    SkeletonHandle skeleton;
-};
-
-struct ModelInstance
-{
-    ModelAssetHandle modelAssetHandle;
-    TransformationHandle transformationHandle;
-    AnimationInstanceHandle animationInstanceHandle;
-    std::optional<std::vector<MaterialHandle>> materialOverrides;
-};
-
-class AssetLoadingSystem
-{
-    public:
-    LoadedAssets* load(const char* path);
-    void unload(ModelAssetHandle model);
-    void unload(ClipHandle clipHandle);
-    void unload(ClipHandle* clipHandle, size_t count);
-};
-
-class AssetSystem
-{
-    public:
-    AssetSystem(
-        SubmeshSystem& submeshSystem,
-        AnimationSystem& animationSystem,
-        MaterialSystem& materialSystem,
-    );
-
-    AssetHandles load(LoadedAssets* assets);
-    void unload(ModelAsset)
-
-    private:
-    SubmeshSystem& submeshSystem;
-    AnimationSystem& animationSystem;
-    MaterialSystem& materialSystem;
-    AssetLoadingSystem assetLoadingSystem;
-};
-
-class ModelSystem
-{
-    public:
-    ModelSystem(Engine& engine);
-    
-    void add(LoadedAssets* assets);
-
-    std::vector<ModelAsset> modelAssets;
-
-    private:
-    Engine& engine;
-}
-
-// Within Engine:
-
-AssetHandles Engine::load(const char* path);
-void Engine::unload(ModelAssetHandle model);
-void Engine::unload(ModelAssetHandle* models, size_t count);
-void Engine::unload(ClipHandle clip);
-void Engine::unload(ClipHandle* clips, size_t count);
-
-AssetLoadingSystem Engine::assetLoadingSystem;
-std::vector<ModelAsset> Engine::modelAssets;
-
-class AssetManagementSystem
-{
-    public:
-    AssetHandles add(const char* path);
-    void remove(ModelAssetHandle model);
-    void remove(ClipHandle clipHandle);
-    void remove(ClipHandle* clipHandle, size_t count);
-
-    std::vector<ModelAsset> modelAssets;
-
-    private:
-    AssetLoadingSystem assetLoadingSystem;
-}
-
-// Model Instances are stored in an std::vector somewhere.
-```
-
 #### Submesh System
 The submesh system holds the information for all loaded submeshes.
 ```cpp
@@ -338,7 +235,8 @@ class MeshSystem
 {
     public:
     MeshHandle add(std::vector<SubmeshHandle> submeshes);
-    void unload(MeshHandle meshHandle);
+    MeshHandle add(MeshInfo mesh);
+    void remove(MeshHandle meshHandle);
 
     MeshInfo getMeshInfo(MeshHandle meshHandle);
 
@@ -346,6 +244,7 @@ class MeshSystem
     std::vector<MeshInfo> meshes;
 }
 ```
+
 #### Material System
 This holds information about materials.
 More research needs to be done on creating Toon and PBR shaders.
