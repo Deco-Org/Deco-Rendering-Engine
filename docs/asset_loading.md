@@ -121,7 +121,7 @@ class ModelLoadingSystem
 {
     public:
     ModelLoadingSystem(TextureLoader& textureLoader);
-    
+
     LoadedModelHandle load(std::filesystem::path filepath, void* callback);
     LoadedModelHandle add(LoadedModelInfo modelInfo);
     void removeLoadedModel(LoadedModelHandle model, void* callback);
@@ -129,6 +129,9 @@ class ModelLoadingSystem
     void removeSkeleton(SkeletonHandle skeleton, void* callback);
     void removeMaterial(MaterialHandle material, void* callback);
     void removeLoadedMesh(LoadedMeshHandle mesh, void* callback);
+
+    private:
+    std::vector<LoadedModelInfo> loadedModels;
 }
 ```
 
