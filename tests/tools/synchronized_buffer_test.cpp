@@ -14,3 +14,21 @@ TEST_CASE("Buffer should preserve order of added items", "[add][tools][buffer]")
         REQUIRE(items[i] == buffer.at(i));
     }
 }
+
+TEST_CASE("Buffer should be moved on std::move", "[tools][buffer][move]")
+{
+    SynchronizedBuffer<int> buffer1 = SynchronizedBuffer<int>(4);
+    int items[4] = {32, 64, 128, 256};
+    for (int i = 0; i < 4; ++i)
+    {
+        buffer1.set(i, items[i]);
+    }
+    // Moving the buffer
+    SynchronizedBuffer<int> buffer2 = std::move(buffer1);
+    REQUIRE(0 == buffer1.size());
+    REQUIRE(4 == buffer2.size());
+    for (int i = 0; i < 4; ++i)
+    {
+        REQUIRE(items[i] == buffer2.at(i));
+    }
+}
