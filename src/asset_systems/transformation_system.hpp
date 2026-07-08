@@ -5,7 +5,14 @@
 
 #pragma once
 #include "core_engine_types.h"
+#include "tools/synchronized_buffer.hpp"
 #include <Metal/Metal.hpp>
+
+struct TransformationEntry
+{
+    Transformation transformation = {0};
+    TransformationHandle parent = NO_TRANSFORMATION_PARENT;
+};
 
 class TransformationSystem
 {
@@ -59,4 +66,7 @@ class TransformationSystem
 
     private:
     std::vector<TransformationHandle> freeHandles;
+
+    SynchronizedBuffer<TransformationEntry> readerThreadInputBuffer = SynchronizedBuffer<TransformationEntry>();
+    SynchronizedBuffer<TransformationHandle> renderThreadOutputBuffer = SynchronizedBuffer<TransformationHandle>();
 };
