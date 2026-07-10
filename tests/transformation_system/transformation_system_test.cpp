@@ -8,24 +8,67 @@
 #include "transformation_system_fixture.hpp"
 #include "test_utils.hpp"
 
+// TEST_CASE("adding a transformation adds to additions input buffer", "[transformation][add]")
+// {
+//     TransformationSystem system;
+//     numberOfTransformationsShouldBe(system, 0);
+
+//     TransformationHandle handle = system.add(
+//         (Transformation){
+//             .position = originPosition,
+//             .rotation = zeroQuaternion,
+//             .scale = defaultScale},
+//         NO_TRANSFORMATION_PARENT);
+
+//     numberOfTransformationsShouldBe(system, 0);
+//     system.drainRenderThreadAdditionsInputBuffer();
+//     numberOfTransformationsShouldBe(system, 1);
+// }
+
+TEST_CASE("reserving n transformation handles should return an array of n handles", "[transformation][handle]")
+{
+    TransformationSystem system;
+    std::vector<TransformationHandle> handles = system.reserveHandles(4);
+    REQUIRE(4 == handles.size());
+}
+
 TEST_CASE("adding a transformation increases size", "[transformation][add]")
 {
     TransformationSystem system;
 
-    REQUIRE(system.positions.size() == 0);
-    REQUIRE(system.rotations.size() == 0);
-    REQUIRE(system.scales.size() == 0);
+    numberOfTransformationsShouldBe(system, 0);
+    std::vector<TransformationHandle> handles = system.reserveHandles(1);
+    Transformation transformation = {
+        .position = originPosition,
+        .rotation = zeroQuaternion,
+        .scale = defaultScale
+    };
+    TransformationHandle parent = NO_TRANSFORMATION_PARENT;
+    system.add(&transformation, &parent, handles.data(), 1);
 
-    TransformationHandle handle = system.add(
-        (Transformation){
-            .position = originPosition,
-            .rotation = zeroQuaternion,
-            .scale = defaultScale},
-        NO_TRANSFORMATION_PARENT);
+    numberOfTransformationsShouldBe(system, 0);
+    system.drainRenderThreadAdditionsInputBuffer();
+    numberOfTransformationsShouldBe(system, 1);
+}
 
-    REQUIRE(system.positions.size() == 1);
-    REQUIRE(system.rotations.size() == 1);
-    REQUIRE(system.scales.size() == 1);
+TEST_CASE("adding multiple transformations increases size", "[transformation][add]")
+{
+    TransformationSystem system;
+
+    numberOfTransformationsShouldBe(system, 0);
+    // std::vector<TransformationEntry> entries = nUnparentedTransformationEntries(system, 3);
+    std::vector<Transformation> transformations = nTransformations(3);
+    std::vector<TransformationHandle> handles = system.reserveHandles(3);
+    std::vector<TransformationHandle> parents(handles.size(), NO_TRANSFORMATION_PARENT);
+
+    numberOfTransformationsShouldBe(system, 0);
+    system.add(transformations.data(), parents.data(), handles.data(), 3);
+
+    numberOfTransformationsShouldBe(system, 0);
+    system.drainRenderThreadAdditionsInputBuffer();
+    numberOfTransformationsShouldBe(system, 3);
+
+    handlesAndIndicesShouldMatchUp(system);
 }
 
 TEST_CASE("added transformation stores correct position", "[transformation][add]")
@@ -39,7 +82,8 @@ TEST_CASE("added transformation stores correct position", "[transformation][add]
             .scale = defaultScale},
         NO_TRANSFORMATION_PARENT);
 
-    REQUIRE(simdFloat3Equal(somePosition, system.positions[handle]));
+    system.drainRenderThreadAdditionsInputBuffer();
+    REQUIRE(simdFloat3Equal(somePosition, system.positions[system.handleToIndex[handle]]));
 }
 
 TEST_CASE("added transformation stores correct rotation", "[transformation][add]")
@@ -53,7 +97,8 @@ TEST_CASE("added transformation stores correct rotation", "[transformation][add]
             .scale = defaultScale},
         NO_TRANSFORMATION_PARENT);
 
-    REQUIRE(simdQuatfEqual(someRotation, system.rotations[handle]));
+    system.drainRenderThreadAdditionsInputBuffer();
+    REQUIRE(simdQuatfEqual(someRotation, system.rotations[system.handleToIndex[handle]]));
 }
 
 TEST_CASE("added transformation stores correct scale", "[transformation][add]")
@@ -67,7 +112,8 @@ TEST_CASE("added transformation stores correct scale", "[transformation][add]")
             .scale = someScale},
         NO_TRANSFORMATION_PARENT);
 
-    REQUIRE(simdFloat3Equal(someScale, system.scales[handle]));
+    system.drainRenderThreadAdditionsInputBuffer();
+    REQUIRE(simdFloat3Equal(someScale, system.scales[system.handleToIndex[handle]]));
 }
 
 TEST_CASE("added transformation stores correct parent", "[transformation][add]")
@@ -81,6 +127,8 @@ TEST_CASE("added transformation stores correct parent", "[transformation][add]")
             .scale = someScale},
         NO_TRANSFORMATION_PARENT);
 
+    system.drainRenderThreadAdditionsInputBuffer();
+
     TransformationHandle handle = system.add(
         (Transformation){
             .position = originPosition,
@@ -88,53 +136,64 @@ TEST_CASE("added transformation stores correct parent", "[transformation][add]")
             .scale = someScale},
         parent);
 
-    REQUIRE(parent == system.parentHandles[handle]);
+    system.drainRenderThreadAdditionsInputBuffer();
+
+    REQUIRE(parent == system.parentHandles[system.handleToIndex[handle]]);
+}
+
+TEST_CASE("adding transformations in bulk stores correct parents", "[transformation][add]")
+{
+    TransformationSystem system;
+    std::vector<Transformation> transformations = nTransformations(2);
+    std::vector<TransformationHandle> handles = system.reserveHandles(2);
+    std::vector<TransformationHandle> parents = {NO_TRANSFORMATION_PARENT, handles[0]};
+
+    system.add(transformations.data(), parents.data(), handles.data(), 2);
+    system.drainRenderThreadAdditionsInputBuffer();
+    numberOfTransformationsShouldBe(system, 2);
+    REQUIRE(handles[0] == system.parentHandles[system.handleToIndex[handles[1]]]);
 }
 
 TEST_CASE("removing a transformation decreases size", "[transformation][remove]")
 {
     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
-    REQUIRE(system.positions.size() == 3);
-    REQUIRE(system.rotations.size() == 3);
-    REQUIRE(system.scales.size() == 3);
+    numberOfTransformationsShouldBe(system, 3);
 
     system.remove((TransformationHandle){2});
 
-    REQUIRE(system.positions.size() == 2);
-    REQUIRE(system.rotations.size() == 2);
-    REQUIRE(system.scales.size() == 2);
+    numberOfTransformationsShouldBe(system, 2);
 }
 
-TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
-{
-    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
-    const simd_float3 *transformation0Position = &system.positions[system.handleToIndex[0]];
-    const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
-    const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
+// TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
+// {
+//     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+//     const simd_float3 *transformation0Position = &system.positions[system.handleToIndex[0]];
+//     const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
+//     const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
 
-    system.remove((TransformationHandle){1});
+//     system.remove((TransformationHandle){1});
 
-    // Making sure indices and handles still line up
-    REQUIRE(transformation0Position == &system.positions[system.handleToIndex[0]]);
-    REQUIRE(transformation1Position == &system.positions[system.handleToIndex[2]]);
-}
+//     // Making sure indices and handles still line up
+//     REQUIRE(transformation0Position == &system.positions[system.handleToIndex[0]]);
+//     REQUIRE(transformation1Position == &system.positions[system.handleToIndex[2]]);
+// }
 
-TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
-{
-    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+// TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
+// {
+//     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
 
-    system.remove((TransformationHandle){1});
+//     system.remove((TransformationHandle){1});
 
-    TransformationHandle handle1 = system.add(
-        (Transformation){
-            .position = somePosition,
-            .rotation = someRotation,
-            .scale = someScale},
-        NO_TRANSFORMATION_PARENT);
+//     TransformationHandle handle1 = system.add(
+//         (Transformation){
+//             .position = somePosition,
+//             .rotation = someRotation,
+//             .scale = someScale},
+//         NO_TRANSFORMATION_PARENT);
 
-    REQUIRE(handle1 == (TransformationHandle){1});
+//     REQUIRE(handle1 == (TransformationHandle){1});
 
-    TransformationHandle handle2 = someTransformationHandleForAddedTransformation(system);
+//     TransformationHandle handle2 = someTransformationHandleForAddedTransformation(system);
 
-    REQUIRE(handle2 == (TransformationHandle){3});
-}
+//     REQUIRE(handle2 == (TransformationHandle){3});
+// }

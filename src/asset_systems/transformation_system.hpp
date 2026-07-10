@@ -12,6 +12,7 @@ struct TransformationEntry
 {
     Transformation transformation = {0};
     TransformationHandle parent = NO_TRANSFORMATION_PARENT;
+    TransformationHandle handle = TRANSFORMATION_HANDLE_INVALID;
 };
 
 class TransformationSystem
@@ -29,6 +30,24 @@ class TransformationSystem
      * @returns The transformation handle of the transformation
      */
     TransformationHandle add(Transformation transformation, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
+
+    // /**
+    //  * Add transformations to the Transformation system
+    //  * @param transformations A pointer to transformation data to be added
+    //  * @param parent A pointer to an array of parent handles
+    //  * @param n The number of transformations to be added
+    //  * @returns A vector of Transformation Handles
+    //  */
+    // std::vector<TransformationHandle> add(Transformation* transformations, TransformationHandle* parents, size_t n);
+
+    /**
+     * Add transformations to the Transformation system with pre-reserved handles
+     * @param transformations A pointer to transformation data to be added
+     * @param parent A pointer to the parent handles of each transformation
+     * @param n The number of transformations to be added
+     * @returns
+     */
+    void add(Transformation* transformations, TransformationHandle* parents, TransformationHandle* handles, size_t n);
 
     /**
      * Remove a transformation from the Transformation System
@@ -48,11 +67,17 @@ class TransformationSystem
      */
     void updateWorldMatrixBuffer();
 
+    std::vector<TransformationHandle> reserveHandles(size_t n);
+
+    void drainRenderThreadAdditionsInputBuffer();
+
     void deallocRenderThreadAdditionsInputBuffer();
     void deallocRenderThreadRemovalsInputBuffer();
 
     void deallocRenderThreadAdditionsOutputBuffer();
     void deallocRenderThreadRemovalsOutputBuffer();
+
+    TransformationHandle getMaxHandle();
 
     // MTL::Buffer* transformationBuffer = nullptr;
     MetalBufferPtr transformationBuffer = nullptr;
@@ -72,10 +97,11 @@ class TransformationSystem
 
     private:
     std::vector<TransformationHandle> freeHandles;
+    TransformationHandle maxHandle = 0;
 
     // Input Buffers (loading thread to render thread)
     SynchronizedBuffer<TransformationEntry> renderThreadAdditionsInputBuffer = SynchronizedBuffer<TransformationEntry>();
-    SynchronizedBuffer<TransformationEntry> renderThreadRemovalsInputBuffer = SynchronizedBuffer<TransformationEntry>();
+    SynchronizedBuffer<TransformationHandle> renderThreadRemovalsInputBuffer = SynchronizedBuffer<TransformationHandle>();
 
     // Output Buffers (rener thread to loading thread)
     SynchronizedBuffer<TransformationHandle> renderThreadAdditionsOutputBuffer = SynchronizedBuffer<TransformationHandle>();

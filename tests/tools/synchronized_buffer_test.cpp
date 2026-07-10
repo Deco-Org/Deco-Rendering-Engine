@@ -51,3 +51,16 @@ TEST_CASE("Buffer data should be moved on moveData()", "[tools][buffer][move]")
         REQUIRE(items[i] == movedData[i]);
     }
 }
+
+TEST_CASE("Buffer should be filled with data on fillData", "[tools][buffer][add]")
+{
+    SynchronizedBuffer<int> buffer = SynchronizedBuffer<int>();
+    REQUIRE(0 == buffer.size());
+    std::vector<int> items = {32, 64, 128, 256};
+    buffer.setSize(items.size());
+    buffer.fillData(items.data(), items.size());
+    for (int i = 0; i < buffer.size(); ++i)
+    {
+        REQUIRE(items[i] == buffer.at(i));
+    }
+}

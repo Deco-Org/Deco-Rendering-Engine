@@ -13,6 +13,7 @@ class SynchronizedBuffer
     public:
     SynchronizedBuffer<T>()
     {
+        numberOfItems = 0;
         buffer = nullptr;
     }
 
@@ -52,6 +53,16 @@ class SynchronizedBuffer
         buffer = nullptr;
         numberOfItems = 0;
         return data;
+    }
+
+    void fillData(T* data, size_t n)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        numberOfItems = std::max(n, numberOfItems);
+        for (size_t i = 0; i < n; ++i)
+        {
+            buffer[i] = data[i];
+        }
     }
 
     void setSize(size_t n)
