@@ -48,6 +48,12 @@ class TransformationSystem
      */
     void updateWorldMatrixBuffer();
 
+    void deallocRenderThreadAdditionsInputBuffer();
+    void deallocRenderThreadRemovalsInputBuffer();
+
+    void deallocRenderThreadAdditionsOutputBuffer();
+    void deallocRenderThreadRemovalsOutputBuffer();
+
     // MTL::Buffer* transformationBuffer = nullptr;
     MetalBufferPtr transformationBuffer = nullptr;
     
@@ -67,6 +73,11 @@ class TransformationSystem
     private:
     std::vector<TransformationHandle> freeHandles;
 
-    SynchronizedBuffer<TransformationEntry> readerThreadInputBuffer = SynchronizedBuffer<TransformationEntry>();
-    SynchronizedBuffer<TransformationHandle> renderThreadOutputBuffer = SynchronizedBuffer<TransformationHandle>();
+    // Input Buffers (loading thread to render thread)
+    SynchronizedBuffer<TransformationEntry> renderThreadAdditionsInputBuffer = SynchronizedBuffer<TransformationEntry>();
+    SynchronizedBuffer<TransformationEntry> renderThreadRemovalsInputBuffer = SynchronizedBuffer<TransformationEntry>();
+
+    // Output Buffers (rener thread to loading thread)
+    SynchronizedBuffer<TransformationHandle> renderThreadAdditionsOutputBuffer = SynchronizedBuffer<TransformationHandle>();
+    SynchronizedBuffer<TransformationHandle> renderThreadRemovalsOutputBuffer = SynchronizedBuffer<TransformationHandle>();
 };

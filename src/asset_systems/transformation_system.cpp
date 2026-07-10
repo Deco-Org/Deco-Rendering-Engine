@@ -60,3 +60,13 @@ void TransformationSystem::remove(TransformationHandle transformation)
     scales.pop_back();
     freeHandles.push_back(transformation);
 }
+
+void TransformationSystem::deallocRenderThreadAdditionsInputBuffer()
+{
+    renderThreadAdditionsInputBuffer.~SynchronizedBuffer();
+}
+
+void TransformationSystem::deallocRenderThreadAdditionsOutputBuffer()
+{
+    renderThreadAdditionsOutputBuffer.~SynchronizedBuffer();
+}
