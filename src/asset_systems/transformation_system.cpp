@@ -47,22 +47,7 @@ void TransformationSystem::add(Transformation* transformations, TransformationHa
 void TransformationSystem::remove(TransformationHandle transformation)
 {
     const uint32_t numberOfTransformations = (uint32_t)positions.size();
-    // Everything after the removed transformation must be shifted
-    // The mappings between handle and index must also be updated
-    // for (TransformationHandle t = transformation; t < positions.size() - 1; ++t)
-    // {
-    //     positions[t] = positions[t+1];
-    //     rotations[t] = rotations[t+1];
-    //     scales[t] = scales[t+1];
-
-    //     const TransformationHandle newHandle = indexToHandle[t + 1];
-    //     handleToIndex[newHandle] = t;
-    //     indexToHandle[t] = newHandle;
-    // }
-    // positions.pop_back();
-    // rotations.pop_back();
-    // scales.pop_back();
-    // freeHandles.push_back(transformation);
+    remove(&transformation, 1);
 }
 
 void TransformationSystem::remove(TransformationHandle* handles, size_t n)
@@ -199,13 +184,21 @@ TransformationHandle TransformationSystem::getMaxHandle()
 
 void TransformationSystem::memshiftTransformationsChunk(uint32_t startIndex, uint32_t shift, size_t size)
 {
+    if (startIndex == 0 && shift > 1)
+    {
+        startIndex += 1;
+        shift -= 1;
+    } else if (startIndex == 0 && shift <= 1) 
+    {
+        return;
+    }
     // TODO: Look into future optimizations made possible through SIMD
     memmove(&positions[startIndex - shift], &positions[startIndex], size * sizeof(positions[0]));
     memmove(&rotations[startIndex - shift], &rotations[startIndex], size * sizeof(rotations[0]));
     memmove(&scales[startIndex - shift], &scales[startIndex], size * sizeof(scales[0]));
     memmove(&worldMatrices[startIndex - shift], &worldMatrices[startIndex], size * sizeof(worldMatrices[0]));
     memmove(&parentHandles[startIndex - shift], &parentHandles[startIndex], size * sizeof(parentHandles[0]));
-    
+
     // Updating mappings
     for (size_t i = 0; i < std::min(size, positions.size() - shift - startIndex); ++i)
     {

@@ -165,21 +165,22 @@ TEST_CASE("removing multiple transformations decreases size", "[transformation][
     system.drainRenderThreadRemovalsInputBuffer();
 
     numberOfTransformationsShouldBe(system, 7);
+    handlesAndIndicesShouldMatchUp(system);
 }
 
-// TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
-// {
-//     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
-//     const simd_float3 *transformation0Position = &system.positions[system.handleToIndex[0]];
-//     const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
-//     const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
+TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    const simd_float3 *transformation0Position = &system.positions[system.handleToIndex[0]];
+    const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
+    const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
 
-//     system.remove((TransformationHandle){1});
+    TransformationHandle handleOfRemovedItem = system.indexToHandle[0];
+    system.remove(&handleOfRemovedItem, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
 
-//     // Making sure indices and handles still line up
-//     REQUIRE(transformation0Position == &system.positions[system.handleToIndex[0]]);
-//     REQUIRE(transformation1Position == &system.positions[system.handleToIndex[2]]);
-// }
+    handlesAndIndicesShouldMatchUp(system);
+}
 
 // TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
 // {
