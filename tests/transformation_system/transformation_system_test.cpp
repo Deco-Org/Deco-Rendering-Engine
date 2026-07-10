@@ -8,23 +8,6 @@
 #include "transformation_system_fixture.hpp"
 #include "test_utils.hpp"
 
-// TEST_CASE("adding a transformation adds to additions input buffer", "[transformation][add]")
-// {
-//     TransformationSystem system;
-//     numberOfTransformationsShouldBe(system, 0);
-
-//     TransformationHandle handle = system.add(
-//         (Transformation){
-//             .position = originPosition,
-//             .rotation = zeroQuaternion,
-//             .scale = defaultScale},
-//         NO_TRANSFORMATION_PARENT);
-
-//     numberOfTransformationsShouldBe(system, 0);
-//     system.drainRenderThreadAdditionsInputBuffer();
-//     numberOfTransformationsShouldBe(system, 1);
-// }
-
 TEST_CASE("reserving n transformation handles should return an array of n handles", "[transformation][handle]")
 {
     TransformationSystem system;
@@ -159,7 +142,9 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
     numberOfTransformationsShouldBe(system, 3);
 
-    system.remove((TransformationHandle){2});
+    TransformationHandle handleToRemove = system.indexToHandle[1];
+    system.remove(&handleToRemove, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
 
     numberOfTransformationsShouldBe(system, 2);
 }

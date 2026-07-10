@@ -55,6 +55,14 @@ class TransformationSystem
      */
     void remove(TransformationHandle transformation);
 
+    /**
+     * Remove transformations from the Transformation System
+     * @param handles An array of the handles of the transformations
+     * to be removed
+     * @param n The number of transformations to be removed.
+     */
+    void remove(TransformationHandle* handles, size_t n);
+
     void setParent(TransformationHandle transformation, TransformationHandle parent);
 
     /**
@@ -69,7 +77,19 @@ class TransformationSystem
 
     std::vector<TransformationHandle> reserveHandles(size_t n);
 
+    /**
+     * @brief Drains the render thread additions input buffer, adding
+     * transformation entries to the system.
+     * @warning This should only be called on the render thread.
+     */
     void drainRenderThreadAdditionsInputBuffer();
+
+    /**
+     * @brief Drains the render thread removals input buffer, removing
+     * transformations with the provided handles from the system.
+     * @warning This should only be called on the render thread.
+     */
+    void drainRenderThreadRemovalsInputBuffer();
 
     void deallocRenderThreadAdditionsInputBuffer();
     void deallocRenderThreadRemovalsInputBuffer();
@@ -96,6 +116,8 @@ class TransformationSystem
     std::vector<TransformationHandle> indexToHandle;
 
     private:
+    void memshiftTransformationsChunk(uint32_t startIndex, size_t size, uint32_t shift);
+
     std::vector<TransformationHandle> freeHandles;
     TransformationHandle maxHandle = 0;
 
