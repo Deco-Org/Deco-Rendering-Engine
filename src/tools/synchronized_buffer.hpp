@@ -45,6 +45,15 @@ class SynchronizedBuffer
         delete[] buffer;
     }
 
+    T* moveData()
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        T* data = buffer;
+        buffer = nullptr;
+        numberOfItems = 0;
+        return data;
+    }
+
     void setSize(size_t n)
     {
         std::lock_guard<std::mutex> lock(mutex);
