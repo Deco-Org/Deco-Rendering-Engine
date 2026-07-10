@@ -116,7 +116,7 @@ class TransformationSystem
     std::vector<TransformationHandle> indexToHandle;
 
     private:
-    void memshiftTransformationsChunk(uint32_t startIndex, size_t size, uint32_t shift);
+    void memshiftTransformationsChunk(uint32_t startIndex, uint32_t shift, size_t size);
 
     std::vector<TransformationHandle> freeHandles;
     TransformationHandle maxHandle = 0;

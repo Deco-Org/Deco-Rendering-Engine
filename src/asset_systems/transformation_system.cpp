@@ -149,25 +149,27 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
     {
         targetedIndices.push_back(handleToIndex[queuedHandles[i]]);
         memshiftTransformationsChunk(
-            handleToIndex[queuedHandles[i]],
-            queuedHandles[i+1] - queuedHandles[i],
-            i
+            handleToIndex[queuedHandles[i]] + 1,
+            i + 1,
+            queuedHandles[i+1] - queuedHandles[i] - 1
         );
+        indexToHandle[handleToIndex[queuedHandles[i]]] = NO_TRANSFORMATION_PARENT;
     }
+
     // Removing the last thing
     targetedIndices.push_back(handleToIndex[queuedHandles[n - 1]]);
     const size_t lastIndexToRemove = handleToIndex[queuedHandles[n - 1]];
     memshiftTransformationsChunk(
         lastIndexToRemove,
-        positions.size() - lastIndexToRemove,
-        n
+        n,
+        positions.size() - lastIndexToRemove
     );
 
-    positions.pop_back();
-    scales.pop_back();
-    rotations.pop_back();
-    worldMatrices.pop_back();
-    parentHandles.pop_back();
+    positions.erase(positions.end() - n, positions.end());
+    scales.erase(scales.end() - n, scales.end());
+    rotations.erase(rotations.end() - n, rotations.end());
+    worldMatrices.erase(worldMatrices.end() - n, worldMatrices.end());
+    parentHandles.erase(parentHandles.end() - n, parentHandles.end());
 }
 
 void TransformationSystem::deallocRenderThreadAdditionsInputBuffer()
@@ -195,20 +197,21 @@ TransformationHandle TransformationSystem::getMaxHandle()
     return maxHandle;
 }
 
-void TransformationSystem::memshiftTransformationsChunk(uint32_t startIndex, size_t size, uint32_t shift)
+void TransformationSystem::memshiftTransformationsChunk(uint32_t startIndex, uint32_t shift, size_t size)
 {
     // TODO: Look into future optimizations made possible through SIMD
-    memmove(&positions[startIndex] - shift, &positions[startIndex], size * sizeof(positions[0]));
-    memmove(&rotations[startIndex] - shift, &rotations[startIndex], size * sizeof(rotations[0]));
-    memmove(&scales[startIndex] - shift, &scales[startIndex], size * sizeof(scales[0]));
-    memmove(&worldMatrices[startIndex] - shift, &worldMatrices[startIndex], size * sizeof(worldMatrices[0]));
-    memmove(&parentHandles[startIndex] - shift, &parentHandles[startIndex], size * sizeof(parentHandles[0]));
+    memmove(&positions[startIndex - shift], &positions[startIndex], size * sizeof(positions[0]));
+    memmove(&rotations[startIndex - shift], &rotations[startIndex], size * sizeof(rotations[0]));
+    memmove(&scales[startIndex - shift], &scales[startIndex], size * sizeof(scales[0]));
+    memmove(&worldMatrices[startIndex - shift], &worldMatrices[startIndex], size * sizeof(worldMatrices[0]));
+    memmove(&parentHandles[startIndex - shift], &parentHandles[startIndex], size * sizeof(parentHandles[0]));
     
     // Updating mappings
-    for (size_t i = 0; i < size - shift; ++i)
+    for (size_t i = 0; i < std::min(size, positions.size() - shift - startIndex); ++i)
     {
         const TransformationHandle oldHandle = indexToHandle[i + startIndex];
         indexToHandle[i + startIndex] = indexToHandle[i + startIndex + shift];
-        handleToIndex[oldHandle] = indexToHandle[i + startIndex];
+        // handleToIndex[oldHandle] = handleToIndex[i + startIndex + shift];
+        handleToIndex[indexToHandle[i + startIndex]] = i + startIndex;
     }
 }

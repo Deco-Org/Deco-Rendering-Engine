@@ -147,6 +147,24 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
     system.drainRenderThreadRemovalsInputBuffer();
 
     numberOfTransformationsShouldBe(system, 2);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("removing multiple transformations decreases size", "[transformation][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(10);
+    numberOfTransformationsShouldBe(system, 10);
+
+    TransformationHandle handlesToRemove[3] = {
+        system.indexToHandle[0],
+        system.indexToHandle[5],
+        system.indexToHandle[8]
+    };
+
+    system.remove(handlesToRemove, 3);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    numberOfTransformationsShouldBe(system, 7);
 }
 
 // TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")

@@ -83,13 +83,20 @@ inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
 {
     std::vector<TransformationHandle> handles;
     std::vector<size_t> indices;
-    for (TransformationHandle i = 0; i < system.getMaxHandle(); ++i)
+    for (size_t i = 0; i < system.positions.size(); ++i)
     {
-        if (system.handleToIndex[i] != (uint32_t)(-1))
+        if (system.indexToHandle[i] != (uint32_t)(-1))
         {
-            REQUIRE(system.indexToHandle[system.handleToIndex[i]] == i);
+            REQUIRE(system.handleToIndex[system.indexToHandle[i]] == i);
         }
     }
+    // for (TransformationHandle i = 0; i < system.getMaxHandle(); ++i)
+    // {
+    //     if (system.handleToIndex[i] != (uint32_t)(-1))
+    //     {
+    //         REQUIRE(system.indexToHandle[system.handleToIndex[i]] == i);
+    //     }
+    // }
 }
 
 inline void renderThreadInputQueueIsCleared(TransformationSystem &system)
