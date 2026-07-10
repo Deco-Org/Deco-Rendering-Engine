@@ -66,7 +66,17 @@ void TransformationSystem::deallocRenderThreadAdditionsInputBuffer()
     renderThreadAdditionsInputBuffer.~SynchronizedBuffer();
 }
 
+void TransformationSystem::deallocRenderThreadRemovalsInputBuffer()
+{
+    renderThreadRemovalsInputBuffer.~SynchronizedBuffer();
+}
+
 void TransformationSystem::deallocRenderThreadAdditionsOutputBuffer()
 {
     renderThreadAdditionsOutputBuffer.~SynchronizedBuffer();
+}
+
+void TransformationSystem::deallocRenderThreadRemovalsOutputBuffer()
+{
+    renderThreadRemovalsOutputBuffer.~SynchronizedBuffer();
 }
