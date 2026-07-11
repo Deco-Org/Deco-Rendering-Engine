@@ -158,9 +158,17 @@ std::vector<TransformationHandle> TransformationSystem::reserveHandles(size_t n)
 
 void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
 {
-    const size_t n = renderThreadAdditionsInputBuffer.size();
-    if (n == 0) return;
-    TransformationEntry* queuedEntries = renderThreadAdditionsInputBuffer.moveData();
+    size_t n;
+    TransformationEntry* queuedEntries;
+    {
+        std::lock_guard<std::mutex> lock(renderThreadAdditionsInputBuffer.mutex);
+        // Critical section
+        n = renderThreadAdditionsInputBuffer.numberOfItems;
+        if (n == 0) return;
+        queuedEntries = renderThreadAdditionsInputBuffer.buffer;
+        renderThreadAdditionsInputBuffer.buffer = nullptr;
+        renderThreadAdditionsInputBuffer.numberOfItems = 0;
+    }
     const size_t lastIndex = positions.size() - 1;
 
     // Allocating new memory if needed
@@ -199,8 +207,16 @@ void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
 
 void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
 {
-    const size_t n = renderThreadRemovalsInputBuffer.size();
-    TransformationHandle* queuedHandles = renderThreadRemovalsInputBuffer.moveData();
+    size_t n;
+    TransformationHandle* queuedHandles;
+    {
+        std::lock_guard<std::mutex> lock(renderThreadRemovalsInputBuffer.mutex);
+        // Critical section
+        n = renderThreadRemovalsInputBuffer.numberOfItems;
+        queuedHandles = renderThreadRemovalsInputBuffer.buffer;
+        renderThreadRemovalsInputBuffer.buffer = nullptr;
+        renderThreadRemovalsInputBuffer.numberOfItems = 0;
+    }
 
     // TODO: Future optimization: move orphans first
     // For now, just move things in big chunks of memory
@@ -248,11 +264,20 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
     // Filling the render thread removals output buffer
     if (renderThreadRemovalsOutputBuffer.size() > 0)
     {
+        size_t oldSize;
         // If there's already data in the output buffer, append
         // free handles to the end
-        const size_t oldSize = renderThreadRemovalsOutputBuffer.size();
+        TransformationHandle* previousFreeHandles;
+        {
+            std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
+
+            // Critical section
+            oldSize = renderThreadRemovalsOutputBuffer.numberOfItems; // getting the size again, just in case it changed since the check.
+            previousFreeHandles = renderThreadRemovalsOutputBuffer.buffer;
+            renderThreadRemovalsOutputBuffer.buffer = nullptr;
+            renderThreadRemovalsOutputBuffer.numberOfItems = 0;
+        }
         size_t newSize = oldSize + n;
-        TransformationHandle* previousFreeHandles = renderThreadRemovalsOutputBuffer.moveData();
         TransformationHandle oldAndNewlyFreedHandles[newSize];
         
         memcpy(oldAndNewlyFreedHandles, previousFreeHandles, oldSize);
@@ -310,8 +335,17 @@ void TransformationSystem::drainRenderThreadReparentInputBuffer()
 
 void TransformationSystem::updateFreeHandles()
 {
-    const size_t n = renderThreadRemovalsOutputBuffer.size();
-    TransformationHandle* newlyFreedHandles = renderThreadRemovalsOutputBuffer.moveData();
+    size_t n;
+    TransformationHandle* newlyFreedHandles;
+    {
+        std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
+
+        // Critical section
+        n = renderThreadRemovalsOutputBuffer.numberOfItems;
+        newlyFreedHandles = renderThreadRemovalsOutputBuffer.buffer;
+        renderThreadRemovalsOutputBuffer.buffer = nullptr;
+        renderThreadRemovalsOutputBuffer.numberOfItems = 0;
+    }
     for (size_t i = 0; i < n; ++i)
     {
         freeHandles.push_back(newlyFreedHandles[i]);
