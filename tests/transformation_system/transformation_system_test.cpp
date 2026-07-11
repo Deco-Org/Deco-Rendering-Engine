@@ -143,9 +143,11 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
     numberOfTransformationsShouldBe(system, 3);
 
     TransformationHandle handleToRemove = system.indexToHandle[1];
+    simd_float3 position = system.positions[system.handleToIndex[0]];
     system.remove(&handleToRemove, 1);
     system.drainRenderThreadRemovalsInputBuffer();
 
+    simdFloat3Equal(position, system.positions[system.handleToIndex[0]]);
     numberOfTransformationsShouldBe(system, 2);
     handlesAndIndicesShouldMatchUp(system);
 }
@@ -216,6 +218,38 @@ TEST_CASE("removed transformations will have handles recycled", "[transformation
     REQUIRE((TransformationHandle){3} == handle2);
 }
 
+TEST_CASE("removing a transformation should preserve order", "[transformation][remove]")
+{
+    // Given that there is a transformation system with 12 handles such that each transformation come directly after it's parent,
+    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    for (uint32_t index = 1; index < system.indexToHandle.size(); ++index)
+    {
+        const TransformationHandle handle = system.indexToHandle[index];
+        const TransformationHandle parent = system.indexToHandle[index - 1];
+        system.setParent(handle, parent);
+    }
+
+    
+    // When a transformation is removed
+    TransformationHandle transformationToRemove = system.indexToHandle[5];
+    TransformationHandle childOfRemovedTransformation = system.indexToHandle[6];
+    REQUIRE(system.parentHandles[system.handleToIndex[childOfRemovedTransformation]] == transformationToRemove);
+    system.setParent(childOfRemovedTransformation, NO_TRANSFORMATION_PARENT);
+    system.remove(&transformationToRemove, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    // Order should be preserved
+    for (uint32_t index = 1; index < system.indexToHandle.size(); ++index)
+    {
+        const TransformationHandle handle = system.indexToHandle[index];
+        const TransformationHandle expectedParent = system.indexToHandle[index - 1];
+        if (handle != childOfRemovedTransformation)
+        {
+            REQUIRE(system.handleToIndex[system.parentHandles[index]] < index);
+        }
+    }
+}
+
 TEST_CASE("reparented transformations will remain after new parent when new parent comes prior to transformation", "[transformation][reparent]")
 {
     TransformationSystem system = makeTransformationSystemWithNTransformations(12);
@@ -241,7 +275,6 @@ TEST_CASE("reparented transformations will be moved to be prior to new parent wh
     system.setParent(childHandle, parentHandle);
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
-
     
     REQUIRE(parentIndex < newChildIndex);
     handlesAndIndicesShouldMatchUp(system);
@@ -293,5 +326,19 @@ TEST_CASE("grandparents of reparented transformation should be before their chil
     REQUIRE(grandparentIndex < parentIndex);
     REQUIRE(parentIndex < newChildIndex);
     REQUIRE(newChildIndex < newGrandchildIndex);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("handles and indices should match up when a transformation is made an orphan", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationHandle parentHandle = 3;
+    TransformationHandle childHandle = 5;
+    
+    system.setParent(childHandle, parentHandle);
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    
+    system.setParent(childHandle, NO_TRANSFORMATION_PARENT);
     handlesAndIndicesShouldMatchUp(system);
 }

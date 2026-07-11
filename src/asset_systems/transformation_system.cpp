@@ -64,65 +64,66 @@ void TransformationSystem::remove(TransformationHandle* handles, size_t n)
 
 void TransformationSystem::setParent(TransformationHandle transformation, TransformationHandle parent)
 {
-    const uint32_t childIndex = handleToIndex[transformation];
-    const uint32_t parentIndex = handleToIndex[parent];
     parentHandles[transformation] = parent;
-
-    if (childIndex < parentIndex)
+    if (parent != NO_TRANSFORMATION_PARENT)
     {
-        std::vector<simd_float3> tempPositions = {positions[parentIndex]};
-        std::vector<simd_quatf> tempRotations = {rotations[parentIndex]};
-        std::vector<simd_float3> tempScales = {scales[parentIndex]};
-        std::vector<TransformationHandle> tempParentHandles = {parentHandles[parentIndex]};
-        std::vector<TransformationHandle> tempIndexToHandle = {indexToHandle[parentIndex]};
-
-        // Getting the "wall indices" (includes ancestors)
-        std::vector<uint32_t> wallIndices{parentIndex};
-        TransformationHandle ancestorHandle = parentHandles[parentIndex];
-        while (ancestorHandle != NO_TRANSFORMATION_PARENT && handleToIndex[ancestorHandle] > childIndex)
+        const uint32_t childIndex = handleToIndex[transformation];
+        const uint32_t parentIndex = handleToIndex[parent];
+        if (childIndex < parentIndex)
         {
-            const uint32_t ancestorIndex = handleToIndex[ancestorHandle];
-            wallIndices.push_back(ancestorIndex);
-            ancestorHandle = parentHandles[ancestorIndex];
+            std::vector<simd_float3> tempPositions = {positions[parentIndex]};
+            std::vector<simd_quatf> tempRotations = {rotations[parentIndex]};
+            std::vector<simd_float3> tempScales = {scales[parentIndex]};
+            std::vector<TransformationHandle> tempParentHandles = {parentHandles[parentIndex]};
+            std::vector<TransformationHandle> tempIndexToHandle = {indexToHandle[parentIndex]};
 
-            // Adding to temp arrays
-            tempPositions.push_back(positions[ancestorIndex]);
-            tempRotations.push_back(rotations[ancestorIndex]);
-            tempScales.push_back(scales[ancestorIndex]);
-            tempParentHandles.push_back(parentHandles[ancestorIndex]);
-            tempIndexToHandle.push_back(indexToHandle[ancestorIndex]);
-        }
-        wallIndices.push_back(childIndex);
-        
-        const uint32_t numOfWalls = wallIndices.size();
-        // Shift chunks over
-        for (uint32_t i = 1; i < numOfWalls; ++i)
-        {
-            memshiftTransformationsChunk(
-                wallIndices[i],
-                i,
-                wallIndices[i - 1] - wallIndices[i]
-            );
-        }
-
-        // Putting the temps back
-        const uint32_t newChildIndex = childIndex + numOfWalls - 1;
-        for (uint32_t i = 0; i < numOfWalls - 1; ++i)
-        {
-            const uint32_t newIndex = newChildIndex - i - 1;
-            positions[newIndex] = tempPositions[i];
-            rotations[newIndex] = tempRotations[i];
-            scales[newIndex] = tempScales[i];
-            parentHandles[newIndex] = tempParentHandles[i];
-            indexToHandle[newIndex] = tempIndexToHandle[i];
-        }
-
-        // Updating the mappings
-        for (uint32_t i = 0; i < indexToHandle.size(); ++i)
-        {
-            if (indexToHandle[i] < handleToIndex.size())
+            // Getting the "wall indices" (includes ancestors)
+            std::vector<uint32_t> wallIndices{parentIndex};
+            TransformationHandle ancestorHandle = parentHandles[parentIndex];
+            while (ancestorHandle != NO_TRANSFORMATION_PARENT && handleToIndex[ancestorHandle] > childIndex)
             {
-                handleToIndex[indexToHandle[i]] = i;
+                const uint32_t ancestorIndex = handleToIndex[ancestorHandle];
+                wallIndices.push_back(ancestorIndex);
+                ancestorHandle = parentHandles[ancestorIndex];
+
+                // Adding to temp arrays
+                tempPositions.push_back(positions[ancestorIndex]);
+                tempRotations.push_back(rotations[ancestorIndex]);
+                tempScales.push_back(scales[ancestorIndex]);
+                tempParentHandles.push_back(parentHandles[ancestorIndex]);
+                tempIndexToHandle.push_back(indexToHandle[ancestorIndex]);
+            }
+            wallIndices.push_back(childIndex);
+
+            const uint32_t numOfWalls = wallIndices.size();
+            // Shift chunks over
+            for (uint32_t i = 1; i < numOfWalls; ++i)
+            {
+                memshiftTransformationsChunk(
+                    wallIndices[i],
+                    i,
+                    wallIndices[i - 1] - wallIndices[i]);
+            }
+
+            // Putting the temps back
+            const uint32_t newChildIndex = childIndex + numOfWalls - 1;
+            for (uint32_t i = 0; i < numOfWalls - 1; ++i)
+            {
+                const uint32_t newIndex = newChildIndex - i - 1;
+                positions[newIndex] = tempPositions[i];
+                rotations[newIndex] = tempRotations[i];
+                scales[newIndex] = tempScales[i];
+                parentHandles[newIndex] = tempParentHandles[i];
+                indexToHandle[newIndex] = tempIndexToHandle[i];
+            }
+
+            // Updating the mappings
+            for (uint32_t i = 0; i < indexToHandle.size(); ++i)
+            {
+                if (indexToHandle[i] < handleToIndex.size())
+                {
+                    handleToIndex[indexToHandle[i]] = i;
+                }
             }
         }
     }
