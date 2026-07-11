@@ -58,6 +58,11 @@ void TransformationSystem::remove(TransformationHandle* handles, size_t n)
     renderThreadRemovalsInputBuffer.fillData(handles, n);
 }
 
+void TransformationSystem::setParent(TransformationHandle transformation, TransformationHandle parent)
+{
+    
+}
+
 std::vector<TransformationHandle> TransformationSystem::reserveHandles(size_t n)
 {
     const size_t numOfFreeHandlesToTake = std::min(freeHandles.size(), n);

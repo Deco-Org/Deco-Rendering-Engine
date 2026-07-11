@@ -215,3 +215,18 @@ TEST_CASE("removed transformations will have handles recycled", "[transformation
 
     REQUIRE((TransformationHandle){3} == handle2);
 }
+
+TEST_CASE("reparented transformations will remain after new parent when new parent comes prior to transformation", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationHandle parentHandle = 3;
+    TransformationHandle childHandle = 5;
+    uint32_t oldChildIndex = system.handleToIndex[childHandle];
+    
+    system.setParent(childHandle, parentHandle);
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    
+    REQUIRE(parentIndex < newChildIndex);
+    REQUIRE(oldChildIndex == newChildIndex);
+}
