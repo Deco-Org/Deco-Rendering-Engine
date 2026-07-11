@@ -60,15 +60,25 @@ void TransformationSystem::remove(TransformationHandle* handles, size_t n)
 
 std::vector<TransformationHandle> TransformationSystem::reserveHandles(size_t n)
 {
-    size_t numOfFreeHandlesToTake = std::max(freeHandles.size(), n);
+    const size_t numOfFreeHandlesToTake = std::min(freeHandles.size(), n);
     std::vector<TransformationHandle> handles;
-    handles.reserve(n);
-    std::ranges::move(freeHandles | std::views::take(numOfFreeHandlesToTake), std::back_inserter(handles));
+    // handles.reserve(n);
+    handles.resize(n);
+    if (freeHandles.size() > 0) {
+        // std::ranges::move(freeHandles | std::views::take(numOfFreeHandlesToTake), std::back_inserter(handles));
+        memcpy(
+            handles.data(), 
+            freeHandles.data() + (freeHandles.size() - numOfFreeHandlesToTake),
+            numOfFreeHandlesToTake * sizeof(TransformationHandle));
+        
+        freeHandles.erase(freeHandles.end() - numOfFreeHandlesToTake, freeHandles.end());
+    }
     
-    const TransformationHandle lastHandle = numOfFreeHandlesToTake - handles.size();
-    for (size_t i = handles.size(); i < lastHandle; ++i)
+    // const TransformationHandle lastHandle = numOfFreeHandlesToTake - handles.size();
+    const TransformationHandle lastHandle = n - numOfFreeHandlesToTake;
+    for (size_t i = numOfFreeHandlesToTake; i < n; ++i)
     {
-        handles.push_back(maxHandle);
+        handles[i] = (maxHandle);
         maxHandle += 1;
     }
     return handles;
@@ -155,6 +165,48 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
     rotations.erase(rotations.end() - n, rotations.end());
     worldMatrices.erase(worldMatrices.end() - n, worldMatrices.end());
     parentHandles.erase(parentHandles.end() - n, parentHandles.end());
+
+    // Filling the render thread removals output buffer
+    if (renderThreadRemovalsOutputBuffer.size() > 0)
+    {
+        // If there's already data in the output buffer, append
+        // free handles to the end
+        const size_t oldSize = renderThreadRemovalsOutputBuffer.size();
+        size_t newSize = oldSize + n;
+        TransformationHandle* previousFreeHandles = renderThreadRemovalsOutputBuffer.moveData();
+        TransformationHandle oldAndNewlyFreedHandles[newSize];
+        
+        memcpy(oldAndNewlyFreedHandles, previousFreeHandles, oldSize);
+        size_t numberOfNewlyFreedHandles = 0;
+        // Counting the number of times a handle in the buffer is equal to a newly freed handle.
+        for (size_t i = 0; i < oldSize; ++i)
+        {
+            if (std::ranges::find(queuedHandles, queuedHandles + n, i) != queuedHandles + n)
+            {
+                newSize -= 1;
+            } else {
+                oldAndNewlyFreedHandles[numberOfNewlyFreedHandles + oldSize] = previousFreeHandles[i];
+                numberOfNewlyFreedHandles += 1;
+            }
+        }
+        // Filling the buffer.
+        // It might be better to get rid of the "thread safe buffer" type altogether and just do manual lockings
+        renderThreadRemovalsOutputBuffer.setSize(newSize);
+        renderThreadRemovalsOutputBuffer.fillData(oldAndNewlyFreedHandles, oldSize);
+    } else {
+        renderThreadRemovalsOutputBuffer.setSize(n);
+        renderThreadRemovalsOutputBuffer.fillData(queuedHandles, n);
+    }
+}
+
+void TransformationSystem::updateFreeHandles()
+{
+    const size_t n = renderThreadRemovalsOutputBuffer.size();
+    TransformationHandle* newlyFreedHandles = renderThreadRemovalsOutputBuffer.moveData();
+    for (size_t i = 0; i < n; ++i)
+    {
+        freeHandles.push_back(newlyFreedHandles[i]);
+    }
 }
 
 void TransformationSystem::deallocRenderThreadAdditionsInputBuffer()

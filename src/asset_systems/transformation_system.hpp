@@ -91,6 +91,12 @@ class TransformationSystem
      */
     void drainRenderThreadRemovalsInputBuffer();
 
+    /**
+     * @brief Drains the render thread removals output buffer,
+     * filling the free handles list with newly freed handles
+     */
+    void updateFreeHandles();
+
     void deallocRenderThreadAdditionsInputBuffer();
     void deallocRenderThreadRemovalsInputBuffer();
 

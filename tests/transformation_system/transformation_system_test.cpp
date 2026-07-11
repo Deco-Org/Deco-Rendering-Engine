@@ -182,22 +182,36 @@ TEST_CASE("removing a transformation remaps handles to new indices", "[transform
     handlesAndIndicesShouldMatchUp(system);
 }
 
-// TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
-// {
-//     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
 
-//     system.remove((TransformationHandle){1});
+    TransformationHandle handleOfRemovedItem = 1;
+    system.remove(&handleOfRemovedItem, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
+    system.updateFreeHandles();
 
-//     TransformationHandle handle1 = system.add(
-//         (Transformation){
-//             .position = somePosition,
-//             .rotation = someRotation,
-//             .scale = someScale},
-//         NO_TRANSFORMATION_PARENT);
+    std::vector<TransformationHandle> handles = system.reserveHandles(1);
+    Transformation addedTransformation = {
+        .position = somePosition,
+        .rotation = someRotation,
+        .scale = someScale
+    };
+    TransformationHandle parents = { NO_TRANSFORMATION_PARENT };
+    system.add(
+        &addedTransformation,
+        &parents,
+        handles.data(),
+        1
+    );
 
-//     REQUIRE(handle1 == (TransformationHandle){1});
+    system.drainRenderThreadAdditionsInputBuffer();
 
-//     TransformationHandle handle2 = someTransformationHandleForAddedTransformation(system);
+    REQUIRE((TransformationHandle){1} == handles[0]);
 
-//     REQUIRE(handle2 == (TransformationHandle){3});
-// }
+    TransformationHandle handle2 = someTransformationHandleForAddedTransformation(system);
+    system.drainRenderThreadAdditionsInputBuffer();
+    system.updateFreeHandles();
+
+    REQUIRE((TransformationHandle){3} == handle2);
+}
