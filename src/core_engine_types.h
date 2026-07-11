@@ -13,6 +13,11 @@ using TransformationHandle = uint32_t;
 inline constexpr TransformationHandle TRANSFORMATION_HANDLE_INVALID = UINT32_MAX;
 inline constexpr TransformationHandle NO_TRANSFORMATION_PARENT = UINT32_MAX;
 
+namespace Config
+{
+    inline constexpr uint8_t MAX_FRAMES_IN_FLIGHT = 3;
+};
+
 struct Transformation
 {
     simd_float3 position;
