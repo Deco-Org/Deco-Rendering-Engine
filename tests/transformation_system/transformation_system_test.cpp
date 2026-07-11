@@ -243,6 +243,7 @@ TEST_CASE("reparented transformations will be moved to be prior to new parent wh
     uint32_t newChildIndex = system.handleToIndex[childHandle];
     
     REQUIRE(parentIndex < newChildIndex);
+    handlesAndIndicesShouldMatchUp(system);
 }
 
 TEST_CASE("children of reparented transformation will remain subsequent to reparented transform")
@@ -261,4 +262,5 @@ TEST_CASE("children of reparented transformation will remain subsequent to repar
     
     REQUIRE(parentIndex < newChildIndex);
     REQUIRE(newChildIndex < newGrandchildIndex);
+    handlesAndIndicesShouldMatchUp(system);
 }
