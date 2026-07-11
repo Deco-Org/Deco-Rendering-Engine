@@ -53,7 +53,7 @@ inline std::vector<TransformationEntry> nUnparentedTransformationEntries(Transfo
         entries.push_back((TransformationEntry){
             .transformation = {
                 .position = (simd_float3){(float)i, (float)i, (float)i},
-                .rotation = (simd_quatf){{rotationComponent, rotationComponent, rotationComponent, rotationComponent == 0.0f ? 0.0f : 1.0f}},
+                .rotation = (simd_quatf){{rotationComponent, rotationComponent, rotationComponent, rotationComponent == 0.0f ? 0.1f : rotationComponent}},
                 .scale = (simd_float3){(float)i / n * 8, (float)i / n * 8, (float)i / n * 8}},
             .parent = NO_TRANSFORMATION_PARENT,
             .handle = handles[i]});
