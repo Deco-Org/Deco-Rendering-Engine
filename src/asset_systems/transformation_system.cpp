@@ -18,7 +18,6 @@ TransformationSystem::TransformationSystem(MTL::Device* device)
     }
 }
 
-
 TransformationHandle TransformationSystem::add(Transformation transformation, TransformationHandle parent)
 {
     TransformationHandle handle = reserveHandles(1)[0];
@@ -41,10 +40,17 @@ void TransformationSystem::add(Transformation* transformations, TransformationHa
     }
 
     // The render thread additions input buffer must be empty before new transformations can be added
-    assert(renderThreadAdditionsInputBuffer.size() == 0);
-
-    renderThreadAdditionsInputBuffer.setSize(n);
-    renderThreadAdditionsInputBuffer.fillData(entries.data(), n);
+    // TODO: Come up with a cleaner solution, like allowing for transformation addition requests to be queued up.
+    {
+        std::lock_guard<std::mutex> lock(renderThreadAdditionsInputBuffer.mutex);
+        
+        // Critical section
+        assert(renderThreadAdditionsInputBuffer.numberOfItems == 0);
+        if (renderThreadAdditionsInputBuffer.buffer) delete[] renderThreadAdditionsInputBuffer.buffer;
+        renderThreadAdditionsInputBuffer.buffer = new TransformationEntry[n];
+        renderThreadAdditionsInputBuffer.numberOfItems = n;
+        memcpy(renderThreadAdditionsInputBuffer.buffer, entries.data(), n * sizeof(TransformationEntry));
+    }
 }
 
 void TransformationSystem::remove(TransformationHandle transformation)
@@ -55,10 +61,14 @@ void TransformationSystem::remove(TransformationHandle transformation)
 
 void TransformationSystem::remove(TransformationHandle* handles, size_t n)
 {
-    assert(renderThreadRemovalsInputBuffer.size() == 0);
-
-    renderThreadRemovalsInputBuffer.setSize(n);
-    renderThreadRemovalsInputBuffer.fillData(handles, n);
+    std::lock_guard<std::mutex> lock(renderThreadRemovalsInputBuffer.mutex);
+    
+    // Critical section
+    assert(renderThreadRemovalsInputBuffer.numberOfItems == 0);
+    if (renderThreadRemovalsInputBuffer.buffer) delete[] renderThreadRemovalsInputBuffer.buffer;
+    renderThreadRemovalsInputBuffer.buffer = new TransformationHandle[n];
+    renderThreadRemovalsInputBuffer.numberOfItems = n;
+    memcpy(renderThreadRemovalsInputBuffer.buffer, handles, n * sizeof(TransformationHandle));
 }
 
 void TransformationSystem::setParent(TransformationHandle transformation, TransformationHandle parent)
@@ -229,13 +239,23 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
                 numberOfNewlyFreedHandles += 1;
             }
         }
+        
         // Filling the buffer.
-        // It might be better to get rid of the "thread safe buffer" type altogether and just do manual lockings
-        renderThreadRemovalsOutputBuffer.setSize(newSize);
-        renderThreadRemovalsOutputBuffer.fillData(oldAndNewlyFreedHandles, oldSize);
+        std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
+        
+        // Critical section
+        if (renderThreadRemovalsOutputBuffer.buffer) delete[] renderThreadRemovalsOutputBuffer.buffer;
+        renderThreadRemovalsOutputBuffer.buffer = new TransformationHandle[newSize];
+        renderThreadRemovalsOutputBuffer.numberOfItems = newSize;
+        memcpy(renderThreadRemovalsOutputBuffer.buffer, oldAndNewlyFreedHandles, oldSize);
     } else {
-        renderThreadRemovalsOutputBuffer.setSize(n);
-        renderThreadRemovalsOutputBuffer.fillData(queuedHandles, n);
+        std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
+        
+        // Critical section
+        if (renderThreadRemovalsOutputBuffer.buffer) delete[] renderThreadRemovalsOutputBuffer.buffer;
+        renderThreadRemovalsOutputBuffer.buffer = new TransformationHandle[n];
+        renderThreadRemovalsOutputBuffer.numberOfItems = n;
+        memcpy(renderThreadRemovalsOutputBuffer.buffer, queuedHandles, n);
     }
 }
 
