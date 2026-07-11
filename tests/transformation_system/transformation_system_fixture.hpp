@@ -49,11 +49,11 @@ inline std::vector<TransformationEntry> nUnparentedTransformationEntries(Transfo
     std::vector<TransformationEntry> entries = std::vector<TransformationEntry>();
     for (uint32_t i = 0; i < n; ++i)
     {
-        const float rotationComponent = (float)i / n;
+        const float rotationComponent = (float)(i) / n;
         entries.push_back((TransformationEntry){
             .transformation = {
                 .position = (simd_float3){(float)i, (float)i, (float)i},
-                .rotation = (simd_quatf){{rotationComponent, rotationComponent, rotationComponent, rotationComponent}},
+                .rotation = (simd_quatf){{rotationComponent, rotationComponent, rotationComponent, rotationComponent == 0.0f ? 0.0f : 1.0f}},
                 .scale = (simd_float3){(float)i / n * 8, (float)i / n * 8, (float)i / n * 8}},
             .parent = NO_TRANSFORMATION_PARENT,
             .handle = handles[i]});
