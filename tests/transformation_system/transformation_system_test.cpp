@@ -390,15 +390,10 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
     // Given there is a transformation system with a grandparent, a parent, and a child
     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
     TransformationReparentConfig reparents[2] = {
-        {
-            .parent = system.indexToHandle[0],
-            .child = system.indexToHandle[1]
-        },
-        {
-            .parent = system.indexToHandle[1],
-            .child = system.indexToHandle[2]
-        }
-    };
+        {.parent = system.indexToHandle[0],
+         .child = system.indexToHandle[1]},
+        {.parent = system.indexToHandle[1],
+         .child = system.indexToHandle[2]}};
     system.setParents(reparents, 2);
     system.drainRenderThreadReparentInputBuffer();
     std::print("OK\n");
@@ -408,8 +403,9 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
 
     // The grandparent's world matrix should be equal to it's P * R * S
     simd_float4x4 expectedMatrix1 = simd_mul(
-        simd_mul(matrix4x4_translation(system.positions[0]),
-                 simd_matrix4x4(system.rotations[0])),
+        simd_mul(
+            matrix4x4_translation(system.positions[0]),
+            simd_matrix4x4(system.rotations[0])),
         matrix4x4_scale(system.scales[0]));
 
     // The parent's world matrix should be equal to it's parent's world matrix, multiplied by it's own P * R * S
@@ -420,7 +416,7 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
                 matrix4x4_translation(system.positions[1]),
                 simd_matrix4x4(system.rotations[1])),
             matrix4x4_scale(system.scales[1])));
-    
+
     // The child's world matrix should be equal to it's parent's world matrix, multiplied by it's own P * R * S
     simd_float4x4 expectedMatrix3 = simd_mul(
         expectedMatrix2,
