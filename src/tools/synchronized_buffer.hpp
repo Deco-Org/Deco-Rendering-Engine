@@ -105,9 +105,9 @@ class SynchronizedBuffer
 
     // T& operator[](size_t index);
     // const T& operator[](size_t index) const;
-    
-    private:
+
     mutable std::mutex mutex;
     T* buffer;
     size_t numberOfItems;
+    private:
 };

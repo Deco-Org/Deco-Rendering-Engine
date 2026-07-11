@@ -222,19 +222,29 @@ TEST_CASE("removing a transformation should preserve order", "[transformation][r
 {
     // Given that there is a transformation system with 12 handles such that each transformation come directly after it's parent,
     TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationReparentConfig reparentConfigs[12];
+    reparentConfigs[0] = {
+        .child = system.indexToHandle[0],
+        .parent = NO_TRANSFORMATION_PARENT
+    };
     for (uint32_t index = 1; index < system.indexToHandle.size(); ++index)
     {
         const TransformationHandle handle = system.indexToHandle[index];
         const TransformationHandle parent = system.indexToHandle[index - 1];
-        system.setParent(handle, parent);
+        reparentConfigs[index] = {
+            .child = handle,
+            .parent = parent
+        };
     }
-
+    system.setParents(reparentConfigs, 12);
+    system.drainRenderThreadReparentInputBuffer();
     
     // When a transformation is removed
     TransformationHandle transformationToRemove = system.indexToHandle[5];
     TransformationHandle childOfRemovedTransformation = system.indexToHandle[6];
     REQUIRE(system.parentHandles[system.handleToIndex[childOfRemovedTransformation]] == transformationToRemove);
     system.setParent(childOfRemovedTransformation, NO_TRANSFORMATION_PARENT);
+    system.drainRenderThreadReparentInputBuffer();
     system.remove(&transformationToRemove, 1);
     system.drainRenderThreadRemovalsInputBuffer();
 
@@ -258,6 +268,7 @@ TEST_CASE("reparented transformations will remain after new parent when new pare
     uint32_t oldChildIndex = system.handleToIndex[childHandle];
     
     system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
     
@@ -273,6 +284,7 @@ TEST_CASE("reparented transformations will be moved to be prior to new parent wh
     uint32_t oldChildIndex = system.handleToIndex[childHandle];
     
     system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
     
@@ -289,9 +301,11 @@ TEST_CASE("children of reparented transformation will remain subsequent to repar
     uint32_t oldChildIndex = system.handleToIndex[childHandle];
     uint32_t oldGrandchildIndex = system.handleToIndex[grandchildHandle];
     system.setParent(grandchildHandle, childHandle);
+    system.drainRenderThreadReparentInputBuffer();
     REQUIRE(childHandle == system.parentHandles[grandchildHandle]);
     
     system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
     uint32_t newGrandchildIndex = system.handleToIndex[grandchildHandle];
@@ -314,10 +328,12 @@ TEST_CASE("grandparents of reparented transformation should be before their chil
     uint32_t oldGrandchildIndex = system.handleToIndex[grandchildHandle];
 
     system.setParent(parentHandle, grandparentHandle);
+    system.drainRenderThreadReparentInputBuffer();
     REQUIRE(oldGrandparentIndex < oldParentIndex);
     REQUIRE(grandparentHandle == system.parentHandles[parentHandle]);
     
     system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
     uint32_t grandparentIndex = system.handleToIndex[grandparentHandle];
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
@@ -336,9 +352,11 @@ TEST_CASE("handles and indices should match up when a transformation is made an 
     TransformationHandle childHandle = 5;
     
     system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
     
     system.setParent(childHandle, NO_TRANSFORMATION_PARENT);
+    system.drainRenderThreadReparentInputBuffer();
     handlesAndIndicesShouldMatchUp(system);
 }

@@ -15,6 +15,12 @@ struct TransformationEntry
     TransformationHandle handle = TRANSFORMATION_HANDLE_INVALID;
 };
 
+struct TransformationReparentConfig
+{
+    TransformationHandle child = TRANSFORMATION_HANDLE_INVALID;
+    TransformationHandle parent = NO_TRANSFORMATION_PARENT;
+};
+
 class TransformationSystem
 {
     public:
@@ -66,6 +72,14 @@ class TransformationSystem
     void setParent(TransformationHandle transformation, TransformationHandle parent);
 
     /**
+     * @brief Queue reparent requests to reparent transformations in
+     * the transformation system.
+     * @param configs An array of transformation reparent configs
+     * @param n The number of transformation reparent configs.
+     */
+    void setParents(const TransformationReparentConfig const* configs, size_t n);
+
+    /**
      * Computes world matrices from the positions, rotations, and scales of the transformations within the system
      */
     void computeWorldMatrices();
@@ -90,6 +104,14 @@ class TransformationSystem
      * @warning This should only be called on the render thread.
      */
     void drainRenderThreadRemovalsInputBuffer();
+
+    /**
+     * @brief Drains the render thread reparent input buffer,
+     * reparenting transformations according to the reparent configs
+     * passed in.
+     * @warning This should only be called on the render thread.
+     */
+    void drainRenderThreadReparentInputBuffer();
 
     /**
      * @brief Drains the render thread removals output buffer,
@@ -124,14 +146,18 @@ class TransformationSystem
     private:
     void memshiftTransformationsChunk(uint32_t startIndex, int shift, size_t size);
 
+    void reparent(TransformationReparentConfig config);
+
     std::vector<TransformationHandle> freeHandles;
     TransformationHandle maxHandle = 0;
 
     // Input Buffers (loading thread to render thread)
-    SynchronizedBuffer<TransformationEntry> renderThreadAdditionsInputBuffer = SynchronizedBuffer<TransformationEntry>();
-    SynchronizedBuffer<TransformationHandle> renderThreadRemovalsInputBuffer = SynchronizedBuffer<TransformationHandle>();
+    SynchronizedBuffer<TransformationEntry> renderThreadAdditionsInputBuffer;
+    SynchronizedBuffer<TransformationHandle> renderThreadRemovalsInputBuffer;
+    SynchronizedBuffer<TransformationReparentConfig> renderThreadReparentInputBuffer;
 
     // Output Buffers (rener thread to loading thread)
-    SynchronizedBuffer<TransformationHandle> renderThreadAdditionsOutputBuffer = SynchronizedBuffer<TransformationHandle>();
-    SynchronizedBuffer<TransformationHandle> renderThreadRemovalsOutputBuffer = SynchronizedBuffer<TransformationHandle>();
+    SynchronizedBuffer<TransformationHandle> renderThreadAdditionsOutputBuffer;
+    SynchronizedBuffer<TransformationHandle> renderThreadRemovalsOutputBuffer;
+    SynchronizedBuffer<const TransformationReparentConfig> renderThreadReparentOutputBuffer;
 };
