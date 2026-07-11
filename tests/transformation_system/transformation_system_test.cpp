@@ -230,3 +230,35 @@ TEST_CASE("reparented transformations will remain after new parent when new pare
     REQUIRE(parentIndex < newChildIndex);
     REQUIRE(oldChildIndex == newChildIndex);
 }
+
+TEST_CASE("reparented transformations will be moved to be prior to new parent when new parent comes after transformation", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationHandle parentHandle = 5;
+    TransformationHandle childHandle = 3;
+    uint32_t oldChildIndex = system.handleToIndex[childHandle];
+    
+    system.setParent(childHandle, parentHandle);
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    
+    REQUIRE(parentIndex < newChildIndex);
+}
+
+TEST_CASE("children of reparented transformation will remain subsequent to reparented transform")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationHandle parentHandle = 5;
+    TransformationHandle childHandle = 3;
+    TransformationHandle grandchildHandle = 4;
+    uint32_t oldChildIndex = system.handleToIndex[childHandle];
+    uint32_t oldGrandchildIndex = system.handleToIndex[grandchildHandle];
+    
+    system.setParent(childHandle, parentHandle);
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    uint32_t newGrandchildIndex = system.handleToIndex[grandchildHandle];
+    
+    REQUIRE(parentIndex < newChildIndex);
+    REQUIRE(newChildIndex < newGrandchildIndex);
+}
