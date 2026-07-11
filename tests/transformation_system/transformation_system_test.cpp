@@ -7,6 +7,7 @@
 #include "asset_systems/transformation_system.hpp"
 #include "transformation_system_fixture.hpp"
 #include "test_utils.hpp"
+#include <print>
 
 TEST_CASE("reserving n transformation handles should return an array of n handles", "[transformation][handle]")
 {
@@ -372,9 +373,64 @@ TEST_CASE("should correctly compute world matrices for unparented transformation
         simd_mul(matrix4x4_translation(system.positions[1]),
                  simd_matrix4x4(system.rotations[1])),
         matrix4x4_scale(system.scales[1]));
+    simd_float4x4 expectedMatrix3 = simd_mul(
+        simd_mul(matrix4x4_translation(system.positions[2]),
+                 simd_matrix4x4(system.rotations[2])),
+        matrix4x4_scale(system.scales[2]));
 
     system.computeWorldMatrices();
     
     REQUIRE(simdMatrix4x4Equal(expectedMatrix1, system.worldMatrices[0]));
     REQUIRE(simdMatrix4x4Equal(expectedMatrix2, system.worldMatrices[1]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
+}
+
+TEST_CASE("should correctly compute world transforms for parent and child transformations", "[transformation][computation][rendering]")
+{
+    // Given there is a transformation system with a grandparent, a parent, and a child
+    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    TransformationReparentConfig reparents[2] = {
+        {
+            .parent = system.indexToHandle[0],
+            .child = system.indexToHandle[1]
+        },
+        {
+            .parent = system.indexToHandle[1],
+            .child = system.indexToHandle[2]
+        }
+    };
+    system.setParents(reparents, 2);
+    system.drainRenderThreadReparentInputBuffer();
+    std::print("OK\n");
+
+    // When world matrices are computed,
+    system.computeWorldMatrices();
+
+    // The grandparent's world matrix should be equal to it's P * R * S
+    simd_float4x4 expectedMatrix1 = simd_mul(
+        simd_mul(matrix4x4_translation(system.positions[0]),
+                 simd_matrix4x4(system.rotations[0])),
+        matrix4x4_scale(system.scales[0]));
+
+    // The parent's world matrix should be equal to it's parent's world matrix, multiplied by it's own P * R * S
+    simd_float4x4 expectedMatrix2 = simd_mul(
+        expectedMatrix1,
+        simd_mul(
+            simd_mul(
+                matrix4x4_translation(system.positions[1]),
+                simd_matrix4x4(system.rotations[1])),
+            matrix4x4_scale(system.scales[1])));
+    
+    // The child's world matrix should be equal to it's parent's world matrix, multiplied by it's own P * R * S
+    simd_float4x4 expectedMatrix3 = simd_mul(
+        expectedMatrix2,
+        simd_mul(
+            simd_mul(
+                matrix4x4_translation(system.positions[2]),
+                simd_matrix4x4(system.rotations[2])),
+            matrix4x4_scale(system.scales[2])));
+
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix1, system.worldMatrices[0]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix2, system.worldMatrices[1]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
 }

@@ -117,7 +117,14 @@ void TransformationSystem::computeWorldMatrices()
     for (uint32_t i = 0; i < positions.size(); ++i)
     {
         matrix_float4x4 local = buildLocalMatrix(positions[i], rotations[i], scales[i]);
-        worldMatrices[i] = local;
+        const TransformationHandle parentHandle = parentHandles[i];
+        if (parentHandle == NO_TRANSFORMATION_PARENT)
+        {
+            worldMatrices[i] = local;
+        } else {
+            const uint32_t parentIndex = handleToIndex[parentHandle];
+            worldMatrices[i] = simd_mul(worldMatrices[parentIndex], local);
+        }
     }
 }
 
