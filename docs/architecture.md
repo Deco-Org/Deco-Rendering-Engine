@@ -95,6 +95,18 @@ Removing and reparenting items are not trivial, as we want to keep our arrays de
 - When a transformation receives a new parent:
     - If the transformation is before the new parent, everything from the transformation until the new parent must be moved to be after the new parent. If implemented using `memmove()` and a large temporary block of data, this could have $O(k)$ space complexity at the worst case, where $k$ is the amount of memory between the transformation and the new parent.
     - If the transformation is after the new parent, everything's good! No shifting needed
+    - Otherwise:
+  		- Mark the child's index in a list of "wall indices"
+		- Get all the ancestors of the parent node
+		- For each ancestor:
+			- If the ancestor's index is greater than the child's index but less than the parent's index:
+				- Store it in a temporary array
+				- Mark the index in a list of "wall indices"
+		- Mark the index before the child as the "final wall" (this isn't ever actually used, so it's ok if it's -1)
+		- Start at the back
+		- For each wall index:
+			- Shift everything between the two wall indices over by the number of wall indices encountered. For example, everything betwen the child node and the rightmost ancestor should be shifted to the right by 1, and everything between the rightmost ancestor and the second rightmost ancestor should be shifted over by two.
+			- Put the array of the child's ancestors (including the new parent) at the newly opened slots just before the child.
 
 Issues with this solution include:
 - Indirection: Instead of simply looking up an item in the array using the handle as the index, getting a transformation instead requires getting the index associated with the handle, then looking up the transformation by index.
