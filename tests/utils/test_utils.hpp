@@ -13,3 +13,7 @@ bool simdQuatfEqual(simd_quatf a, simd_quatf b, float epsilon = 0.0001f) {
            std::abs(a.vector[2] - b.vector[2]) < epsilon &&
            std::abs(a.vector[3] - b.vector[3]) < epsilon;
 }
+
+bool simdMatrix4x4Equal(matrix_float4x4 a, matrix_float4x4 b, float epsilon = 0.0001f) {
+    return simd_almost_equal_elements(a, b, epsilon);
+}

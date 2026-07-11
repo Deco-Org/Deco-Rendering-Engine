@@ -360,3 +360,21 @@ TEST_CASE("handles and indices should match up when a transformation is made an 
     system.drainRenderThreadReparentInputBuffer();
     handlesAndIndicesShouldMatchUp(system);
 }
+
+TEST_CASE("should correctly compute world matrices for unparented transformations", "[transformation][computation][rendering]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    simd_float4x4 expectedMatrix1 = simd_mul(
+        simd_mul(matrix4x4_translation(system.positions[0]),
+                 simd_matrix4x4(system.rotations[0])),
+        matrix4x4_scale(system.scales[0]));
+    simd_float4x4 expectedMatrix2 = simd_mul(
+        simd_mul(matrix4x4_translation(system.positions[1]),
+                 simd_matrix4x4(system.rotations[1])),
+        matrix4x4_scale(system.scales[1]));
+
+    system.computeWorldMatrices();
+    
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix1, system.worldMatrices[0]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix2, system.worldMatrices[1]));
+}

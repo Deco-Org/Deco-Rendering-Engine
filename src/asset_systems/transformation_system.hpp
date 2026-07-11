@@ -6,6 +6,7 @@
 #pragma once
 #include "core_engine_types.h"
 #include "tools/synchronized_buffer.hpp"
+#include "utils/AAPLMathUtilities.h"
 #include <Metal/Metal.hpp>
 
 struct TransformationEntry
@@ -81,11 +82,13 @@ class TransformationSystem
 
     /**
      * Computes world matrices from the positions, rotations, and scales of the transformations within the system
+     * @warning This should only be called on the render thread.
      */
     void computeWorldMatrices();
 
     /**
      * Updates the world matrix buffer
+     * @warning This should only be called on the render thread.
      */
     void updateWorldMatrixBuffer();
 
@@ -147,6 +150,8 @@ class TransformationSystem
     void memshiftTransformationsChunk(uint32_t startIndex, int shift, size_t size);
 
     void reparent(TransformationReparentConfig config);
+
+    inline matrix_float4x4 buildLocalMatrix(simd_float3 translation, simd_quatf rotation, simd_float3 scale);
 
     std::vector<TransformationHandle> freeHandles;
     TransformationHandle maxHandle = 0;
