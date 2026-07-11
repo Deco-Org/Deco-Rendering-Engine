@@ -241,25 +241,56 @@ TEST_CASE("reparented transformations will be moved to be prior to new parent wh
     system.setParent(childHandle, parentHandle);
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
+
     
     REQUIRE(parentIndex < newChildIndex);
     handlesAndIndicesShouldMatchUp(system);
 }
 
-TEST_CASE("children of reparented transformation will remain subsequent to reparented transform")
+TEST_CASE("children of reparented transformation will remain subsequent to reparented transform", "[transformation][reparent]")
 {
     TransformationSystem system = makeTransformationSystemWithNTransformations(12);
-    TransformationHandle parentHandle = 5;
+    TransformationHandle parentHandle = 7;
     TransformationHandle childHandle = 3;
-    TransformationHandle grandchildHandle = 4;
+    TransformationHandle grandchildHandle = 5;
     uint32_t oldChildIndex = system.handleToIndex[childHandle];
     uint32_t oldGrandchildIndex = system.handleToIndex[grandchildHandle];
+    system.setParent(grandchildHandle, childHandle);
+    REQUIRE(childHandle == system.parentHandles[grandchildHandle]);
     
     system.setParent(childHandle, parentHandle);
     uint32_t parentIndex = system.handleToIndex[parentHandle];
     uint32_t newChildIndex = system.handleToIndex[childHandle];
     uint32_t newGrandchildIndex = system.handleToIndex[grandchildHandle];
     
+    REQUIRE(parentIndex < newChildIndex);
+    REQUIRE(newChildIndex < newGrandchildIndex);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("grandparents of reparented transformation should be before their children", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationHandle grandparentHandle = 5;
+    TransformationHandle parentHandle = 9;
+    TransformationHandle childHandle = 3;
+    TransformationHandle grandchildHandle = 7;
+    uint32_t oldGrandparentIndex = system.handleToIndex[grandparentHandle];
+    uint32_t oldParentIndex = system.handleToIndex[parentHandle];
+    uint32_t oldChildIndex = system.handleToIndex[childHandle];
+    uint32_t oldGrandchildIndex = system.handleToIndex[grandchildHandle];
+
+    system.setParent(parentHandle, grandparentHandle);
+    REQUIRE(oldGrandparentIndex < oldParentIndex);
+    REQUIRE(grandparentHandle == system.parentHandles[parentHandle]);
+    
+    system.setParent(childHandle, parentHandle);
+    uint32_t grandparentIndex = system.handleToIndex[grandparentHandle];
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    uint32_t newGrandchildIndex = system.handleToIndex[grandchildHandle];
+    
+    REQUIRE(grandparentIndex < parentIndex);
     REQUIRE(parentIndex < newChildIndex);
     REQUIRE(newChildIndex < newGrandchildIndex);
     handlesAndIndicesShouldMatchUp(system);
