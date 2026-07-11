@@ -128,6 +128,11 @@ void TransformationSystem::computeWorldMatrices()
     }
 }
 
+void TransformationSystem::updateWorldMatrixBuffer(uint8_t bufferNumber)
+{
+    memcpy(transformationBuffers[bufferNumber]->contents(), worldMatrices.data(), worldMatrices.size() * sizeof(matrix_float4x4));
+}
+
 std::vector<TransformationHandle> TransformationSystem::reserveHandles(size_t n)
 {
     const size_t numOfFreeHandlesToTake = std::min(freeHandles.size(), n);
