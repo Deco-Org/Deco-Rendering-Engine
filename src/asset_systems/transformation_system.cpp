@@ -112,7 +112,7 @@ void TransformationSystem::setParent(TransformationHandle transformation, Transf
     delete[] configs;
 }
 
-void TransformationSystem::setParents(const TransformationReparentConfig *configs, size_t n)
+void TransformationSystem::setParents(const TransformationReparentConfig* configs, size_t n)
 {
     std::lock_guard<std::mutex> lock(renderThreadReparentInputBuffer.mutex);
     if (renderThreadReparentInputBuffer.numberOfItems == 0)
@@ -129,6 +129,7 @@ void TransformationSystem::setParents(const TransformationReparentConfig *config
         TransformationReparentConfig *newData = new TransformationReparentConfig[oldSize + n];
         // Using memcpy instead of memmove for speed
         memcpy(newData, renderThreadReparentInputBuffer.buffer, oldSize * sizeof(TransformationReparentConfig));
+        memcpy(newData + oldSize, configs, n * sizeof(TransformationReparentConfig));
         delete[] renderThreadReparentInputBuffer.buffer;
         renderThreadReparentInputBuffer.buffer = newData;
         renderThreadReparentInputBuffer.numberOfItems = oldSize + n;
@@ -434,7 +435,7 @@ void TransformationSystem::reparent(const TransformationReparentConfig config)
 {
     const TransformationHandle transformation = config.child;
     const TransformationHandle parent = config.parent;
-    parentHandles[transformation] = parent;
+    parentHandles[handleToIndex[transformation]] = parent;
     if (parent != NO_TRANSFORMATION_PARENT)
     {
         const uint32_t childIndex = handleToIndex[transformation];
@@ -492,7 +493,9 @@ void TransformationSystem::reparent(const TransformationReparentConfig config)
             {
                 if (indexToHandle[i] < handleToIndex.size())
                 {
-                    handleToIndex[indexToHandle[i]] = i;
+                    if (handleToIndex[indexToHandle[i]] != i) {
+                        handleToIndex[indexToHandle[i]] = i;
+                    }
                 }
             }
         }

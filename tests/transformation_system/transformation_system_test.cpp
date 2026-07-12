@@ -140,7 +140,7 @@ TEST_CASE("adding transformations in bulk stores correct parents", "[transformat
 
 TEST_CASE("removing a transformation decreases size", "[transformation][remove]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
     numberOfTransformationsShouldBe(system, 3);
 
     TransformationHandle handleToRemove = system.indexToHandle[1];
@@ -155,7 +155,7 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
 
 TEST_CASE("removing multiple transformations decreases size", "[transformation][remove]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(10);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(10);
     numberOfTransformationsShouldBe(system, 10);
 
     TransformationHandle handlesToRemove[3] = {
@@ -173,7 +173,7 @@ TEST_CASE("removing multiple transformations decreases size", "[transformation][
 
 TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
 
     TransformationHandle handleOfRemovedItem = system.indexToHandle[0];
     system.remove(&handleOfRemovedItem, 1);
@@ -184,7 +184,7 @@ TEST_CASE("removing a transformation remaps handles to new indices", "[transform
 
 TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
 
     TransformationHandle handleOfRemovedItem = 1;
     system.remove(&handleOfRemovedItem, 1);
@@ -219,7 +219,7 @@ TEST_CASE("removed transformations will have handles recycled", "[transformation
 TEST_CASE("removing a transformation should preserve order", "[transformation][remove]")
 {
     // Given that there is a transformation system with 12 handles such that each transformation come directly after it's parent,
-    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
     TransformationReparentConfig reparentConfigs[12];
     reparentConfigs[0] = {
         .child = system.indexToHandle[0],
@@ -261,7 +261,7 @@ TEST_CASE("removing a transformation should preserve order", "[transformation][r
 
 TEST_CASE("reparented transformations will remain after new parent when new parent comes prior to transformation", "[transformation][reparent]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
     TransformationHandle parentHandle = 3;
     TransformationHandle childHandle = 5;
     uint32_t oldChildIndex = system.handleToIndex[childHandle];
@@ -277,7 +277,7 @@ TEST_CASE("reparented transformations will remain after new parent when new pare
 
 TEST_CASE("reparented transformations will be moved to be prior to new parent when new parent comes after transformation", "[transformation][reparent]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
     TransformationHandle parentHandle = 5;
     TransformationHandle childHandle = 3;
     
@@ -292,7 +292,7 @@ TEST_CASE("reparented transformations will be moved to be prior to new parent wh
 
 TEST_CASE("children of reparented transformation will remain subsequent to reparented transform", "[transformation][reparent]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
     TransformationHandle parentHandle = 7;
     TransformationHandle childHandle = 3;
     TransformationHandle grandchildHandle = 5;
@@ -313,7 +313,7 @@ TEST_CASE("children of reparented transformation will remain subsequent to repar
 
 TEST_CASE("grandparents of reparented transformation should be before their children", "[transformation][reparent]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
     TransformationHandle grandparentHandle = 5;
     TransformationHandle parentHandle = 9;
     TransformationHandle childHandle = 3;
@@ -341,7 +341,7 @@ TEST_CASE("grandparents of reparented transformation should be before their chil
 
 TEST_CASE("handles and indices should match up when a transformation is made an orphan", "[transformation][reparent]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
     TransformationHandle parentHandle = 3;
     TransformationHandle childHandle = 5;
     
@@ -353,9 +353,9 @@ TEST_CASE("handles and indices should match up when a transformation is made an 
     handlesAndIndicesShouldMatchUp(system);
 }
 
-TEST_CASE("should correctly compute world matrices for unparented transformations", "[transformation][computation][rendering]")
+TEST_CASE("should correctly compute world matrices for unparented transformations", "[transformation][computation]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
     simd_float4x4 expectedMatrix1 = simd_mul(
         simd_mul(matrix4x4_translation(system.positions[0]),
                  simd_matrix4x4(system.rotations[0])),
@@ -376,10 +376,10 @@ TEST_CASE("should correctly compute world matrices for unparented transformation
     REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
 }
 
-TEST_CASE("should correctly compute world transforms for parent and child transformations", "[transformation][computation][rendering]")
+TEST_CASE("should correctly compute world transforms for parent and child transformations", "[transformation][computation]")
 {
     // Given there is a transformation system with a grandparent, a parent, and a child
-    TransformationSystem system = makeTransformationSystemWithNTransformations(3);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
     TransformationReparentConfig reparents[2] = {
         {.parent = system.indexToHandle[0],
          .child = system.indexToHandle[1]},
@@ -421,9 +421,9 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
     REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
 }
 
-TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops", "[transformation][add][computation][rendering][threading]")
+TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops", "[transformation][add][computation][threading]")
 {
-    TransformationSystem system = makeTransformationSystemWithNTransformations(4);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(4);
     TransformationReparentConfig reparents[2] = {
         {.parent = system.indexToHandle[0],
          .child = system.indexToHandle[1]},
@@ -454,10 +454,10 @@ TEST_CASE("loading thread can successfully add transformations to the system whi
     }
 }
 
-TEST_CASE("loading thread can successfully remove transformations from the system while the render thread loops", "[transformation][remove][computation][rendering][threading]")
+TEST_CASE("loading thread can successfully remove transformations from the system while the render thread loops", "[transformation][remove][computation][threading]")
 {
     uint32_t n = 1000;
-    TransformationSystem system = makeTransformationSystemWithNTransformations(n);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(n);
 
     std::vector<std::vector<TransformationHandle>> batches = {};
     for (uint8_t i = 0; i < 10; ++i)
@@ -482,4 +482,51 @@ TEST_CASE("loading thread can successfully remove transformations from the syste
             100
         );
     }
+    REQUIRE(system.positions.size() < n);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("loading thread can successfully reparent transformations while the render thread loops", "[transformation][reparent][computation][threading]")
+{
+    // Given there is a system with n items, some of which are parented to others
+    uint32_t n = 128;
+    TransformationSystem system = makeTransformationSystemWithNTransformations(n);
+
+    // And that there are 8 batches with 8 reparent configs each
+    std::vector<std::vector<TransformationReparentConfig>> batches;
+    for (uint32_t i = 0; i < 8; ++i)
+    {
+        std::vector<TransformationReparentConfig> batch(8);
+        for (uint32_t j = 0; j < 8; ++j)
+        {
+            const TransformationHandle child = n / 64 * (i * 8 + j) % n;
+            TransformationHandle parent = n / 64 * ((i * 8 + j)) % 67 + (10);
+            if (parent == child || (j % i < 1))
+            {
+                parent = NO_TRANSFORMATION_PARENT;
+            }
+
+            batch[j] = ((TransformationReparentConfig){
+                .child = child,
+                .parent = parent});
+        }
+        batches.push_back(batch);
+    }
+
+    {
+        std::jthread otherThread(
+            someBatchesOfTransformationsAreReparented,
+            std::ref(system),
+            batches
+        );
+
+        std::jthread renderThread(
+            worldMatricesAreComputedNTimes,
+            std::ref(system),
+            n * 8
+        );
+    }
+
+    handlesAndIndicesShouldMatchUp(system);
+    allParentsShouldComeBeforeChildren(system);
 }

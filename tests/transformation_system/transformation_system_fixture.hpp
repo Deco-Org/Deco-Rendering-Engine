@@ -32,12 +32,68 @@ inline std::vector<Transformation> nTransformations(uint32_t n)
     return transformations;
 }
 
-inline TransformationSystem makeTransformationSystemWithNTransformations(uint32_t n)
+inline TransformationSystem makeTransformationSystemWithNUnparentedTransformations(uint32_t n)
 {
     TransformationSystem system;
     std::vector<Transformation> transformations = nTransformations(n);
     std::vector<TransformationHandle> parents(n, NO_TRANSFORMATION_PARENT);
     std::vector<TransformationHandle> handles = system.reserveHandles(n);
+    system.add(transformations.data(), parents.data(), handles.data(), n);
+    system.drainRenderThreadAdditionsInputBuffer();
+    return std::move(system);
+}
+
+inline TransformationSystem makeTransformationSystemWithNTransformations(uint32_t n)
+{
+    TransformationSystem system;
+    std::vector<Transformation> transformations = nTransformations(n);
+    std::vector<TransformationHandle> handles = system.reserveHandles(n);
+    std::vector<TransformationHandle> parents(n, NO_TRANSFORMATION_PARENT);
+    
+    // Generating parents
+    for (size_t i = 0; i < n; ++i)
+    {
+        switch (i % 4)
+        {
+            case 1:
+            {
+                // if (i > 4)
+                // {
+                    parents[i] = handles[i - (i % 4)];
+                    break;
+                    // }
+                }
+            case 2:
+            {
+                if (i > 4) {
+                    parents[i] = handles[i - (i / 4)];
+                    break;
+                }
+            }
+                
+            case 3:
+            {
+                if (i >= 16)
+                {
+                    parents[i] = handles[i - 16];
+                    break;
+                }
+            }
+
+            default:
+            parents[i] = NO_TRANSFORMATION_PARENT;
+        }
+    }
+
+    // Sanity check
+    for (size_t i = 0; i < n; ++i)
+    {
+        assert((
+            parents[i] == NO_TRANSFORMATION_PARENT ||
+            parents[i] < handles[i]
+        ));
+    }
+
     system.add(transformations.data(), parents.data(), handles.data(), n);
     system.drainRenderThreadAdditionsInputBuffer();
     return std::move(system);
@@ -96,6 +152,14 @@ void someBatchesOfTransformationsAreRemoved(TransformationSystem& system, std::v
     }
 }
 
+void someBatchesOfTransformationsAreReparented(TransformationSystem& system, std::vector<std::vector<TransformationReparentConfig>> batches)
+{
+    for (size_t i = 0; i < batches.size(); ++i)
+    {
+        system.setParents(batches[i].data(), batches[i].size());
+    }
+}
+
 void worldMatricesAreComputedNTimes(TransformationSystem& system, uint32_t n)
 {
     for (uint32_t i = 0; i < n; ++i)
@@ -126,11 +190,17 @@ inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
             REQUIRE(system.handleToIndex[system.indexToHandle[i]] == i);
         }
     }
-    // for (TransformationHandle i = 0; i < system.getMaxHandle(); ++i)
-    // {
-    //     if (system.handleToIndex[i] != (uint32_t)(-1))
-    //     {
-    //         REQUIRE(system.indexToHandle[system.handleToIndex[i]] == i);
-    //     }
-    // }
+}
+
+inline void allParentsShouldComeBeforeChildren(TransformationSystem& system)
+{
+    for (uint32_t i = 0; i < system.positions.size(); ++i)
+    {
+        const TransformationHandle parentHandle = system.parentHandles[i];
+        if (parentHandle != NO_TRANSFORMATION_PARENT)
+        {
+            const uint32_t parentIndex = system.handleToIndex[parentHandle];
+            REQUIRE(parentIndex < i);
+        }
+    }
 }
