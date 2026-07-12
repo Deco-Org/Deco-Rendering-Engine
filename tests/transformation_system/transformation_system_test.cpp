@@ -430,7 +430,7 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
     REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
 }
 
-TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops")
+TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops", "[transformation][computation][rendering][threading]")
 {
     TransformationSystem system = makeTransformationSystemWithNTransformations(4);
     TransformationReparentConfig reparents[2] = {
