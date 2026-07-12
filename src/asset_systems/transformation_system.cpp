@@ -41,26 +41,31 @@ void TransformationSystem::add(Transformation* transformations, TransformationHa
 
     // The render thread additions input buffer must be empty before new transformations can be added
     // TODO: Come up with a cleaner solution, like allowing for transformation addition requests to be queued up.
-    // This do while loop is done so that the scope that the lock is in can be broken 
-    // out of if there are already items in the additions input buffer.
-    do 
     {
         std::lock_guard<std::mutex> lock(renderThreadAdditionsInputBuffer.mutex);
-        
+
         // Critical section
-        if (renderThreadAdditionsInputBuffer.numberOfItems != 0) 
+        if (renderThreadAdditionsInputBuffer.numberOfItems != 0)
         {
-            // Exit the critical section and abort the data copying if there are already items in the buffer
-            break;
+            // Allocating more memory for the buffer
+            size_t oldSize = renderThreadAdditionsInputBuffer.numberOfItems;
+            TransformationEntry* oldEntries = renderThreadAdditionsInputBuffer.buffer;
+            renderThreadAdditionsInputBuffer.buffer = new TransformationEntry[oldSize + n];
+            memcpy(renderThreadAdditionsInputBuffer.buffer, oldEntries, sizeof(TransformationEntry) * oldSize);
+            delete[] oldEntries;
+
+            // Filling the new memory
+            memcpy(renderThreadAdditionsInputBuffer.buffer + oldSize, entries.data(), sizeof(TransformationEntry) * n);
         }
-        if (renderThreadAdditionsInputBuffer.buffer) delete[] renderThreadAdditionsInputBuffer.buffer;
-        renderThreadAdditionsInputBuffer.buffer = new TransformationEntry[n];
-        renderThreadAdditionsInputBuffer.numberOfItems = n;
-        memcpy(renderThreadAdditionsInputBuffer.buffer, entries.data(), n * sizeof(TransformationEntry));
+        else
+        {
+            if (renderThreadAdditionsInputBuffer.buffer)
+                delete[] renderThreadAdditionsInputBuffer.buffer;
+            renderThreadAdditionsInputBuffer.buffer = new TransformationEntry[n];
+            renderThreadAdditionsInputBuffer.numberOfItems = n;
+            memcpy(renderThreadAdditionsInputBuffer.buffer, entries.data(), n * sizeof(TransformationEntry));
+        }
         return;
-    } while(0);
-    {
-        // Queuing up 
     }
 }
 
