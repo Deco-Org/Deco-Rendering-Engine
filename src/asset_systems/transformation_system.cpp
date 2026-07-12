@@ -41,15 +41,26 @@ void TransformationSystem::add(Transformation* transformations, TransformationHa
 
     // The render thread additions input buffer must be empty before new transformations can be added
     // TODO: Come up with a cleaner solution, like allowing for transformation addition requests to be queued up.
+    // This do while loop is done so that the scope that the lock is in can be broken 
+    // out of if there are already items in the additions input buffer.
+    do 
     {
         std::lock_guard<std::mutex> lock(renderThreadAdditionsInputBuffer.mutex);
         
         // Critical section
-        assert(renderThreadAdditionsInputBuffer.numberOfItems == 0);
+        if (renderThreadAdditionsInputBuffer.numberOfItems != 0) 
+        {
+            // Exit the critical section and abort the data copying if there are already items in the buffer
+            break;
+        }
         if (renderThreadAdditionsInputBuffer.buffer) delete[] renderThreadAdditionsInputBuffer.buffer;
         renderThreadAdditionsInputBuffer.buffer = new TransformationEntry[n];
         renderThreadAdditionsInputBuffer.numberOfItems = n;
         memcpy(renderThreadAdditionsInputBuffer.buffer, entries.data(), n * sizeof(TransformationEntry));
+        return;
+    } while(0);
+    {
+        // Queuing up 
     }
 }
 

@@ -156,6 +156,9 @@ class TransformationSystem
     std::vector<TransformationHandle> freeHandles;
     TransformationHandle maxHandle = 0;
 
+    // Non-Render Thread Buffers (used to queue up batches of transformations to be added)
+    std::vector<std::vector<TransformationEntry>> batchQueue;
+
     // Input Buffers (loading thread to render thread)
     SynchronizedBuffer<TransformationEntry> renderThreadAdditionsInputBuffer;
     SynchronizedBuffer<TransformationHandle> renderThreadRemovalsInputBuffer;
