@@ -6,6 +6,7 @@
 #include "transformation_system.hpp"
 #include <ranges>
 #include <algorithm>
+#include <print>
 
 TransformationSystem::TransformationSystem(MTL::Device* device)
 {
@@ -489,13 +490,11 @@ void TransformationSystem::reparent(const TransformationReparentConfig config)
             }
 
             // Updating the mappings
-            for (uint32_t i = 0; i < indexToHandle.size(); ++i)
+            for (uint32_t i = childIndex; i < parentIndex + 1; ++i)
             {
                 if (indexToHandle[i] < handleToIndex.size())
                 {
-                    if (handleToIndex[indexToHandle[i]] != i) {
-                        handleToIndex[indexToHandle[i]] = i;
-                    }
+                    handleToIndex[indexToHandle[i]] = i;
                 }
             }
         }
