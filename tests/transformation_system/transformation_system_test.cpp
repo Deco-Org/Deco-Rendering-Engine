@@ -7,7 +7,7 @@
 #include "asset_systems/transformation_system.hpp"
 #include "transformation_system_fixture.hpp"
 #include "test_utils.hpp"
-#include <print>
+#include <thread>
 
 TEST_CASE("reserving n transformation handles should return an array of n handles", "[transformation][handle]")
 {
@@ -396,7 +396,6 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
          .child = system.indexToHandle[2]}};
     system.setParents(reparents, 2);
     system.drainRenderThreadReparentInputBuffer();
-    std::print("OK\n");
 
     // When world matrices are computed,
     system.computeWorldMatrices();
@@ -429,4 +428,37 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
     REQUIRE(simdMatrix4x4Equal(expectedMatrix1, system.worldMatrices[0]));
     REQUIRE(simdMatrix4x4Equal(expectedMatrix2, system.worldMatrices[1]));
     REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
+}
+
+TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops")
+{
+    TransformationSystem system = makeTransformationSystemWithNTransformations(4);
+    TransformationReparentConfig reparents[2] = {
+        {.parent = system.indexToHandle[0],
+         .child = system.indexToHandle[1]},
+        {.parent = system.indexToHandle[1],
+         .child = system.indexToHandle[2]}};
+    system.setParents(reparents, 2);
+    system.drainRenderThreadReparentInputBuffer();
+
+    std::vector<std::vector<Transformation>> batches;
+    for (uint8_t i = 0; i < 5; ++i)
+    {
+        std::vector<Transformation> transformations = nTransformations(10);
+        batches.push_back(transformations);
+    }
+
+    {
+        std::jthread otherThread(
+            someBatchesOfTransformationsAreAdded,
+            std::ref(system),
+            batches
+        );
+
+        std::jthread renderThread(
+            worldMatricesAreComputedNTimes,
+            std::ref(system),
+            100
+        );
+    }
 }

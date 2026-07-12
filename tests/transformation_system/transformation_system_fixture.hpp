@@ -25,7 +25,7 @@ inline std::vector<Transformation> nTransformations(uint32_t n)
         transformations.push_back(
             (Transformation) {
                 .position = (simd_float3) { (float)i, (float)i, (float)i },
-                .rotation = (simd_quatf) { { rotationComponent, rotationComponent, rotationComponent, rotationComponent } },
+                .rotation = (simd_quatf) { { rotationComponent, rotationComponent, rotationComponent, rotationComponent == 0.0f ? 1.0f : rotationComponent } },
                 .scale = (simd_float3) { (float)i / n * 8, (float)i / n * 8, (float)i / n * 8 }
             });
     }
@@ -71,6 +71,33 @@ inline TransformationHandle someTransformationHandleForAddedTransformation(
     return system.add(transformation);
 }
 
+inline void renderThreadInputQueueIsCleared(TransformationSystem &system)
+{
+    system.deallocRenderThreadAdditionsInputBuffer();
+}
+
+void someBatchesOfTransformationsAreAdded(TransformationSystem &system, std::vector<std::vector<Transformation>> batches)
+{
+    for (size_t i = 0; i < batches.size(); ++i)
+    {
+        std::vector<TransformationHandle> handles = system.reserveHandles(batches[i].size());
+        std::vector<TransformationHandle> parents(batches[i].size(), NO_TRANSFORMATION_PARENT);
+        system.add(batches[i].data(), parents.data(), handles.data(), batches[i].size());
+        system.updateFreeHandles();
+    }
+}
+
+void worldMatricesAreComputedNTimes(TransformationSystem &system, uint32_t n)
+{
+    for (uint32_t i = 0; i < n; ++i)
+    {
+        system.drainRenderThreadRemovalsInputBuffer();
+        system.drainRenderThreadAdditionsInputBuffer();
+        system.drainRenderThreadReparentInputBuffer();
+        system.computeWorldMatrices();
+    }
+}
+
 inline void numberOfTransformationsShouldBe(TransformationSystem& system, size_t n)
 {
     REQUIRE(n == system.positions.size());
@@ -97,9 +124,4 @@ inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
     //         REQUIRE(system.indexToHandle[system.handleToIndex[i]] == i);
     //     }
     // }
-}
-
-inline void renderThreadInputQueueIsCleared(TransformationSystem &system)
-{
-    system.deallocRenderThreadAdditionsInputBuffer();
 }
