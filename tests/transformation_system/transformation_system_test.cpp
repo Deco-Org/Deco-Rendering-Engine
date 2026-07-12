@@ -40,7 +40,6 @@ TEST_CASE("adding multiple transformations increases size", "[transformation][ad
     TransformationSystem system;
 
     numberOfTransformationsShouldBe(system, 0);
-    // std::vector<TransformationEntry> entries = nUnparentedTransformationEntries(system, 3);
     std::vector<Transformation> transformations = nTransformations(3);
     std::vector<TransformationHandle> handles = system.reserveHandles(3);
     std::vector<TransformationHandle> parents(handles.size(), NO_TRANSFORMATION_PARENT);
@@ -494,14 +493,14 @@ TEST_CASE("loading thread can successfully reparent transformations while the re
 
     // And that there are 8 batches with 8 reparent configs each
     std::vector<std::vector<TransformationReparentConfig>> batches;
-    for (uint32_t i = 0; i < 8; ++i)
+    for (uint32_t i = 0; i < (n / 16); ++i)
     {
-        std::vector<TransformationReparentConfig> batch(8);
-        for (uint32_t j = 0; j < 8; ++j)
+        std::vector<TransformationReparentConfig> batch(n / 16);
+        for (uint32_t j = 0; j < (n / 16); ++j)
         {
-            const TransformationHandle child = n / 64 * (i * 8 + j) % n;
-            TransformationHandle parent = n / 64 * ((i * 8 + j)) % 67 + (10);
-            if (parent == child || (j % i < 1))
+            const TransformationHandle child = n / 64 * (i * (n / 16) + j) % n;
+            TransformationHandle parent = ((i * (n / 16) + j) - (67 + i)) % n;
+            if (parent >= child || (j % i < 1))
             {
                 parent = NO_TRANSFORMATION_PARENT;
             }
@@ -513,6 +512,7 @@ TEST_CASE("loading thread can successfully reparent transformations while the re
         batches.push_back(batch);
     }
 
+    // When the each batch is sent to the render thread and the render thread processes each batch,
     {
         std::jthread otherThread(
             someBatchesOfTransformationsAreReparented,
@@ -523,7 +523,7 @@ TEST_CASE("loading thread can successfully reparent transformations while the re
         std::jthread renderThread(
             worldMatricesAreComputedNTimes,
             std::ref(system),
-            n * 8
+            n * 4
         );
     }
 

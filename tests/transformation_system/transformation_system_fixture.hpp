@@ -57,12 +57,9 @@ inline TransformationSystem makeTransformationSystemWithNTransformations(uint32_
         {
             case 1:
             {
-                // if (i > 4)
-                // {
-                    parents[i] = handles[i - (i % 4)];
-                    break;
-                    // }
-                }
+                parents[i] = handles[i - (i % 4)];
+                break;
+            }
             case 2:
             {
                 if (i > 4) {
