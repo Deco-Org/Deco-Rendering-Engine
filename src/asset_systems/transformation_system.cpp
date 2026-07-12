@@ -213,6 +213,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
         std::lock_guard<std::mutex> lock(renderThreadRemovalsInputBuffer.mutex);
         // Critical section
         n = renderThreadRemovalsInputBuffer.numberOfItems;
+        if (n == 0) return;
         queuedHandles = renderThreadRemovalsInputBuffer.buffer;
         renderThreadRemovalsInputBuffer.buffer = nullptr;
         renderThreadRemovalsInputBuffer.numberOfItems = 0;
@@ -301,7 +302,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
         if (renderThreadRemovalsOutputBuffer.buffer) delete[] renderThreadRemovalsOutputBuffer.buffer;
         renderThreadRemovalsOutputBuffer.buffer = new TransformationHandle[newSize];
         renderThreadRemovalsOutputBuffer.numberOfItems = newSize;
-        memcpy(renderThreadRemovalsOutputBuffer.buffer, oldAndNewlyFreedHandles, oldSize);
+        memcpy(renderThreadRemovalsOutputBuffer.buffer, oldAndNewlyFreedHandles, oldSize * sizeof(TransformationHandle));
     } else {
         std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
         
@@ -309,7 +310,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
         if (renderThreadRemovalsOutputBuffer.buffer) delete[] renderThreadRemovalsOutputBuffer.buffer;
         renderThreadRemovalsOutputBuffer.buffer = new TransformationHandle[n];
         renderThreadRemovalsOutputBuffer.numberOfItems = n;
-        memcpy(renderThreadRemovalsOutputBuffer.buffer, queuedHandles, n);
+        memcpy(renderThreadRemovalsOutputBuffer.buffer, queuedHandles, n * sizeof(TransformationHandle));
     }
 }
 
@@ -320,6 +321,7 @@ void TransformationSystem::drainRenderThreadReparentInputBuffer()
     {
         std::lock_guard<std::mutex> lock(renderThreadReparentInputBuffer.mutex);
         numOfReparents = renderThreadReparentInputBuffer.numberOfItems;
+        if (numOfReparents == 0) return;
         reparentConfigs = new TransformationReparentConfig[numOfReparents];
         memcpy(reparentConfigs, renderThreadReparentInputBuffer.buffer, numOfReparents * sizeof(TransformationReparentConfig));
         delete[] renderThreadReparentInputBuffer.buffer;

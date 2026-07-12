@@ -120,6 +120,7 @@ class TransformationSystem
     /**
      * @brief Drains the render thread removals output buffer,
      * filling the free handles list with newly freed handles
+     * @note This is used to communicate with the render thread.
      */
     void updateFreeHandles();
 
