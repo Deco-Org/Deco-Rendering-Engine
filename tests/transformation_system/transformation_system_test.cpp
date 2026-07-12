@@ -421,7 +421,7 @@ TEST_CASE("should correctly compute world transforms for parent and child transf
     REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
 }
 
-TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops", "[transformation][computation][rendering][threading]")
+TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops", "[transformation][add][computation][rendering][threading]")
 {
     TransformationSystem system = makeTransformationSystemWithNTransformations(4);
     TransformationReparentConfig reparents[2] = {
@@ -442,6 +442,36 @@ TEST_CASE("loading thread can successfully add transformations to the system whi
     {
         std::jthread otherThread(
             someBatchesOfTransformationsAreAdded,
+            std::ref(system),
+            batches
+        );
+
+        std::jthread renderThread(
+            worldMatricesAreComputedNTimes,
+            std::ref(system),
+            100
+        );
+    }
+}
+
+TEST_CASE("loading thread can successfully remove transformations from the system while the render thread loops", "[transformation][remove][computation][rendering][threading]")
+{
+    uint32_t n = 1000;
+    TransformationSystem system = makeTransformationSystemWithNTransformations(n);
+
+    std::vector<std::vector<TransformationHandle>> batches = {};
+    for (uint8_t i = 0; i < 10; ++i)
+    {
+        batches.push_back(std::vector<TransformationHandle>{});
+        for (uint8_t j = 0; j < 10; ++j)
+        {
+            batches[i].push_back((TransformationHandle)(j * 10));
+        }
+    }
+
+    {
+        std::jthread otherThread(
+            someBatchesOfTransformationsAreRemoved,
             std::ref(system),
             batches
         );

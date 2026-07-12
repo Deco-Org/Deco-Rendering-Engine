@@ -43,7 +43,7 @@ inline TransformationSystem makeTransformationSystemWithNTransformations(uint32_
     return std::move(system);
 }
 
-inline std::vector<TransformationEntry> nUnparentedTransformationEntries(TransformationSystem &system, uint32_t n)
+inline std::vector<TransformationEntry> nUnparentedTransformationEntries(TransformationSystem& system, uint32_t n)
 {
     std::vector<TransformationHandle> handles = system.reserveHandles(n);
     std::vector<TransformationEntry> entries = std::vector<TransformationEntry>();
@@ -71,12 +71,12 @@ inline TransformationHandle someTransformationHandleForAddedTransformation(
     return system.add(transformation);
 }
 
-inline void renderThreadInputQueueIsCleared(TransformationSystem &system)
+inline void renderThreadInputQueueIsCleared(TransformationSystem& system)
 {
     system.deallocRenderThreadAdditionsInputBuffer();
 }
 
-void someBatchesOfTransformationsAreAdded(TransformationSystem &system, std::vector<std::vector<Transformation>> batches)
+void someBatchesOfTransformationsAreAdded(TransformationSystem& system, std::vector<std::vector<Transformation>> batches)
 {
     for (size_t i = 0; i < batches.size(); ++i)
     {
@@ -87,7 +87,16 @@ void someBatchesOfTransformationsAreAdded(TransformationSystem &system, std::vec
     }
 }
 
-void worldMatricesAreComputedNTimes(TransformationSystem &system, uint32_t n)
+void someBatchesOfTransformationsAreRemoved(TransformationSystem& system, std::vector<std::vector<TransformationHandle>> batches)
+{
+    for (size_t i = 0; i < batches.size(); ++i)
+    {
+        std::vector<TransformationHandle>& batch = batches[i];
+        system.remove(batch.data(), batch.size());
+    }
+}
+
+void worldMatricesAreComputedNTimes(TransformationSystem& system, uint32_t n)
 {
     for (uint32_t i = 0; i < n; ++i)
     {
