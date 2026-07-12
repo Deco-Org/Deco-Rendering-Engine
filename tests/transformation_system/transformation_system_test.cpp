@@ -174,9 +174,6 @@ TEST_CASE("removing multiple transformations decreases size", "[transformation][
 TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
 {
     TransformationSystem system = makeTransformationSystemWithNTransformations(3);
-    const simd_float3 *transformation0Position = &system.positions[system.handleToIndex[0]];
-    const simd_float3 *transformation1Position = &system.positions[system.handleToIndex[1]];
-    const simd_float3 *transformation2Position = &system.positions[system.handleToIndex[2]];
 
     TransformationHandle handleOfRemovedItem = system.indexToHandle[0];
     system.remove(&handleOfRemovedItem, 1);
@@ -257,6 +254,7 @@ TEST_CASE("removing a transformation should preserve order", "[transformation][r
         if (handle != childOfRemovedTransformation)
         {
             REQUIRE(system.handleToIndex[system.parentHandles[index]] < index);
+            REQUIRE(expectedParent == system.parentHandles[index]);
         }
     }
 }
@@ -282,7 +280,6 @@ TEST_CASE("reparented transformations will be moved to be prior to new parent wh
     TransformationSystem system = makeTransformationSystemWithNTransformations(12);
     TransformationHandle parentHandle = 5;
     TransformationHandle childHandle = 3;
-    uint32_t oldChildIndex = system.handleToIndex[childHandle];
     
     system.setParent(childHandle, parentHandle);
     system.drainRenderThreadReparentInputBuffer();
@@ -299,8 +296,6 @@ TEST_CASE("children of reparented transformation will remain subsequent to repar
     TransformationHandle parentHandle = 7;
     TransformationHandle childHandle = 3;
     TransformationHandle grandchildHandle = 5;
-    uint32_t oldChildIndex = system.handleToIndex[childHandle];
-    uint32_t oldGrandchildIndex = system.handleToIndex[grandchildHandle];
     system.setParent(grandchildHandle, childHandle);
     system.drainRenderThreadReparentInputBuffer();
     REQUIRE(childHandle == system.parentHandles[grandchildHandle]);
@@ -325,8 +320,6 @@ TEST_CASE("grandparents of reparented transformation should be before their chil
     TransformationHandle grandchildHandle = 7;
     uint32_t oldGrandparentIndex = system.handleToIndex[grandparentHandle];
     uint32_t oldParentIndex = system.handleToIndex[parentHandle];
-    uint32_t oldChildIndex = system.handleToIndex[childHandle];
-    uint32_t oldGrandchildIndex = system.handleToIndex[grandchildHandle];
 
     system.setParent(parentHandle, grandparentHandle);
     system.drainRenderThreadReparentInputBuffer();
@@ -354,8 +347,6 @@ TEST_CASE("handles and indices should match up when a transformation is made an 
     
     system.setParent(childHandle, parentHandle);
     system.drainRenderThreadReparentInputBuffer();
-    uint32_t parentIndex = system.handleToIndex[parentHandle];
-    uint32_t newChildIndex = system.handleToIndex[childHandle];
     
     system.setParent(childHandle, NO_TRANSFORMATION_PARENT);
     system.drainRenderThreadReparentInputBuffer();

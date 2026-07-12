@@ -78,7 +78,7 @@ class TransformationSystem
      * @param configs An array of transformation reparent configs
      * @param n The number of transformation reparent configs.
      */
-    void setParents(const TransformationReparentConfig const* configs, size_t n);
+    void setParents(const TransformationReparentConfig* configs, size_t n);
 
     /**
      * Computes world matrices from the positions, rotations, and scales of the transformations within the system

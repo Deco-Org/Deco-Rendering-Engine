@@ -97,7 +97,7 @@ void TransformationSystem::setParent(TransformationHandle transformation, Transf
     delete[] configs;
 }
 
-void TransformationSystem::setParents(const TransformationReparentConfig const *configs, size_t n)
+void TransformationSystem::setParents(const TransformationReparentConfig *configs, size_t n)
 {
     std::lock_guard<std::mutex> lock(renderThreadReparentInputBuffer.mutex);
     if (renderThreadReparentInputBuffer.numberOfItems == 0)
@@ -163,7 +163,6 @@ std::vector<TransformationHandle> TransformationSystem::reserveHandles(size_t n)
         freeHandles.erase(freeHandles.end() - numOfFreeHandlesToTake, freeHandles.end());
     }
     
-    const TransformationHandle lastHandle = n - numOfFreeHandlesToTake;
     for (size_t i = numOfFreeHandlesToTake; i < n; ++i)
     {
         handles[i] = (maxHandle);
