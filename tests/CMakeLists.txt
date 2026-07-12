@@ -31,6 +31,10 @@ list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
 catch_discover_tests(tests WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
 
+target_compile_options(tests PRIVATE
+    -Werror=unused-variable
+)
+
 set_target_properties(tests PROPERTIES
     XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "-"
     XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO"
