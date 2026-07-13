@@ -137,6 +137,30 @@ TEST_CASE("adding transformations in bulk stores correct parents", "[transformat
     REQUIRE(handles[0] == system.parentHandles[system.handleToIndex[handles[1]]]);
 }
 
+TEST_CASE("added transformations are put into render thread output buffer", "[transformation][add]")
+{
+    // Given there is an empty system
+    TransformationSystem system;
+    
+    // When n transformation handles are reserved
+    // and n transformations are added with the reserved handles
+    // And the render additions input buffer is drained
+    uint32_t n = 3;
+    std::vector<TransformationHandle> handles = system.reserveHandles(n);
+    std::vector<TransformationHandle> parents(n, NO_TRANSFORMATION_PARENT);
+    system.add(nTransformations(n).data(), parents.data(), handles.data(), n);
+    system.drainRenderThreadAdditionsInputBuffer();
+
+    // The render additions output buffer should have n items
+    std::vector<TransformationHandle> consumedHandles = system.drainAndGetConsumedTransformationHandles();
+    REQUIRE(n == consumedHandles.size());
+    // The render additions output buffer should contain the handles of the added transformation
+    for (uint32_t i = 0; i < consumedHandles.size(); ++i)
+    {
+        REQUIRE(handles[i] == consumedHandles[i]);
+    }
+}
+
 TEST_CASE("removing a transformation decreases size", "[transformation][remove]")
 {
     TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
@@ -529,4 +553,22 @@ TEST_CASE("loading thread can successfully reparent transformations while the re
 
     handlesAndIndicesShouldMatchUp(system);
     allParentsShouldComeBeforeChildren(system);
+}
+
+TEST_CASE("loading thread can successfully add, remove, and reparent transformations while the render thread loops", "[transformation][add][remove][reparent][computation][threading]")
+{
+    // Given there is system with zero transformations
+
+    // While the render thread is computing world matrices
+    // When the loading thread adds transformations,
+    // reparents transformations,
+    // removes transformations,
+    // reparents transformations,
+    // removes transformations,
+    // adds tranformations,
+    // reparents transformations,
+    // and add's transformations,
+
+    // Handles and indices should match up,
+    // and all parents should come before children
 }

@@ -202,6 +202,8 @@ void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
         renderThreadAdditionsInputBuffer.numberOfItems = 0;
     }
     const size_t lastIndex = positions.size() - 1;
+    std::vector<TransformationHandle> consumedHandles;
+    consumedHandles.reserve(n);
 
     // Allocating new memory if needed
     if (positions.size() + n < positions.capacity())
@@ -234,6 +236,27 @@ void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
             indexToHandle.resize(lastIndex + 1 + i + 1, NO_TRANSFORMATION_PARENT);
         }
         indexToHandle[lastIndex + 1 + i] = queuedEntries[i].handle;
+        consumedHandles.push_back(queuedEntries[i].handle);
+    }
+
+    std::lock_guard<std::mutex> lock(handlesConsumedByRenderThread.mutex);
+    // Critical section
+    size_t oldSize = handlesConsumedByRenderThread.numberOfItems;
+    if (oldSize > 0)
+    {
+        TransformationHandle* temp = handlesConsumedByRenderThread.buffer;
+        handlesConsumedByRenderThread.buffer = new TransformationHandle[oldSize + n];
+        memcpy(handlesConsumedByRenderThread.buffer, temp, oldSize * sizeof(TransformationHandle));
+        delete[] temp; // Deleting old buffer
+        memcpy(handlesConsumedByRenderThread.buffer + oldSize, consumedHandles.data(), n * sizeof(TransformationHandle));
+        handlesConsumedByRenderThread.numberOfItems = oldSize + n;
+    }
+    else
+    {
+        delete[] handlesConsumedByRenderThread.buffer; // Deleting old buffer
+        handlesConsumedByRenderThread.buffer = new TransformationHandle[n];
+        memcpy(handlesConsumedByRenderThread.buffer, consumedHandles.data(), n * sizeof(TransformationHandle));
+        handlesConsumedByRenderThread.numberOfItems = n;
     }
 }
 
@@ -386,6 +409,17 @@ void TransformationSystem::updateFreeHandles()
     }
 }
 
+std::vector<TransformationHandle> TransformationSystem::drainAndGetConsumedTransformationHandles()
+{
+    std::lock_guard<std::mutex> lock(handlesConsumedByRenderThread.mutex);
+    // Critical section
+    std::vector<TransformationHandle> handles(handlesConsumedByRenderThread.buffer, handlesConsumedByRenderThread.buffer + handlesConsumedByRenderThread.numberOfItems);
+    delete[] handlesConsumedByRenderThread.buffer;
+    handlesConsumedByRenderThread.buffer = nullptr;
+    handlesConsumedByRenderThread.numberOfItems = 0;
+    return handles;
+}
+
 void TransformationSystem::deallocRenderThreadAdditionsInputBuffer()
 {
     renderThreadAdditionsInputBuffer.~SynchronizedBuffer();
@@ -398,7 +432,7 @@ void TransformationSystem::deallocRenderThreadRemovalsInputBuffer()
 
 void TransformationSystem::deallocRenderThreadAdditionsOutputBuffer()
 {
-    renderThreadAdditionsOutputBuffer.~SynchronizedBuffer();
+    handlesConsumedByRenderThread.~SynchronizedBuffer();
 }
 
 void TransformationSystem::deallocRenderThreadRemovalsOutputBuffer()

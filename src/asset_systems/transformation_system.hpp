@@ -124,6 +124,8 @@ class TransformationSystem
      */
     void updateFreeHandles();
 
+    std::vector<TransformationHandle> drainAndGetConsumedTransformationHandles();
+
     void deallocRenderThreadAdditionsInputBuffer();
     void deallocRenderThreadRemovalsInputBuffer();
 
@@ -150,6 +152,7 @@ class TransformationSystem
     private:
     void memshiftTransformationsChunk(uint32_t startIndex, int shift, size_t size);
     void reparent(TransformationReparentConfig config);
+    
     inline matrix_float4x4 buildLocalMatrix(simd_float3 translation, simd_quatf rotation, simd_float3 scale);
 
     std::vector<TransformationHandle> freeHandles;
@@ -161,7 +164,7 @@ class TransformationSystem
     SynchronizedBuffer<TransformationReparentConfig> renderThreadReparentInputBuffer;
 
     // Output Buffers (rener thread to loading thread)
-    SynchronizedBuffer<TransformationHandle> renderThreadAdditionsOutputBuffer;
+    SynchronizedBuffer<TransformationHandle> handlesConsumedByRenderThread;
     SynchronizedBuffer<TransformationHandle> renderThreadRemovalsOutputBuffer;
     SynchronizedBuffer<const TransformationReparentConfig> renderThreadReparentOutputBuffer;
 };
