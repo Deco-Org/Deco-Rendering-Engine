@@ -6,7 +6,14 @@
 #pragma once
 #include "test_utils.hpp"
 #include <utility>
+#include <functional>
+#include <queue>
+#include <unordered_set>
+#include <unordered_map>
+#include <random>
 #include "asset_systems/transformation_system.hpp"
+
+using OperationQueue = std::queue<std::function<void()>>;
 
 constexpr simd_float3 originPosition = { 0.0f, 0.0f, 0.0f };
 constexpr simd_quatf zeroQuaternion = { { 0.0f, 0.0f, 0.0f, 0.0f } };
@@ -157,6 +164,191 @@ void someBatchesOfTransformationsAreReparented(TransformationSystem& system, std
     }
 }
 
+void someTransformationsAreAddedAndTheRenderThreadSuccessfullyAddsThem(
+    TransformationSystem& system, 
+    std::vector<TransformationHandle>& liveHandles, 
+    unsigned int numToAdd)
+{
+    std::vector<TransformationHandle> reservedHandles = system.reserveHandles(numToAdd);
+    // Generating transformations
+    std::vector<Transformation> transformations = nTransformations(numToAdd);
+    std::vector<TransformationHandle> parents(numToAdd, NO_TRANSFORMATION_PARENT);
+    system.add(
+        transformations.data(),
+        parents.data(),
+        reservedHandles.data(),
+        numToAdd
+    );
+    liveHandles.insert(liveHandles.end(), reservedHandles.begin(), reservedHandles.end());
+}
+
+/**
+ * Extra care must be taken to make sure that transformations have no children before they
+ * are removed, as is the case with real use of the transformation system. This greatly
+ * complicates this test function.
+ */
+void someTransformationsAreRemovedAndTheRenderThreadSuccessfullyRemovesThem(
+    TransformationSystem& system,
+    std::vector<TransformationHandle>& liveHandles,
+    std::unordered_map<TransformationHandle, int>& parentToNumberOfChildrenMap,
+    std::unordered_map<TransformationHandle, TransformationHandle>& childrenToParentMap,
+    unsigned int& numUniqueParents,
+    unsigned int numToRemove,
+    std::mutex& ackMutex,
+    std::condition_variable& ackCv,
+    bool& removalComplete)
+{
+    std::vector<TransformationHandle> transformationsToRemove;
+    transformationsToRemove.reserve(numToRemove);
+    // Generating array of handles to remove
+    for (unsigned int i = 0; i < numToRemove; ++i)
+    {
+        TransformationHandle targetHandle = liveHandles[i * (liveHandles.size() / numToRemove)];
+        
+        // Making sure the handle being removed has no children
+        const TransformationHandle originalTarget = targetHandle;
+        auto it = parentToNumberOfChildrenMap.find(targetHandle);
+        int numberOfChildren = (it == parentToNumberOfChildrenMap.end()) ? 0 : it->second;
+        while (targetHandle <= liveHandles.size() && numberOfChildren != 0)
+        {
+            targetHandle += 1;
+            it = parentToNumberOfChildrenMap.find(targetHandle);
+            if (it == parentToNumberOfChildrenMap.end())
+            {
+                numberOfChildren = 0;
+            }
+            else
+            {
+                numberOfChildren = it->second;
+            }
+        }
+        if (targetHandle == liveHandles.size())
+        {
+            // Continuing to search from the beginning
+            targetHandle = 0;
+            it = parentToNumberOfChildrenMap.find(targetHandle);
+            numberOfChildren = (it == parentToNumberOfChildrenMap.end()) ? 0 : it->second;
+            while (targetHandle <= originalTarget && numberOfChildren != 0)
+            {
+                targetHandle += 1;
+                it = parentToNumberOfChildrenMap.find(targetHandle);
+                numberOfChildren = (it == parentToNumberOfChildrenMap.end()) ? 0 : it->second;
+            }
+            // If no handles are found, assert
+            assert(targetHandle != originalTarget);
+        }
+
+        // Remove the handle
+        if (childrenToParentMap.contains(targetHandle))
+        {
+            parentToNumberOfChildrenMap[childrenToParentMap[targetHandle]] -= 1;
+            if (parentToNumberOfChildrenMap[childrenToParentMap[targetHandle]] == 0)
+            {
+                numUniqueParents = (numUniqueParents == 0) ? 0 : numUniqueParents - 1;
+            }
+        }
+        transformationsToRemove.push_back(targetHandle);
+    }
+
+    // Removing handles
+    system.remove(
+        transformationsToRemove.data(),
+        transformationsToRemove.size()
+    );
+    {
+        std::unique_lock<std::mutex> lock(ackMutex);
+        ackCv.wait(lock, [&]{ return removalComplete; });
+        removalComplete = false;
+    }
+    // Updating liveHandles
+    std::unordered_set<TransformationHandle> removeSet(transformationsToRemove.begin(), transformationsToRemove.end());
+    std::erase_if(liveHandles, [&removeSet](int x) {
+        return removeSet.contains(x);
+    });
+
+    // Updating internal test parent-child mappings
+    const TransformationHandle parent = childrenToParentMap[parent];
+    parentToNumberOfChildrenMap[parent] -= 1;
+}
+
+/**
+ * Extra care must be taken to make sure that transformations have no children before they
+ * are removed, as is the case with real use of the transformation system. This greatly
+ * complicates this test function.
+ */
+void someTransformationsAreReparentedAndTheRenderThreadSuccessfullyReparentsThem(
+    TransformationSystem& system,
+    std::vector<TransformationHandle>& liveHandles,
+    std::unordered_map<TransformationHandle, int>& parentToNumberOfChildrenMap,
+    std::unordered_map<TransformationHandle, TransformationHandle>& childrenToParentMap,
+    unsigned int numToReparent,
+    std::mutex& ackMutex,
+    std::condition_variable& ackCv,
+    bool& reparentingComplete,
+    std::mt19937_64& randomEngine,
+    unsigned int& numUniqueParents,
+    unsigned int& maxUniqueParents)
+{
+    std::vector<TransformationReparentConfig> reparentConfigs;
+    std::uniform_int_distribution<TransformationHandle> distrib(
+        *std::min_element(liveHandles.begin(), liveHandles.end()), 
+        *std::max_element(liveHandles.begin(), liveHandles.end()));
+    for (unsigned int i = 0; i < numToReparent; ++i)
+    {
+        
+        TransformationReparentConfig config;
+        config.child = liveHandles[liveHandles.size() / numToReparent];
+        config.parent = config.child;
+        while (config.parent == config.child)
+        {
+            config.parent = distrib(randomEngine);
+        }
+        if (numUniqueParents == maxUniqueParents)
+        {
+            // If the maximum number of unique parents has been reached,
+            // loop over free handles until a transformation with children is found
+            TransformationHandle targetParent = liveHandles[0];
+            for (size_t i = 0; i < liveHandles.size(); ++i)
+            {
+                auto it = parentToNumberOfChildrenMap.find(targetParent);
+                if (it != parentToNumberOfChildrenMap.end() && it->second > 0)
+                {
+                    parentToNumberOfChildrenMap[targetParent] += 1;
+                    break;
+                }
+                else
+                    continue;
+            }
+            config.parent = targetParent;
+        }
+        else
+        {
+            auto it = parentToNumberOfChildrenMap.find(config.parent);
+            if (it == parentToNumberOfChildrenMap.end())
+            {
+                parentToNumberOfChildrenMap[config.parent] = 0;
+                numUniqueParents += 1;
+            }
+            parentToNumberOfChildrenMap[config.parent] += 1;
+        }
+        reparentConfigs.push_back(config);
+        
+        // Updating internal test mappings (used to make sure no parents are removed)
+        const TransformationHandle oldParent = childrenToParentMap[config.child];
+        childrenToParentMap[config.child] = config.parent;
+        parentToNumberOfChildrenMap[oldParent] += 1;
+        parentToNumberOfChildrenMap[config.parent] += 1;
+    }
+
+    // Reparenting
+    system.setParents(reparentConfigs.data(), reparentConfigs.size());
+    {
+        std::unique_lock<std::mutex> lock(ackMutex);
+        ackCv.wait(lock, [&]{ return reparentingComplete; });
+        reparentingComplete = false;
+    }
+}
+
 void worldMatricesAreComputedNTimes(TransformationSystem& system, uint32_t n)
 {
     for (uint32_t i = 0; i < n; ++i)
@@ -165,6 +357,48 @@ void worldMatricesAreComputedNTimes(TransformationSystem& system, uint32_t n)
         system.drainRenderThreadAdditionsInputBuffer();
         system.drainRenderThreadReparentInputBuffer();
         system.computeWorldMatrices();
+    }
+}
+
+void worldMatricesAreComputedUntilDone(
+    TransformationSystem &system,
+    std::atomic<bool>& done,
+    std::mutex& ackMutex,
+    std::condition_variable& ackCv,
+    bool& removalComplete,
+    bool& reparentingComplete)
+{
+    
+    while (!done)
+    {
+        // Removals
+        system.drainRenderThreadRemovalsInputBuffer();
+        {
+            std::lock_guard<std::mutex> lock(ackMutex);
+            removalComplete = true;
+        }
+        ackCv.notify_all();
+
+        // Additions
+        system.drainRenderThreadAdditionsInputBuffer();
+
+        // Reparents
+        system.drainRenderThreadReparentInputBuffer();
+        {
+            std::lock_guard<std::mutex> lock(ackMutex);
+            reparentingComplete = true;
+        }
+        ackCv.notify_all();
+    }
+}
+
+void runOperations(OperationQueue& ops)
+{
+    while (!ops.empty())
+    {
+        auto op = ops.front();
+        ops.pop();
+        op();
     }
 }
 

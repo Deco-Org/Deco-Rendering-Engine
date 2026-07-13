@@ -6,7 +6,6 @@
 #include "transformation_system.hpp"
 #include <ranges>
 #include <algorithm>
-#include <print>
 
 TransformationSystem::TransformationSystem(MTL::Device* device)
 {
@@ -447,11 +446,15 @@ TransformationHandle TransformationSystem::getMaxHandle()
 
 void TransformationSystem::memshiftTransformationsChunk(uint32_t startIndex, int shift, size_t size)
 {
-    if (startIndex == 0 && shift < -1)
+    // if (startIndex == 0 && shift < -1)
+    // {
+    //     startIndex += 1;
+    //     shift += 1;
+    if ((int32_t)startIndex + shift < 0)
     {
-        startIndex += 1;
-        shift += 1;
-    } else if (startIndex == 0 && shift >= -1) 
+        shift = startIndex;
+    } 
+    else if (startIndex == 0 && shift >= -1) 
     {
         return;
     }

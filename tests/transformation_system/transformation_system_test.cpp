@@ -558,6 +558,151 @@ TEST_CASE("loading thread can successfully reparent transformations while the re
 TEST_CASE("loading thread can successfully add, remove, and reparent transformations while the render thread loops", "[transformation][add][remove][reparent][computation][threading]")
 {
     // Given there is system with zero transformations
+    TransformationSystem system;
+    std::vector<TransformationHandle> liveHandles;
+    std::atomic<bool> otherThreadDone;
+    std::mutex ackMutex;
+    std::condition_variable ackCv;
+    bool removalComplete = false;
+    bool reparentingComplete = false;
+    std::unordered_map<TransformationHandle, int> parentToNumberOfChildrenMap;
+    std::unordered_map<TransformationHandle, TransformationHandle> childrenToParentMap;
+    std::mt19937_64 randomEngine(32);
+    unsigned int numUniqueParents = 0;
+    unsigned int maxUniqueParents = 12;
+
+    OperationQueue ops;
+
+    // When the loading thread adds transformations
+    ops.push([&system, &liveHandles]() {
+        someTransformationsAreAddedAndTheRenderThreadSuccessfullyAddsThem(
+            system,
+            liveHandles,
+            100
+        );
+    });
+
+    // Reparents transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &ackMutex, &ackCv, &reparentingComplete, &randomEngine, &numUniqueParents, &maxUniqueParents]() {
+        someTransformationsAreReparentedAndTheRenderThreadSuccessfullyReparentsThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            12,
+            ackMutex,
+            ackCv,
+            reparentingComplete,
+            randomEngine,
+            numUniqueParents,
+            maxUniqueParents
+        );
+    });
+
+    // Removes transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &numUniqueParents, &ackMutex, &ackCv, &removalComplete]() {
+        someTransformationsAreRemovedAndTheRenderThreadSuccessfullyRemovesThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            numUniqueParents,
+            25,
+            ackMutex,
+            ackCv,
+            removalComplete
+        );
+    });
+
+    // Reparents transformations
+        ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &ackMutex, &ackCv, &reparentingComplete, &randomEngine, &numUniqueParents, &maxUniqueParents]() {
+        someTransformationsAreReparentedAndTheRenderThreadSuccessfullyReparentsThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            12,
+            ackMutex,
+            ackCv,
+            reparentingComplete,
+            randomEngine,
+            numUniqueParents,
+            maxUniqueParents
+        );
+    });
+
+    // Removes transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &numUniqueParents, &ackMutex, &ackCv, &removalComplete]() {
+        someTransformationsAreRemovedAndTheRenderThreadSuccessfullyRemovesThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            numUniqueParents,
+            12,
+            ackMutex,
+            ackCv,
+            removalComplete
+        );
+    });
+
+    // Adds transformations
+    ops.push([&system, &liveHandles]() {
+        someTransformationsAreAddedAndTheRenderThreadSuccessfullyAddsThem(
+            system,
+            liveHandles,
+            37
+        );
+    });
+
+    // Reparents transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &ackMutex, &ackCv, &reparentingComplete, &randomEngine, &numUniqueParents, &maxUniqueParents]() {
+        someTransformationsAreReparentedAndTheRenderThreadSuccessfullyReparentsThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            12,
+            ackMutex,
+            ackCv,
+            reparentingComplete,
+            randomEngine,
+            numUniqueParents,
+            maxUniqueParents
+        );
+    });
+
+    // and adds transformations
+    ops.push([&system, &liveHandles]() {
+        someTransformationsAreAddedAndTheRenderThreadSuccessfullyAddsThem(
+            system,
+            liveHandles,
+            25
+        );
+    });
+
+    {
+        std::jthread otherThread([&ops, &otherThreadDone]() {
+            runOperations(ops);
+            otherThreadDone = true;
+        });
+
+        std::jthread renderThread([&]() {
+            worldMatricesAreComputedUntilDone(
+                system,
+                otherThreadDone,
+                ackMutex,
+                ackCv,
+                removalComplete,
+                reparentingComplete
+            );
+        }
+        );
+    }
+
+    
+
+
 
     // While the render thread is computing world matrices
     // When the loading thread adds transformations,
