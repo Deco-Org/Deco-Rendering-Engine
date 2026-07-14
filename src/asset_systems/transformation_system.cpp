@@ -255,6 +255,7 @@ void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
         memcpy(handlesConsumedByRenderThread.buffer, consumedHandles.data(), n * sizeof(TransformationHandle));
         handlesConsumedByRenderThread.numberOfItems = n;
     }
+    delete[] queuedEntries;
 }
 
 void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
@@ -357,6 +358,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
                 numberOfNewlyFreedHandles += 1;
             }
         }
+        delete[] previousFreeHandles;
         
         // Filling the buffer.
         std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
@@ -416,6 +418,7 @@ void TransformationSystem::updateFreeHandles()
     {
         freeHandles.push_back(newlyFreedHandles[i]);
     }
+    delete[] newlyFreedHandles;
 }
 
 std::vector<TransformationHandle> TransformationSystem::drainAndGetConsumedTransformationHandles()
