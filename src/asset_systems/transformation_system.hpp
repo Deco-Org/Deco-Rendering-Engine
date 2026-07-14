@@ -38,15 +38,6 @@ class TransformationSystem
      */
     TransformationHandle add(Transformation transformation, TransformationHandle parent = NO_TRANSFORMATION_PARENT);
 
-    // /**
-    //  * Add transformations to the Transformation system
-    //  * @param transformations A pointer to transformation data to be added
-    //  * @param parent A pointer to an array of parent handles
-    //  * @param n The number of transformations to be added
-    //  * @returns A vector of Transformation Handles
-    //  */
-    // std::vector<TransformationHandle> add(Transformation* transformations, TransformationHandle* parents, size_t n);
-
     /**
      * Add transformations to the Transformation system with pre-reserved handles
      * @param transformations A pointer to transformation data to be added
@@ -70,10 +61,16 @@ class TransformationSystem
      */
     void remove(TransformationHandle* handles, size_t n);
 
+    /**
+     * Queue a single reparent request to reparent a transformation
+     * in the transformation system. 
+     * @note This should generally be avoided, and the `setParents()` function
+     * should be used instead.
+     */
     void setParent(TransformationHandle transformation, TransformationHandle parent);
 
     /**
-     * @brief Queue reparent requests to reparent transformations in
+     * Queue reparent requests to reparent transformations in
      * the transformation system.
      * @param configs An array of transformation reparent configs
      * @param n The number of transformation reparent configs.
@@ -100,21 +97,21 @@ class TransformationSystem
     std::vector<TransformationHandle> reserveHandles(size_t n);
 
     /**
-     * @brief Drains the render thread additions input buffer, adding
+     * Drains the render thread additions input buffer, adding
      * transformation entries to the system.
      * @warning This should only be called on the render thread.
      */
     void drainRenderThreadAdditionsInputBuffer();
 
     /**
-     * @brief Drains the render thread removals input buffer, removing
+     * Drains the render thread removals input buffer, removing
      * transformations with the provided handles from the system.
      * @warning This should only be called on the render thread.
      */
     void drainRenderThreadRemovalsInputBuffer();
 
     /**
-     * @brief Drains the render thread reparent input buffer,
+     * Drains the render thread reparent input buffer,
      * reparenting transformations according to the reparent configs
      * passed in.
      * @warning This should only be called on the render thread.
@@ -122,7 +119,7 @@ class TransformationSystem
     void drainRenderThreadReparentInputBuffer();
 
     /**
-     * @brief Drains the render thread removals output buffer,
+     * Drains the render thread removals output buffer,
      * filling the free handles list with newly freed handles
      * @note This is used to communicate with the render thread.
      */
