@@ -39,8 +39,6 @@ void TransformationSystem::add(Transformation* transformations, TransformationHa
                 .handle = handles[i]});
     }
 
-    // The render thread additions input buffer must be empty before new transformations can be added
-    // TODO: Come up with a cleaner solution, like allowing for transformation addition requests to be queued up.
     {
         std::lock_guard<std::mutex> lock(renderThreadAdditionsInputBuffer.mutex);
 
