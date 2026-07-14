@@ -124,6 +124,11 @@ class TransformationSystem
      */
     void updateFreeHandles();
 
+    /**
+     * Drain the buffer of transformation handles consumed in additions.
+     * @returns A vector of consumed transformation handles.
+     * @note This is used to communicate with the render thread.
+     */
     std::vector<TransformationHandle> drainAndGetConsumedTransformationHandles();
 
     void deallocRenderThreadAdditionsInputBuffer();
