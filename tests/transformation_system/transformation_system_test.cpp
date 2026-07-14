@@ -700,7 +700,9 @@ TEST_CASE("loading thread can successfully add, remove, and reparent transformat
         );
     }
 
-    
+    allParentsShouldComeBeforeChildren(system);
+    handlesAndIndicesShouldMatchUp(system);
+    REQUIRE(thereAreNoRepeatingHandles(system));
 
 
 

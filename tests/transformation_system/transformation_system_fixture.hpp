@@ -360,6 +360,19 @@ void worldMatricesAreComputedNTimes(TransformationSystem& system, uint32_t n)
     }
 }
 
+inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
+{
+    std::vector<TransformationHandle> handles;
+    std::vector<size_t> indices;
+    for (size_t i = 0; i < system.positions.size(); ++i)
+    {
+        if (system.indexToHandle[i] != (uint32_t)(-1))
+        {
+            REQUIRE(system.handleToIndex[system.indexToHandle[i]] == i);
+        }
+    }
+}
+
 void worldMatricesAreComputedUntilDone(
     TransformationSystem &system,
     std::atomic<bool>& done,
@@ -368,7 +381,6 @@ void worldMatricesAreComputedUntilDone(
     bool& removalComplete,
     bool& reparentingComplete)
 {
-    
     while (!done)
     {
         // Removals
@@ -378,9 +390,11 @@ void worldMatricesAreComputedUntilDone(
             removalComplete = true;
         }
         ackCv.notify_all();
+        handlesAndIndicesShouldMatchUp(system);
 
         // Additions
         system.drainRenderThreadAdditionsInputBuffer();
+        handlesAndIndicesShouldMatchUp(system);
 
         // Reparents
         system.drainRenderThreadReparentInputBuffer();
@@ -389,6 +403,8 @@ void worldMatricesAreComputedUntilDone(
             reparentingComplete = true;
         }
         ackCv.notify_all();
+
+        handlesAndIndicesShouldMatchUp(system);
     }
 }
 
@@ -410,18 +426,18 @@ inline void numberOfTransformationsShouldBe(TransformationSystem& system, size_t
 }
 
 // if using multithreading, this should only be called on the render thread
-inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
-{
-    std::vector<TransformationHandle> handles;
-    std::vector<size_t> indices;
-    for (size_t i = 0; i < system.positions.size(); ++i)
-    {
-        if (system.indexToHandle[i] != (uint32_t)(-1))
-        {
-            REQUIRE(system.handleToIndex[system.indexToHandle[i]] == i);
-        }
-    }
-}
+// inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
+// {
+//     std::vector<TransformationHandle> handles;
+//     std::vector<size_t> indices;
+//     for (size_t i = 0; i < system.positions.size(); ++i)
+//     {
+//         if (system.indexToHandle[i] != (uint32_t)(-1))
+//         {
+//             REQUIRE(system.handleToIndex[system.indexToHandle[i]] == i);
+//         }
+//     }
+// }
 
 inline void allParentsShouldComeBeforeChildren(TransformationSystem& system)
 {
@@ -434,4 +450,18 @@ inline void allParentsShouldComeBeforeChildren(TransformationSystem& system)
             REQUIRE(parentIndex < i);
         }
     }
+}
+
+bool thereAreNoRepeatingHandles(TransformationSystem& system)
+{
+    std::unordered_set<TransformationHandle> discoveredHandles;
+    for (uint32_t i = 0; i < system.indexToHandle.size(); ++i)
+    {
+        if (discoveredHandles.contains(system.indexToHandle[i]))
+        {
+            return false;
+        }
+        discoveredHandles.insert(system.indexToHandle[i]);
+    }
+    return true;
 }

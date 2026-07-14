@@ -273,6 +273,16 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
         renderThreadRemovalsInputBuffer.numberOfItems = 0;
     }
 
+    // Getting the indices
+    TransformationHandle queuedIndices[n];
+    for (size_t i = 0; i < n; ++i)
+    {
+        queuedIndices[i] = handleToIndex[queuedHandles[i]];
+    }
+
+    // Sorting the indices
+    std::sort(queuedIndices, queuedIndices + n);
+
     // TODO: Future optimization: move orphans first
     // For now, just move things in big chunks of memory
     std::vector<uint32_t> targetedIndices;
@@ -285,22 +295,24 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
     size_t removalCount;
     for (size_t i = 0; i < n - 1; ++i)
     {
-        const uint32_t targetedIndex = handleToIndex[queuedHandles[i]];
+        const uint32_t targetedIndex = queuedIndices[i];
         targetedIndices.push_back(targetedIndex);
+        const uint32_t startIndex = targetedIndex + 1;
         memshiftTransformationsChunk(
-            handleToIndex[queuedHandles[i]] + 1,
+            startIndex,
             -i - 1,
-            queuedHandles[i+1] - queuedHandles[i] - 1
+            queuedIndices[i + 1] - targetedIndex - 1
         );
+        
     }
 
     // Removing the last thing
-    targetedIndices.push_back(handleToIndex[queuedHandles[n - 1]]);
-    const size_t lastIndexToRemove = handleToIndex[queuedHandles[n - 1]];
+    const size_t lastIndexToRemove = queuedIndices[n - 1];
+    targetedIndices.push_back(lastIndexToRemove);
     memshiftTransformationsChunk(
         lastIndexToRemove + 1,
         -n,
-        positions.size() - lastIndexToRemove
+        indexToHandle.size() - lastIndexToRemove
     );
 
     positions.erase(positions.end() - n, positions.end());
@@ -366,6 +378,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
         renderThreadRemovalsOutputBuffer.numberOfItems = n;
         memcpy(renderThreadRemovalsOutputBuffer.buffer, queuedHandles, n * sizeof(TransformationHandle));
     }
+    delete[] queuedHandles;
 }
 
 void TransformationSystem::drainRenderThreadReparentInputBuffer()
@@ -446,13 +459,9 @@ TransformationHandle TransformationSystem::getMaxHandle()
 
 void TransformationSystem::memshiftTransformationsChunk(uint32_t startIndex, int shift, size_t size)
 {
-    // if (startIndex == 0 && shift < -1)
-    // {
-    //     startIndex += 1;
-    //     shift += 1;
     if ((int32_t)startIndex + shift < 0)
     {
-        shift = startIndex;
+        shift = -startIndex;
     } 
     else if (startIndex == 0 && shift >= -1) 
     {
