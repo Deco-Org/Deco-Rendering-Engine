@@ -376,6 +376,24 @@ TEST_CASE("handles and indices should match up when a transformation is made an 
     handlesAndIndicesShouldMatchUp(system);
 }
 
+TEST_CASE("should be able to remove transformation after reparent operation", "[transformation][remove][reparent]")
+{
+    // TransformationSystem system = makeTransformationSystemWithNTransformations(12);
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    
+    TransformationHandle parentHandle = 10;
+    TransformationHandle childHandle = 3;
+    system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+
+    system.remove(childHandle);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    allParentsShouldComeBeforeChildren(system);
+    handlesAndIndicesShouldMatchUp(system);
+    REQUIRE(thereAreNoRepeatingHandles);
+}
+
 TEST_CASE("should correctly compute world matrices for unparented transformations", "[transformation][computation]")
 {
     TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
