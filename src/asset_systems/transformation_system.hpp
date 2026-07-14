@@ -93,6 +93,10 @@ class TransformationSystem
      */
     void updateWorldMatrixBuffer(uint8_t bufferNumber);
 
+    /**
+     * Reserves transformation handles to be used by transformations.
+     * @returns A vector of reserved transformation handles
+     */
     std::vector<TransformationHandle> reserveHandles(size_t n);
 
     /**
