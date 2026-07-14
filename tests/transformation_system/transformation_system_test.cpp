@@ -662,7 +662,7 @@ TEST_CASE("loading thread can successfully add, remove, and reparent transformat
             liveHandles,
             parentToNumberOfChildrenMap,
             childrenToParentMap,
-            12,
+            25,
             ackMutex,
             ackCv,
             reparentingComplete,
@@ -703,19 +703,4 @@ TEST_CASE("loading thread can successfully add, remove, and reparent transformat
     allParentsShouldComeBeforeChildren(system);
     handlesAndIndicesShouldMatchUp(system);
     REQUIRE(thereAreNoRepeatingHandles(system));
-
-
-
-    // While the render thread is computing world matrices
-    // When the loading thread adds transformations,
-    // reparents transformations,
-    // removes transformations,
-    // reparents transformations,
-    // removes transformations,
-    // adds tranformations,
-    // reparents transformations,
-    // and add's transformations,
-
-    // Handles and indices should match up,
-    // and all parents should come before children
 }
