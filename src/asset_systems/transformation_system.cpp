@@ -303,7 +303,6 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
             -i - 1,
             queuedIndices[i + 1] - targetedIndex - 1
         );
-        
     }
 
     // Removing the last thing
@@ -323,7 +322,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
     indexToHandle.erase(indexToHandle.end() - n, indexToHandle.end());
 
     // Updating mappings
-    for (size_t i = 0; i < indexToHandle.size(); ++i)
+    for (size_t i = queuedIndices[0]; i < indexToHandle.size(); ++i)
     {
         handleToIndex[indexToHandle[i]] = i;
     }
