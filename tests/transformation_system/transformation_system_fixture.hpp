@@ -255,11 +255,13 @@ void someTransformationsAreRemovedAndTheRenderThreadSuccessfullyRemovesThem(
         transformationsToRemove.data(),
         transformationsToRemove.size()
     );
+    system.updateFreeHandles();
     {
         std::unique_lock<std::mutex> lock(ackMutex);
         ackCv.wait(lock, [&]{ return removalComplete; });
         removalComplete = false;
     }
+
     // Updating liveHandles
     std::unordered_set<TransformationHandle> removeSet(transformationsToRemove.begin(), transformationsToRemove.end());
     std::erase_if(liveHandles, [&removeSet](int x) {
