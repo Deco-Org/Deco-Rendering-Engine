@@ -451,11 +451,6 @@ void TransformationSystem::deallocRenderThreadRemovalsOutputBuffer()
     renderThreadRemovalsOutputBuffer.~SynchronizedBuffer();
 }
 
-TransformationHandle TransformationSystem::getMaxHandle() 
-{
-    return maxHandle;
-}
-
 void TransformationSystem::memshiftTransformationsChunk(uint32_t startIndex, int shift, size_t size)
 {
     if ((int32_t)startIndex + shift < 0)

@@ -360,6 +360,7 @@ void worldMatricesAreComputedNTimes(TransformationSystem& system, uint32_t n)
     }
 }
 
+// if using multithreading, this should only be called on the render thread
 inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
 {
     std::vector<TransformationHandle> handles;
@@ -389,7 +390,7 @@ void worldMatricesAreComputedUntilDone(
             std::lock_guard<std::mutex> lock(ackMutex);
             removalComplete = true;
         }
-        ackCv.notify_all();
+        ackCv.notify_one();
         handlesAndIndicesShouldMatchUp(system);
 
         // Additions
@@ -402,7 +403,7 @@ void worldMatricesAreComputedUntilDone(
             std::lock_guard<std::mutex> lock(ackMutex);
             reparentingComplete = true;
         }
-        ackCv.notify_all();
+        ackCv.notify_one();
 
         handlesAndIndicesShouldMatchUp(system);
     }
@@ -424,20 +425,6 @@ inline void numberOfTransformationsShouldBe(TransformationSystem& system, size_t
     REQUIRE(n == system.rotations.size());
     REQUIRE(n == system.scales.size());
 }
-
-// if using multithreading, this should only be called on the render thread
-// inline void handlesAndIndicesShouldMatchUp(TransformationSystem& system)
-// {
-//     std::vector<TransformationHandle> handles;
-//     std::vector<size_t> indices;
-//     for (size_t i = 0; i < system.positions.size(); ++i)
-//     {
-//         if (system.indexToHandle[i] != (uint32_t)(-1))
-//         {
-//             REQUIRE(system.handleToIndex[system.indexToHandle[i]] == i);
-//         }
-//     }
-// }
 
 inline void allParentsShouldComeBeforeChildren(TransformationSystem& system)
 {

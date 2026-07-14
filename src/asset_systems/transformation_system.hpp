@@ -137,8 +137,6 @@ class TransformationSystem
     void deallocRenderThreadAdditionsOutputBuffer();
     void deallocRenderThreadRemovalsOutputBuffer();
 
-    TransformationHandle getMaxHandle();
-
     MetalBufferPtr transformationBuffers[Config::MAX_FRAMES_IN_FLIGHT] = {nullptr, nullptr, nullptr};
 
     std::vector<simd_float3> positions;
