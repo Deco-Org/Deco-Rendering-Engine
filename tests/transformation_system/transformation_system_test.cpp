@@ -4,7 +4,7 @@
  */
 
 #include <catch2/catch_test_macros.hpp>
-#include "asset_systems/transformation_system.hpp"
+#include "core_systems/transformation_system.hpp"
 #include "transformation_system_fixture.hpp"
 #include "test_utils.hpp"
 #include <thread>
@@ -171,7 +171,7 @@ TEST_CASE("removing a transformation decreases size", "[transformation][remove]"
     system.remove(&handleToRemove, 1);
     system.drainRenderThreadRemovalsInputBuffer();
 
-    simdFloat3Equal(position, system.positions[system.handleToIndex[0]]);
+    REQUIRE(simdFloat3Equal(position, system.positions[system.handleToIndex[0]]));
     numberOfTransformationsShouldBe(system, 2);
     handlesAndIndicesShouldMatchUp(system);
 }
