@@ -7,6 +7,7 @@
 #include <simd/simd.h>
 #include <memory>
 #include <Metal/Metal.hpp>
+#include "vertex.hpp"
 
 using TransformationHandle = uint32_t;
 

@@ -7,6 +7,7 @@
 #include <Metal/Metal.hpp>
 #include "core_engine_types.h"
 #include "utils/AAPLMathUtilities.h"
+#include "tools/synchronized_buffer.hpp"
 #include "ufbx.h"
 
 using SubmeshHandle = uint32_t;
@@ -17,11 +18,45 @@ enum class SubmeshSkinningProperty: char
     Skinned,
 };
 
+struct SubmeshRenderThreadInputBufferEntry
+{
+    SubmeshHandle submesh;
+    Vertex* vertices;
+    size_t numberOfVertices;
+};
+
+struct SubmeshList
+{
+    SubmeshHandle* submesh;
+    size_t n;
+};
+
 class SubmeshSystem
 {
     public:
-    SubmeshHandle add(ufbx_mesh_part* part);
-    void remove(SubmeshHandle submesh);
+
+    /**
+     * Queue the submeshes of a mesh to be added to the system
+     */
+    SubmeshHandle add(ufbx_mesh* mesh);
+
+    /**
+     * Remove a list of submeshes by handle
+     * @param submeshes A `submesh_list`
+     */
+    void remove(SubmeshList submeshes);
+
+    /**
+     * Adds entries in `inputEntries` to the submesh system.
+     * @warning Should only be called on the render thread.
+     */
+    void drainInputBuffer();
+
+    /**
+     * Drains consumed handles from the `outputHandles` buffer.
+     * @note This is used to communicate with the render thread.
+     */
+    void drainOutputBuffer();
 
     std::vector<MetalBufferPtr> vertexBuffers;
     std::vector<MetalBufferPtr> indexBuffers;
@@ -33,4 +68,6 @@ class SubmeshSystem
 
     private:
     std::vector<SubmeshHandle> freeHandles;
+    SynchronizedBuffer<SubmeshRenderThreadInputBufferEntry> inputEntries;
+    SynchronizedBuffer<SubmeshHandle> outputHandles;
 };
