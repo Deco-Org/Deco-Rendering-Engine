@@ -13,4 +13,4 @@ clean:
 test:
 	cmake -B build -G Xcode --log-level=ERROR
 	cmake --build build --target tests
-	cd build && ctest --output-on-failure
+	./build/tests/Debug/tests $(if $(TAGS), $(TAGS))
