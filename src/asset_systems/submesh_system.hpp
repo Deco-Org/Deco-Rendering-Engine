@@ -11,6 +11,12 @@
 
 using SubmeshHandle = uint32_t;
 
+enum class SubmeshSkinningProperty: char
+{
+    Unskinned = 0,
+    Skinned,
+};
+
 class SubmeshSystem
 {
     public:
@@ -22,7 +28,7 @@ class SubmeshSystem
     std::vector<NS::UInteger> indexCounts;
     std::vector<simd_float3> boundsMin; // Min bounds of submeshes
     std::vector<simd_float3> boundsMax; // Max bounds of submeshes
-    std::vector<char> isSkinned;
+    std::vector<SubmeshSkinningProperty> skinningProperty;
     std::vector<uint32_t> boneCounts;
 
     private:
