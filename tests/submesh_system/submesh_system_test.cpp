@@ -89,3 +89,59 @@ TEST_CASE("adding n submeshes that are a part of a shared parent mesh should add
 
     aSceneIsFreed(scene);
 }
+
+TEST_CASE("removing a submesh from the system should free the handle", "[submesh][asset system][remove]")
+{
+    SubmeshSystem system;
+    REQUIRE(0 == numberOfSubmeshesInSystem(system));
+    REQUIRE(INVALID_SUBMESH_HANDLE == system.largestHandle);
+
+    ufbx_scene* scene = aSceneWithATestLampModel();
+    ufbx_mesh* mesh = scene->meshes.data[0];
+
+    system.add(mesh);
+    system.drainInputBuffer();
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(mesh->material_parts.count == consumedHandles.size());
+    size_t numberOfFreeHandles = system.freeHandles.size();
+
+    // When an item is removed
+    system.remove((SubmeshList) {
+        .data = &consumedHandles[0],
+        .count = 1
+    });
+
+    system.drainRemovalBuffer();
+    
+    REQUIRE(numberOfFreeHandles + 1 == system.freeHandles.size());
+
+    aSceneIsFreed(scene);
+}
+
+TEST_CASE("removing n submeshes from the system should free n handles", "[submesh][asset system][remove]")
+{
+    SubmeshSystem system;
+    REQUIRE(0 == numberOfSubmeshesInSystem(system));
+    REQUIRE(INVALID_SUBMESH_HANDLE == system.largestHandle);
+
+    ufbx_scene* scene = aSceneWithATestLampModel();
+    ufbx_mesh* mesh = scene->meshes.data[0];
+
+    system.add(mesh);
+    system.drainInputBuffer();
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(mesh->material_parts.count == consumedHandles.size());
+    size_t numberOfFreeHandles = system.freeHandles.size();
+
+    // When an item is removed
+    system.remove((SubmeshList) {
+        .data = consumedHandles.data(),
+        .count = consumedHandles.size()
+    });
+
+    system.drainRemovalBuffer();
+
+    REQUIRE(numberOfFreeHandles + consumedHandles.size() == system.freeHandles.size());
+    // consumedHandles and freeHandles should have the same data
+    REQUIRE(0 == memcmp(consumedHandles.data(), system.freeHandles.data(), consumedHandles.size() * sizeof(SubmeshHandle)));
+}

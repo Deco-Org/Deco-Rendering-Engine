@@ -110,6 +110,39 @@ SubmeshHandle SubmeshSystem::add(ufbx_mesh* mesh, ufbx_mesh_part* submesh, Subme
     return handle;
 }
 
+void SubmeshSystem::remove(SubmeshList submeshes)
+{
+    const size_t oldSize = freeHandles.size();
+
+    // Adding to list of free handles
+    freeHandles.resize(oldSize + submeshes.count);
+    memcpy(freeHandles.data() + oldSize, submeshes.data, submeshes.count * sizeof(SubmeshHandle));
+
+    // Filling removal buffer
+    {
+        std::lock_guard<std::mutex> lock(removalBuffer.mutex);
+
+        // Critical section
+        const size_t oldBufferSize = removalBuffer.count;
+        if (oldBufferSize > 0)
+        {
+            SubmeshHandle* temp = removalBuffer.buffer;
+            removalBuffer.buffer = new SubmeshHandle[oldBufferSize + submeshes.count];
+            memcpy(removalBuffer.buffer, submeshes.data, submeshes.count * sizeof(SubmeshHandle));
+            memcpy(removalBuffer.buffer + submeshes.count, temp, oldBufferSize * sizeof(SubmeshHandle));
+            removalBuffer.count = oldBufferSize + submeshes.count;
+            delete[] temp;
+        }
+        else
+        {
+            delete[] removalBuffer.buffer;
+            removalBuffer.buffer = new SubmeshHandle[submeshes.count];
+            removalBuffer.count = submeshes.count;
+            memcpy(removalBuffer.buffer, submeshes.data, submeshes.count * sizeof(SubmeshHandle));
+        }
+    }
+}
+
 void SubmeshSystem::drainInputBuffer()
 {
     SubmeshRenderThreadInputBufferEntry* entries;
@@ -182,6 +215,29 @@ void SubmeshSystem::drainInputBuffer()
         }
         outputHandles.largestHandle = vertexBuffers.size() - 1;
     }
+}
+
+void SubmeshSystem::drainRemovalBuffer()
+{
+    SubmeshHandle* handlesToRemove;
+    size_t n;
+
+    {
+        std::lock_guard<std::mutex> lock(removalBuffer.mutex);
+
+        // Critical section
+        n = removalBuffer.count;
+        handlesToRemove = removalBuffer.buffer;
+        removalBuffer.buffer = nullptr;
+        removalBuffer.count = 0;
+    }
+    
+    for (size_t i = 0; i < n; ++i)
+    {
+        tombstones.push_back(handlesToRemove[i]);
+    }
+
+    delete[] handlesToRemove;
 }
 
 std::vector<SubmeshHandle> SubmeshSystem::getItemsAndDrainOutputBuffer()

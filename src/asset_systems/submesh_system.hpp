@@ -13,6 +13,7 @@
 
 using SubmeshHandle = uint32_t;
 static constexpr SubmeshHandle INVALID_SUBMESH_HANDLE = UINT32_MAX;
+static constexpr NS::UInteger INVALID_INDEX_COUNT = NS::UIntegerMax;
 
 enum class SubmeshSkinningProperty: char
 {
@@ -34,8 +35,12 @@ struct SubmeshRenderThreadInputBufferEntry
 
 struct SubmeshList
 {
-    SubmeshHandle* submesh;
-    size_t n;
+    SubmeshHandle* data;
+    size_t count;
+
+    SubmeshHandle &operator[](size_t index) const { return data[index]; }
+    SubmeshHandle* begin() const { return data; }
+    SubmeshHandle* end() const { return data + count; }
 };
 
 class SubmeshSystem
@@ -75,6 +80,12 @@ class SubmeshSystem
     void drainInputBuffer();
 
     /**
+     * Drains the removal buffer and removes items from the system.
+     * @warning Should only be called on the render thread.
+     */
+    void drainRemovalBuffer();
+
+    /**
      * Drains consumed handles from the `outputHandles` buffer.
      * @note This is used to communicate with the render thread.
      */
@@ -87,23 +98,30 @@ class SubmeshSystem
     std::vector<simd_float3> boundsMax; // Max bounds of submeshes
     std::vector<SubmeshSkinningProperty> skinningProperties;
     std::vector<uint32_t> boneCounts;
-    SubmeshHandle largestHandle = INVALID_SUBMESH_HANDLE;
+    std::vector<SubmeshHandle> freeHandles;
+        
+    /**
+     * Used by render thread. Values are identical to the values in `freeHandles`.
+     */
+    std::vector<SubmeshHandle> tombstones;
 
+    SubmeshHandle largestHandle = INVALID_SUBMESH_HANDLE;
+    
     private:
     SubmeshRenderThreadInputBufferEntry generateInputEntryForSubmesh(
         ufbx_mesh* parent,
         ufbx_mesh_part* submesh,
         SubmeshHandle handle);
-
+        
     void createAndFillVertexAndIndexBuffers(
         SubmeshRenderThreadInputBufferEntry& entry,
         std::vector<Vertex>& vertices, 
         std::vector<uint32_t>& indices);
-
+            
     SubmeshHandle* getNextNHandles(size_t n);
-
-    std::vector<SubmeshHandle> freeHandles;
+    
     SystemInputBuffer<SubmeshRenderThreadInputBufferEntry, SubmeshHandle> inputEntries;
+    SynchronizedBuffer<SubmeshHandle> removalBuffer;
     SystemOutputBuffer<SubmeshHandle> outputHandles;
     MTL::Device* device;
 };
