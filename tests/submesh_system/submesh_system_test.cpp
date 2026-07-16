@@ -104,16 +104,18 @@ TEST_CASE("removing a submesh from the system should free the handle", "[submesh
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
     REQUIRE(mesh->material_parts.count == consumedHandles.size());
     size_t numberOfFreeHandles = system.freeHandles.size();
+    SubmeshHandle removedHandle = consumedHandles[0];
 
     // When an item is removed
     system.remove((SubmeshList) {
-        .data = &consumedHandles[0],
+        .data = &removedHandle,
         .count = 1
     });
 
     system.drainRemovalBuffer();
     
     REQUIRE(numberOfFreeHandles + 1 == system.freeHandles.size());
+    REQUIRE(removedHandle == system.freeHandles[system.freeHandles.size() - 1]);
 
     aSceneIsFreed(scene);
 }
@@ -144,4 +146,38 @@ TEST_CASE("removing n submeshes from the system should free n handles", "[submes
     REQUIRE(numberOfFreeHandles + consumedHandles.size() == system.freeHandles.size());
     // consumedHandles and freeHandles should have the same data
     REQUIRE(0 == memcmp(consumedHandles.data(), system.freeHandles.data(), consumedHandles.size() * sizeof(SubmeshHandle)));
+
+    aSceneIsFreed(scene);
+}
+
+TEST_CASE("removed submeshes should have their handles recycled", "[submesh][asset system][add][remove]")
+{
+    SubmeshSystem system;
+
+    ufbx_scene* lampScene = aSceneWithATestLampModel();
+    ufbx_mesh* lampMesh = lampScene->meshes.data[0];
+
+    system.add(lampMesh);
+    system.drainInputBuffer();
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+
+    SubmeshHandle removedHandle = consumedHandles[1];
+
+    system.remove((SubmeshList) {
+        .data = &removedHandle,
+        .count = 1
+    });
+    system.drainRemovalBuffer();
+    size_t oldNumberOfFreeHandles = system.freeHandles.size();
+    REQUIRE(1 == system.freeHandles.size());
+
+    ufbx_scene* cubeScene = aCubeHasBeenLoadedIntoAScene();
+    ufbx_mesh* cubeMesh = cubeScene->meshes.data[0];
+    SubmeshHandle additionHandle = system.add(cubeMesh)[0];
+    system.drainInputBuffer();
+
+    REQUIRE(removedHandle == additionHandle);
+    REQUIRE(oldNumberOfFreeHandles - 1 == system.freeHandles.size());
+
+    aSceneIsFreed(lampScene);
 }

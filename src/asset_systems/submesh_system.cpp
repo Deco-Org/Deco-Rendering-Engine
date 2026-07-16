@@ -366,12 +366,14 @@ SubmeshHandle* SubmeshSystem::getNextNHandles(size_t n)
     // Getting free handles
     if (n < numberOfFreeHandles)
     {
-        std::move(freeHandles.begin(), freeHandles.begin() + n, handles);
+        memcpy(handles, freeHandles.data(), n * sizeof(SubmeshHandle));
+        freeHandles.erase(freeHandles.begin(), freeHandles.begin() + n);
     }
     else
     {
         // Take all the freehandles, and put them into the array
-        std::move(freeHandles.begin(), freeHandles.end(), handles);
+        memcpy(handles, freeHandles.data(), freeHandles.size() * sizeof(SubmeshHandle));
+        freeHandles.resize(0);
         for (size_t i = numberOfFreeHandles; i < n; ++i)
         {
             if (largestHandle == INVALID_SUBMESH_HANDLE)
