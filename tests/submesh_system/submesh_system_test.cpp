@@ -7,6 +7,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 #include "asset_systems/submesh_system.hpp"
+#include "submesh_system_test_fixture.hpp"
 #include "test_utils.hpp"
 
 TEST_CASE("adding one submesh and draining the input buffer should add a new vertex buffer and a new index buffer to the system", "[submesh][asset system][add]")
@@ -14,12 +15,77 @@ TEST_CASE("adding one submesh and draining the input buffer should add a new ver
     SubmeshSystem system;
     REQUIRE(0 == system.vertexBuffers.size());
 
-    // ufbx_mesh_part meshPart = {
-    //     .index = 0,
-    //     .num_faces = 1,
-    //     .num_triangles = 2,
-    //     .num_empty_faces = 0,
-    //     .num_point_faces = 0,
-    //     .num_line_faces = 0,
-    // }
+    ufbx_scene* scene = aCubeHasBeenLoadedIntoAScene();
+    
+    ufbx_mesh* cubeMesh = scene->meshes.data[0];
+    ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
+    system.add(cubeMesh, &submesh);
+    REQUIRE(0 == system.vertexBuffers.size());
+    system.drainInputBuffer();
+
+    REQUIRE(1 == system.vertexBuffers.size());
+    REQUIRE(1 == system.indexBuffers.size());
+
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(1 == consumedHandles.size());
+
+    aSceneIsFreed(scene);
+}
+
+TEST_CASE("the output buffer should contain a single submesh if the input buffer was drained with a single submesh inside", "[submesh][asset system][add]")
+{
+    SubmeshSystem system;
+    REQUIRE(0 == system.vertexBuffers.size());
+
+    ufbx_scene* scene = aCubeHasBeenLoadedIntoAScene();
+
+    ufbx_mesh* cubeMesh = scene->meshes.data[0];
+    ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
+    system.add(cubeMesh, &submesh);
+    system.drainInputBuffer();
+
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(1 == consumedHandles.size());
+
+    aSceneIsFreed(scene);
+}
+
+TEST_CASE("adding n submeshes and draining the input buffer should add n entries to the system", "[submesh][asset system][add]")
+{
+    SubmeshSystem system;
+    REQUIRE(0 == numberOfSubmeshesInSystem(system));
+
+    ufbx_scene* scene = aCubeHasBeenLoadedIntoAScene();
+
+    ufbx_mesh* cubeMesh = scene->meshes.data[0];
+    ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
+
+    system.add(cubeMesh, &submesh);
+    system.add(cubeMesh, &submesh);
+    system.drainInputBuffer();
+
+    REQUIRE(2 == system.vertexBuffers.size());
+
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(2 == consumedHandles.size());
+    REQUIRE(consumedHandles[0] != consumedHandles[1]);
+
+    aSceneIsFreed(scene);
+}
+
+TEST_CASE("adding n submeshes that are a part of a shared parent mesh should add n entries to the system", "[submesh][asset system][add]")
+{
+    SubmeshSystem system;
+    REQUIRE(0 == numberOfSubmeshesInSystem(system));
+    REQUIRE(INVALID_SUBMESH_HANDLE == system.largestHandle);
+
+    ufbx_scene* scene = aSceneWithATestLampModel();
+
+    ufbx_mesh* mesh = scene->meshes.data[0];
+    system.add(mesh);
+    system.drainInputBuffer();
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(mesh->material_parts.count == consumedHandles.size());
+
+    aSceneIsFreed(scene);
 }

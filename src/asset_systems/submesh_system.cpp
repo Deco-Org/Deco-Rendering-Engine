@@ -4,3 +4,326 @@
  */
 
 #include "submesh_system.hpp"
+
+SubmeshSystem::SubmeshSystem(MTL::Device* metalDevice)
+{
+    device = metalDevice;
+
+    std::lock_guard<std::mutex> lock(inputEntries.mutex);
+    // Critical section
+    inputEntries.buffer = nullptr;
+    inputEntries.count = 0;
+    inputEntries.maxHandle = 0;
+}
+
+std::vector<SubmeshHandle> SubmeshSystem::add(ufbx_mesh* mesh, SubmeshSkinningProperty skinningProperty)
+{
+    std::vector<SubmeshHandle> handles;
+
+    // Getting the submeshes (the parts of the mesh that use different materials)
+    ufbx_mesh_part_list submeshes = mesh->material_parts;
+    size_t numberOfSubmeshes = submeshes.count;
+    SubmeshRenderThreadInputBufferEntry inputBufferEntries[numberOfSubmeshes];
+    SubmeshHandle* handlesToUse = getNextNHandles(numberOfSubmeshes);
+    for (size_t i = 0; i < numberOfSubmeshes; ++i)
+    {
+        ufbx_mesh_part* submesh = &submeshes.data[i];
+        inputBufferEntries[i] = generateInputEntryForSubmesh(mesh, submesh, handlesToUse[i]);
+    }
+    // Filling in the handles array while getting the largest handle
+    handles.resize(numberOfSubmeshes);
+    for (size_t i = 0; i < numberOfSubmeshes; ++i)
+    {
+        handles[i] = handlesToUse[i];
+        if (handles[i] > largestHandle)
+            largestHandle = handles[i];
+    }
+    delete[] handlesToUse;
+
+    // Adding to input buffer
+    {
+        std::lock_guard<std::mutex> lock(inputEntries.mutex);
+
+        // Critical section
+        size_t oldSize = inputEntries.count;
+        if (oldSize > 0)
+        {
+            inputEntries.maxHandle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
+
+            // Allocating space for new entries
+            const size_t newSize = oldSize + numberOfSubmeshes;
+            SubmeshRenderThreadInputBufferEntry* temp = inputEntries.buffer;
+            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[newSize];
+            memcpy(inputEntries.buffer, temp, oldSize * sizeof(SubmeshRenderThreadInputBufferEntry));
+            memcpy(inputEntries.buffer + oldSize, &inputBufferEntries, numberOfSubmeshes * sizeof(SubmeshRenderThreadInputBufferEntry));
+            inputEntries.count = newSize;
+            delete[] temp;
+        }
+        else
+        {
+            inputEntries.maxHandle = largestHandle;
+            if (inputEntries.buffer)
+                delete[] inputEntries.buffer;
+            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[numberOfSubmeshes];
+            memcpy(inputEntries.buffer, &inputBufferEntries, numberOfSubmeshes * sizeof(SubmeshRenderThreadInputBufferEntry));
+            inputEntries.count = numberOfSubmeshes;
+        }
+    }
+    return handles;
+}
+
+SubmeshHandle SubmeshSystem::add(ufbx_mesh* mesh, ufbx_mesh_part* submesh, SubmeshSkinningProperty skinningProperty)
+{
+    SubmeshHandle* handles = getNextNHandles(1);
+    SubmeshHandle handle = handles[0];
+    delete[] handles;
+    SubmeshRenderThreadInputBufferEntry inputBufferEntry = generateInputEntryForSubmesh(mesh, submesh, handle);
+
+    // Adding to input buffer
+    {
+        std::lock_guard<std::mutex> lock(inputEntries.mutex);
+
+        // Critical section
+        size_t oldSize = inputEntries.count;
+        if (oldSize > 0)
+        {
+            // Allocating space for new entries
+            const size_t newSize = oldSize + 1;
+            SubmeshRenderThreadInputBufferEntry* temp = inputEntries.buffer;
+            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[newSize];
+            memcpy(inputEntries.buffer, temp, oldSize * sizeof(SubmeshRenderThreadInputBufferEntry));
+            memcpy(inputEntries.buffer + oldSize, &inputBufferEntry, 1 * sizeof(SubmeshRenderThreadInputBufferEntry));
+            inputEntries.count = newSize;
+            inputEntries.maxHandle = handle;
+            delete[] temp;
+        }
+        else
+        {
+            if (inputEntries.buffer)
+                delete[] inputEntries.buffer;
+            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[1];
+            memcpy(inputEntries.buffer, &inputBufferEntry, 1 * sizeof(SubmeshRenderThreadInputBufferEntry));
+            inputEntries.count = 1;
+            inputEntries.maxHandle = handle;
+        }
+    }
+    return handle;
+}
+
+void SubmeshSystem::drainInputBuffer()
+{
+    SubmeshRenderThreadInputBufferEntry* entries;
+    SubmeshHandle maxHandle;
+    size_t n;
+
+    {
+        std::lock_guard<std::mutex> lock(inputEntries.mutex);
+        
+        // Critical section
+        n = inputEntries.count;
+        if (n == 0)
+            return;
+        
+        entries = inputEntries.buffer;
+        maxHandle = inputEntries.maxHandle;
+        inputEntries.buffer = nullptr;
+        inputEntries.count = 0;
+    }
+
+    SubmeshHandle consumedHandles[n];
+    if (maxHandle >= vertexBuffers.size())
+    {
+        // Allocating new space for the entries
+        vertexBuffers.resize(maxHandle + 1);
+        indexBuffers.resize(maxHandle + 1);
+        indexCounts.resize(maxHandle + 1);
+        boundsMin.resize(maxHandle + 1);
+        boundsMax.resize(maxHandle + 1);
+        skinningProperties.resize(maxHandle + 1);
+        boneCounts.resize(maxHandle + 1);
+    }
+    
+    for (size_t i = 0; i < n; ++i)
+    {
+        SubmeshRenderThreadInputBufferEntry* entry = entries + i;
+        consumedHandles[i] = entry->handle;
+        vertexBuffers[entry->handle] = std::move(entry->vertexBuffer);
+        indexBuffers[entry->handle] = std::move(entry->indexBuffer);
+        indexCounts[entry->handle] = entry->indexCount;
+        boundsMin[entry->handle] = entry->boundsMin;
+        boundsMax[entry->handle] = entry->boundsMax;
+        skinningProperties[entry->handle] = entry->skinningProperty;
+        boneCounts[entry->handle] = entry->boneCount;
+    }
+
+    // Filling output buffer
+    {
+        std::lock_guard<std::mutex> lock(outputHandles.mutex);
+        
+        // Critical section
+        size_t oldSize = outputHandles.count;
+        if (oldSize > 0)
+        {
+            // If there are already items in the output buffer, more space must be allocated
+            const size_t newSize = oldSize + n;
+            SubmeshHandle* temp = outputHandles.buffer;
+            outputHandles.buffer = new SubmeshHandle[newSize];
+            memcpy(outputHandles.buffer, temp, oldSize * sizeof(SubmeshHandle));
+            memcpy(outputHandles.buffer + oldSize, consumedHandles, n * sizeof(SubmeshHandle));
+            outputHandles.count = newSize;
+            delete[] temp;
+        }
+        else
+        {
+            if (outputHandles.buffer) delete[] outputHandles.buffer;
+            outputHandles.buffer = new SubmeshHandle[n];
+            memcpy(outputHandles.buffer, consumedHandles, n * sizeof(SubmeshHandle));
+            outputHandles.count = n;
+        }
+        outputHandles.largestHandle = vertexBuffers.size() - 1;
+    }
+}
+
+std::vector<SubmeshHandle> SubmeshSystem::getItemsAndDrainOutputBuffer()
+{
+    std::vector<SubmeshHandle> consumedHandles;
+    {
+        std::lock_guard<std::mutex> lock(outputHandles.mutex);
+        
+        // Critical section
+        size_t n = outputHandles.count;
+        consumedHandles.resize(n);
+        memcpy(consumedHandles.data(), outputHandles.buffer, n * sizeof(SubmeshHandle));
+        delete[] outputHandles.buffer;
+        outputHandles.buffer = nullptr;
+        outputHandles.count = 0;
+        largestHandle = outputHandles.largestHandle;
+    }
+    return consumedHandles;
+}
+
+SubmeshRenderThreadInputBufferEntry SubmeshSystem::generateInputEntryForSubmesh(
+    ufbx_mesh* mesh,
+    ufbx_mesh_part* submesh,
+    SubmeshHandle handle)
+{
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> triIndices;
+    triIndices.resize(mesh->max_face_triangles * 3);
+
+    // Iterate over each face
+    for (uint32_t faceIndex : submesh->face_indices)
+    {
+        ufbx_face face = mesh->faces[faceIndex];
+
+        // Triangulating the face into `triIndices`
+        uint32_t numberOfTriangles = ufbx_triangulate_face(
+            triIndices.data(), triIndices.size(), mesh, face);
+        
+        // Iterate over each triangle corner contiguously.
+        for (size_t i = 0; i < numberOfTriangles * 3; ++i)
+        {
+            uint32_t index = triIndices[i];
+            Vertex v;
+            v.position = {
+                mesh->vertex_position[index].x,
+                mesh->vertex_position[index].y,
+                mesh->vertex_position[index].z
+            };
+            v.normal = {
+                mesh->vertex_normal[index].x,
+                mesh->vertex_normal[index].y,
+                mesh->vertex_normal[index].z
+            };
+            v.uv = {
+                mesh->vertex_uv[index].x,
+                mesh->vertex_uv[index].y
+            };
+            vertices.push_back(v);
+        }
+    }
+
+    assert(vertices.size() == submesh->num_triangles * 3);
+
+    // Generating the index buffer
+    ufbx_vertex_stream streams[1] = {
+        { vertices.data(), vertices.size(), sizeof(Vertex) }
+    };
+    std::vector<uint32_t> indices;
+    indices.resize(submesh->num_triangles * 3);
+
+    // This call deduplicates vertices, modifying the arrays passed in `streams[]`,
+    // writing indices into `indices[]`, and returning the number of unique vertices.
+    size_t numberOfVertices = ufbx_generate_indices(
+        streams,
+        1,
+        indices.data(),
+        indices.size(),
+        nullptr,
+        nullptr
+    );
+
+    vertices.resize(numberOfVertices);
+
+    // Getting the n next available handles
+
+    SubmeshRenderThreadInputBufferEntry inputBufferEntry;
+    inputBufferEntry.handle = handle;
+    createAndFillVertexAndIndexBuffers(
+        inputBufferEntry,
+        vertices,
+        indices);
+    inputBufferEntry.indexCount = indices.size();
+    inputBufferEntry.skinningProperty = (mesh->skin_deformers.count > 0) ? SubmeshSkinningProperty::Skinned : SubmeshSkinningProperty::Unskinned;
+
+    return inputBufferEntry;
+}
+
+void SubmeshSystem::createAndFillVertexAndIndexBuffers(
+    SubmeshRenderThreadInputBufferEntry& entry,
+    std::vector<Vertex>& vertices,
+    std::vector<uint32_t>& indices)
+{
+    if (vertices.size() == 0 || indices.size() == 0)
+        return;
+
+    if (device == nullptr)
+    {
+        entry.vertexBuffer = nullptr;
+        entry.indexBuffer = nullptr;
+    }
+    else
+    {
+        entry.vertexBuffer = MetalBufferPtr(
+            device->newBuffer(vertices.data(), vertices.size() * sizeof(Vertex), MTL::ResourceStorageModeShared),
+            BufferDeleter());
+        entry.indexBuffer = MetalBufferPtr(
+            device->newBuffer(indices.data(), indices.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared),
+            BufferDeleter());
+    }
+}
+
+SubmeshHandle* SubmeshSystem::getNextNHandles(size_t n)
+{
+    SubmeshHandle *handles = new SubmeshHandle[n];
+    size_t numberOfFreeHandles = freeHandles.size();
+    // Getting free handles
+    if (n < numberOfFreeHandles)
+    {
+        std::move(freeHandles.begin(), freeHandles.begin() + n, handles);
+    }
+    else
+    {
+        // Take all the freehandles, and put them into the array
+        std::move(freeHandles.begin(), freeHandles.end(), handles);
+        for (size_t i = numberOfFreeHandles; i < n; ++i)
+        {
+            if (largestHandle == INVALID_SUBMESH_HANDLE)
+                largestHandle = 0;
+            else
+                largestHandle += 1;
+            handles[i] = largestHandle;
+        }
+    }
+    return handles;
+}

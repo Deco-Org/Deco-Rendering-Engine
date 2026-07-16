@@ -8,9 +8,11 @@
 #include "core_engine_types.h"
 #include "utils/AAPLMathUtilities.h"
 #include "tools/synchronized_buffer.hpp"
+#define UFBX_REAL_IS_FLOAT 1
 #include "ufbx.h"
 
 using SubmeshHandle = uint32_t;
+static constexpr SubmeshHandle INVALID_SUBMESH_HANDLE = UINT32_MAX;
 
 enum class SubmeshSkinningProperty: char
 {
@@ -20,9 +22,14 @@ enum class SubmeshSkinningProperty: char
 
 struct SubmeshRenderThreadInputBufferEntry
 {
-    SubmeshHandle submesh;
-    Vertex* vertices;
-    size_t numberOfVertices;
+    SubmeshHandle handle;
+    MetalBufferPtr vertexBuffer;
+    MetalBufferPtr indexBuffer;
+    NS::UInteger indexCount;
+    simd_float3 boundsMin;
+    simd_float3 boundsMax;
+    SubmeshSkinningProperty skinningProperty;
+    uint32_t boneCount;
 };
 
 struct SubmeshList
@@ -35,10 +42,22 @@ class SubmeshSystem
 {
     public:
 
+    SubmeshSystem(MTL::Device* metalDevice = nullptr);
+
+    std::vector<SubmeshHandle> add(
+        ufbx_mesh* mesh, 
+        SubmeshSkinningProperty skinningProperty = SubmeshSkinningProperty::Unskinned);
+    
     /**
-     * Queue the submeshes of a mesh to be added to the system
+     * Queue given submeshes of a mesh to be added to the system
+     * @param mesh The parent mesh of the submeshes
+     * @param submeshes The submeshes that are to be added to the system.
+     * These should share the same material.
      */
-    SubmeshHandle add(ufbx_mesh* mesh);
+    SubmeshHandle add(
+        ufbx_mesh* mesh, 
+        ufbx_mesh_part* submesh, 
+        SubmeshSkinningProperty skinningProperty = SubmeshSkinningProperty::Unskinned);
 
     /**
      * Remove a list of submeshes by handle
@@ -56,18 +75,32 @@ class SubmeshSystem
      * Drains consumed handles from the `outputHandles` buffer.
      * @note This is used to communicate with the render thread.
      */
-    void drainOutputBuffer();
+    std::vector<SubmeshHandle> getItemsAndDrainOutputBuffer();
 
     std::vector<MetalBufferPtr> vertexBuffers;
     std::vector<MetalBufferPtr> indexBuffers;
     std::vector<NS::UInteger> indexCounts;
     std::vector<simd_float3> boundsMin; // Min bounds of submeshes
     std::vector<simd_float3> boundsMax; // Max bounds of submeshes
-    std::vector<SubmeshSkinningProperty> skinningProperty;
+    std::vector<SubmeshSkinningProperty> skinningProperties;
     std::vector<uint32_t> boneCounts;
+    SubmeshHandle largestHandle = INVALID_SUBMESH_HANDLE;
 
     private:
+    SubmeshRenderThreadInputBufferEntry generateInputEntryForSubmesh(
+        ufbx_mesh* parent,
+        ufbx_mesh_part* submesh,
+        SubmeshHandle handle);
+
+    void createAndFillVertexAndIndexBuffers(
+        SubmeshRenderThreadInputBufferEntry& entry,
+        std::vector<Vertex>& vertices, 
+        std::vector<uint32_t>& indices);
+
+    SubmeshHandle* getNextNHandles(size_t n);
+
     std::vector<SubmeshHandle> freeHandles;
-    SynchronizedBuffer<SubmeshRenderThreadInputBufferEntry> inputEntries;
-    SynchronizedBuffer<SubmeshHandle> outputHandles;
+    SystemInputBuffer<SubmeshRenderThreadInputBufferEntry, SubmeshHandle> inputEntries;
+    SystemOutputBuffer<SubmeshHandle> outputHandles;
+    MTL::Device* device;
 };
