@@ -43,10 +43,10 @@ void TransformationSystem::add(Transformation* transformations, TransformationHa
         std::lock_guard<std::mutex> lock(renderThreadAdditionsInputBuffer.mutex);
 
         // Critical section
-        if (renderThreadAdditionsInputBuffer.numberOfItems != 0)
+        if (renderThreadAdditionsInputBuffer.count != 0)
         {
             // Allocating more memory for the buffer
-            size_t oldSize = renderThreadAdditionsInputBuffer.numberOfItems;
+            size_t oldSize = renderThreadAdditionsInputBuffer.count;
             TransformationEntry* oldEntries = renderThreadAdditionsInputBuffer.buffer;
             renderThreadAdditionsInputBuffer.buffer = new TransformationEntry[oldSize + n];
             memcpy(renderThreadAdditionsInputBuffer.buffer, oldEntries, sizeof(TransformationEntry) * oldSize);
@@ -60,7 +60,7 @@ void TransformationSystem::add(Transformation* transformations, TransformationHa
             if (renderThreadAdditionsInputBuffer.buffer)
                 delete[] renderThreadAdditionsInputBuffer.buffer;
             renderThreadAdditionsInputBuffer.buffer = new TransformationEntry[n];
-            renderThreadAdditionsInputBuffer.numberOfItems = n;
+            renderThreadAdditionsInputBuffer.count = n;
             memcpy(renderThreadAdditionsInputBuffer.buffer, entries.data(), n * sizeof(TransformationEntry));
         }
         return;
@@ -78,10 +78,10 @@ void TransformationSystem::remove(TransformationHandle* handles, size_t n)
     std::lock_guard<std::mutex> lock(renderThreadRemovalsInputBuffer.mutex);
     
     // Critical section
-    if (renderThreadRemovalsInputBuffer.numberOfItems != 0)
+    if (renderThreadRemovalsInputBuffer.count != 0)
     {
         // Allocating more memory for the buffer
-        size_t oldSize = renderThreadRemovalsInputBuffer.numberOfItems;
+        size_t oldSize = renderThreadRemovalsInputBuffer.count;
         TransformationHandle* oldHandles = renderThreadRemovalsInputBuffer.buffer;
         renderThreadRemovalsInputBuffer.buffer = new TransformationHandle[oldSize + n];
         memcpy(renderThreadRemovalsInputBuffer.buffer, oldHandles, sizeof(TransformationHandle) * oldSize);
@@ -95,7 +95,7 @@ void TransformationSystem::remove(TransformationHandle* handles, size_t n)
         if (renderThreadRemovalsInputBuffer.buffer)
             delete[] renderThreadRemovalsInputBuffer.buffer;
         renderThreadRemovalsInputBuffer.buffer = new TransformationHandle[n];
-        renderThreadRemovalsInputBuffer.numberOfItems = n;
+        renderThreadRemovalsInputBuffer.count = n;
         memcpy(renderThreadRemovalsInputBuffer.buffer, handles, n * sizeof(TransformationHandle));
     }
 }
@@ -113,24 +113,24 @@ void TransformationSystem::setParent(TransformationHandle transformation, Transf
 void TransformationSystem::setParents(const TransformationReparentConfig* configs, size_t n)
 {
     std::lock_guard<std::mutex> lock(renderThreadReparentInputBuffer.mutex);
-    if (renderThreadReparentInputBuffer.numberOfItems == 0)
+    if (renderThreadReparentInputBuffer.count == 0)
     {
         if (renderThreadReparentInputBuffer.buffer)
             delete[] renderThreadReparentInputBuffer.buffer;
         renderThreadReparentInputBuffer.buffer = new TransformationReparentConfig[n];
         memcpy(renderThreadReparentInputBuffer.buffer, configs, n * sizeof(TransformationReparentConfig));
-        renderThreadReparentInputBuffer.numberOfItems = n;
+        renderThreadReparentInputBuffer.count = n;
     }
     else
     {
-        const size_t oldSize = renderThreadReparentInputBuffer.numberOfItems;
+        const size_t oldSize = renderThreadReparentInputBuffer.count;
         TransformationReparentConfig *newData = new TransformationReparentConfig[oldSize + n];
         // Using memcpy instead of memmove for speed
         memcpy(newData, renderThreadReparentInputBuffer.buffer, oldSize * sizeof(TransformationReparentConfig));
         memcpy(newData + oldSize, configs, n * sizeof(TransformationReparentConfig));
         delete[] renderThreadReparentInputBuffer.buffer;
         renderThreadReparentInputBuffer.buffer = newData;
-        renderThreadReparentInputBuffer.numberOfItems = oldSize + n;
+        renderThreadReparentInputBuffer.count = oldSize + n;
     }
 }
 
@@ -192,11 +192,11 @@ void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
     {
         std::lock_guard<std::mutex> lock(renderThreadAdditionsInputBuffer.mutex);
         // Critical section
-        n = renderThreadAdditionsInputBuffer.numberOfItems;
+        n = renderThreadAdditionsInputBuffer.count;
         if (n == 0) return;
         queuedEntries = renderThreadAdditionsInputBuffer.buffer;
         renderThreadAdditionsInputBuffer.buffer = nullptr;
-        renderThreadAdditionsInputBuffer.numberOfItems = 0;
+        renderThreadAdditionsInputBuffer.count = 0;
     }
     const size_t lastIndex = positions.size() - 1;
     std::vector<TransformationHandle> consumedHandles;
@@ -238,7 +238,7 @@ void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
 
     std::lock_guard<std::mutex> lock(handlesConsumedByRenderThread.mutex);
     // Critical section
-    size_t oldSize = handlesConsumedByRenderThread.numberOfItems;
+    size_t oldSize = handlesConsumedByRenderThread.count;
     if (oldSize > 0)
     {
         TransformationHandle* temp = handlesConsumedByRenderThread.buffer;
@@ -246,14 +246,14 @@ void TransformationSystem::drainRenderThreadAdditionsInputBuffer()
         memcpy(handlesConsumedByRenderThread.buffer, temp, oldSize * sizeof(TransformationHandle));
         delete[] temp; // Deleting old buffer
         memcpy(handlesConsumedByRenderThread.buffer + oldSize, consumedHandles.data(), n * sizeof(TransformationHandle));
-        handlesConsumedByRenderThread.numberOfItems = oldSize + n;
+        handlesConsumedByRenderThread.count = oldSize + n;
     }
     else
     {
         delete[] handlesConsumedByRenderThread.buffer; // Deleting old buffer
         handlesConsumedByRenderThread.buffer = new TransformationHandle[n];
         memcpy(handlesConsumedByRenderThread.buffer, consumedHandles.data(), n * sizeof(TransformationHandle));
-        handlesConsumedByRenderThread.numberOfItems = n;
+        handlesConsumedByRenderThread.count = n;
     }
     delete[] queuedEntries;
 }
@@ -265,11 +265,11 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
     {
         std::lock_guard<std::mutex> lock(renderThreadRemovalsInputBuffer.mutex);
         // Critical section
-        n = renderThreadRemovalsInputBuffer.numberOfItems;
+        n = renderThreadRemovalsInputBuffer.count;
         if (n == 0) return;
         queuedHandles = renderThreadRemovalsInputBuffer.buffer;
         renderThreadRemovalsInputBuffer.buffer = nullptr;
-        renderThreadRemovalsInputBuffer.numberOfItems = 0;
+        renderThreadRemovalsInputBuffer.count = 0;
     }
 
     // Getting the indices
@@ -337,10 +337,10 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
             std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
 
             // Critical section
-            oldSize = renderThreadRemovalsOutputBuffer.numberOfItems; // getting the size again, just in case it changed since the check.
+            oldSize = renderThreadRemovalsOutputBuffer.count; // getting the size again, just in case it changed since the check.
             previousFreeHandles = renderThreadRemovalsOutputBuffer.buffer;
             renderThreadRemovalsOutputBuffer.buffer = nullptr;
-            renderThreadRemovalsOutputBuffer.numberOfItems = 0;
+            renderThreadRemovalsOutputBuffer.count = 0;
         }
         size_t newSize = oldSize + n;
         TransformationHandle oldAndNewlyFreedHandles[newSize];
@@ -366,7 +366,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
         // Critical section
         if (renderThreadRemovalsOutputBuffer.buffer) delete[] renderThreadRemovalsOutputBuffer.buffer;
         renderThreadRemovalsOutputBuffer.buffer = new TransformationHandle[newSize];
-        renderThreadRemovalsOutputBuffer.numberOfItems = newSize;
+        renderThreadRemovalsOutputBuffer.count = newSize;
         memcpy(renderThreadRemovalsOutputBuffer.buffer, oldAndNewlyFreedHandles, oldSize * sizeof(TransformationHandle));
     } else {
         std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
@@ -374,7 +374,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
         // Critical section
         if (renderThreadRemovalsOutputBuffer.buffer) delete[] renderThreadRemovalsOutputBuffer.buffer;
         renderThreadRemovalsOutputBuffer.buffer = new TransformationHandle[n];
-        renderThreadRemovalsOutputBuffer.numberOfItems = n;
+        renderThreadRemovalsOutputBuffer.count = n;
         memcpy(renderThreadRemovalsOutputBuffer.buffer, queuedHandles, n * sizeof(TransformationHandle));
     }
     delete[] queuedHandles;
@@ -386,13 +386,13 @@ void TransformationSystem::drainRenderThreadReparentInputBuffer()
     size_t numOfReparents = 0;
     {
         std::lock_guard<std::mutex> lock(renderThreadReparentInputBuffer.mutex);
-        numOfReparents = renderThreadReparentInputBuffer.numberOfItems;
+        numOfReparents = renderThreadReparentInputBuffer.count;
         if (numOfReparents == 0) return;
         reparentConfigs = new TransformationReparentConfig[numOfReparents];
         memcpy(reparentConfigs, renderThreadReparentInputBuffer.buffer, numOfReparents * sizeof(TransformationReparentConfig));
         delete[] renderThreadReparentInputBuffer.buffer;
         renderThreadReparentInputBuffer.buffer = nullptr;
-        renderThreadReparentInputBuffer.numberOfItems = 0;
+        renderThreadReparentInputBuffer.count = 0;
     }
     for (size_t i = 0; i < numOfReparents; ++i)
     {
@@ -409,10 +409,10 @@ void TransformationSystem::updateFreeHandles()
         std::lock_guard<std::mutex> lock(renderThreadRemovalsOutputBuffer.mutex);
 
         // Critical section
-        n = renderThreadRemovalsOutputBuffer.numberOfItems;
+        n = renderThreadRemovalsOutputBuffer.count;
         newlyFreedHandles = renderThreadRemovalsOutputBuffer.buffer;
         renderThreadRemovalsOutputBuffer.buffer = nullptr;
-        renderThreadRemovalsOutputBuffer.numberOfItems = 0;
+        renderThreadRemovalsOutputBuffer.count = 0;
     }
     for (size_t i = 0; i < n; ++i)
     {
@@ -425,10 +425,10 @@ std::vector<TransformationHandle> TransformationSystem::drainAndGetConsumedTrans
 {
     std::lock_guard<std::mutex> lock(handlesConsumedByRenderThread.mutex);
     // Critical section
-    std::vector<TransformationHandle> handles(handlesConsumedByRenderThread.buffer, handlesConsumedByRenderThread.buffer + handlesConsumedByRenderThread.numberOfItems);
+    std::vector<TransformationHandle> handles(handlesConsumedByRenderThread.buffer, handlesConsumedByRenderThread.buffer + handlesConsumedByRenderThread.count);
     delete[] handlesConsumedByRenderThread.buffer;
     handlesConsumedByRenderThread.buffer = nullptr;
-    handlesConsumedByRenderThread.numberOfItems = 0;
+    handlesConsumedByRenderThread.count = 0;
     return handles;
 }
 
