@@ -16,7 +16,7 @@ SubmeshSystem::SubmeshSystem(MTL::Device* metalDevice)
     inputEntries.maxHandle = 0;
 }
 
-std::vector<SubmeshHandle> SubmeshSystem::add(ufbx_mesh* mesh, SubmeshSkinningProperty skinningProperty)
+std::vector<SubmeshHandle> SubmeshSystem::add(ufbx_mesh* mesh)
 {
     std::vector<SubmeshHandle> handles;
 

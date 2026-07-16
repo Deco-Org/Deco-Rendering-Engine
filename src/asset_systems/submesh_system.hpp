@@ -44,9 +44,12 @@ class SubmeshSystem
 
     SubmeshSystem(MTL::Device* metalDevice = nullptr);
 
-    std::vector<SubmeshHandle> add(
-        ufbx_mesh* mesh, 
-        SubmeshSkinningProperty skinningProperty = SubmeshSkinningProperty::Unskinned);
+    /**
+     * Queue the submeshes of a given mesh to be added to the system.
+     * @param mesh The mesh that holds the submeshes that are to be added.
+     * @returns The handles of the queued submeshes.
+     */
+    std::vector<SubmeshHandle> add(ufbx_mesh* mesh);
     
     /**
      * Queue given submeshes of a mesh to be added to the system
