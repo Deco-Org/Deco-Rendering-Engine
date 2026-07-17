@@ -13,7 +13,7 @@ class SynchronizedBuffer
     public:
     SynchronizedBuffer<T>()
     {
-        numberOfItems = 0;
+        count = 0;
         buffer = nullptr;
     }
 
@@ -22,8 +22,8 @@ class SynchronizedBuffer
         std::lock_guard<std::mutex> lock(mutex);
         std::lock_guard<std::mutex> otherlock(other.mutex);
         buffer = other.buffer;
-        numberOfItems = other.numberOfItems;
-        other.numberOfItems = 0;
+        count = other.count;
+        other.count = 0;
         other.buffer = nullptr;
     }
 
@@ -33,7 +33,7 @@ class SynchronizedBuffer
     SynchronizedBuffer<T>(size_t n)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        numberOfItems = n;
+        count = n;
         buffer = new T[n];
     }
 
@@ -51,14 +51,14 @@ class SynchronizedBuffer
         std::lock_guard<std::mutex> lock(mutex);
         T* data = buffer;
         buffer = nullptr;
-        numberOfItems = 0;
+        count = 0;
         return data;
     }
 
     void fillData(T* data, size_t n)
     {
         std::lock_guard<std::mutex> lock(mutex);
-        numberOfItems = std::max(n, numberOfItems);
+        count = std::max(n, count);
         for (size_t i = 0; i < n; ++i)
         {
             buffer[i] = data[i];
@@ -72,14 +72,14 @@ class SynchronizedBuffer
         {
             delete[] buffer;
         }
-        numberOfItems = n;
+        count = n;
         buffer = new T[n];
     }
 
     size_t size()
     {
         std::lock_guard<std::mutex> lock(mutex);
-        return numberOfItems;
+        return count;
     }
 
     void clear()
@@ -87,7 +87,7 @@ class SynchronizedBuffer
         std::lock_guard<std::mutex> lock(mutex);
         if (buffer)
         {
-            memset(buffer, 0, numberOfItems);
+            memset(buffer, 0, count);
         }
     }
 
@@ -108,6 +108,6 @@ class SynchronizedBuffer
 
     mutable std::mutex mutex;
     T* buffer;
-    size_t numberOfItems;
+    size_t count;
     private:
 };
