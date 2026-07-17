@@ -160,6 +160,7 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
     system.add(lampMesh);
     system.drainAdditionsInputBuffer();
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    SubmeshHandle largestHandle = system.largestHandle;
 
     SubmeshHandle removedHandle = consumedHandles[1];
 
@@ -170,6 +171,7 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
     system.drainRemovalBuffer();
     size_t oldNumberOfFreeHandles = system.freeHandles.size();
     REQUIRE(1 == system.freeHandles.size());
+    REQUIRE(largestHandle == system.largestHandle);
 
     ufbx_scene* cubeScene = aSceneWithACubeModel();
     ufbx_mesh* cubeMesh = cubeScene->meshes.data[0];
@@ -178,6 +180,7 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
 
     REQUIRE(removedHandle == additionHandle);
     REQUIRE(oldNumberOfFreeHandles - 1 == system.freeHandles.size());
+    REQUIRE(largestHandle == system.largestHandle);
 
     aSceneIsFreed(lampScene);
     aSceneIsFreed(cubeScene);

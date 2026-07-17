@@ -30,6 +30,7 @@ std::vector<SubmeshHandle> SubmeshSystem::add(ufbx_mesh* mesh)
         ufbx_mesh_part* submesh = &submeshes.data[i];
         inputBufferEntries[i] = generateInputEntryForSubmesh(mesh, submesh, handlesToUse[i]);
     }
+    
     // Filling in the handles array while getting the largest handle
     handles.resize(numberOfSubmeshes);
     for (size_t i = 0; i < numberOfSubmeshes; ++i)
