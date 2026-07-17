@@ -133,7 +133,13 @@ void SubmeshSystem::drainAdditionsInputBuffer()
         boundsMax[entry->handle] = entry->boundsMax;
         skinningProperties[entry->handle] = entry->skinningProperty;
         boneCounts[entry->handle] = entry->boneCount;
+
+        // Setting the entry's buffer pointers to be nullptr, just to be extra safe
+        entry->vertexBuffer = nullptr;
+        entry->indexBuffer = nullptr;
     }
+
+    delete[] entries;
 
     // Filling output buffer
     {
