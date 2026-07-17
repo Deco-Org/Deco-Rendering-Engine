@@ -59,12 +59,12 @@ class SubmeshSystem
 
     /**
      * Remove a list of submeshes by handle
-     * @param submeshes A `submesh_list`
+     * @param submeshes A list of submeshes to be removed
      */
     void remove(SubmeshList submeshes);
 
     /**
-     * Adds entries in `inputEntries` to the submesh system.
+     * Adds entries in `inputEntries` to the submesh system and drains `inputEntries`.
      * @warning Should only be called on the render thread.
      */
     void drainAdditionsInputBuffer();
