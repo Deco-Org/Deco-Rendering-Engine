@@ -64,8 +64,7 @@ class SubmeshSystem
      */
     SubmeshHandle add(
         ufbx_mesh* mesh, 
-        ufbx_mesh_part* submesh, 
-        SubmeshSkinningProperty skinningProperty = SubmeshSkinningProperty::Unskinned);
+        ufbx_mesh_part* submesh);
 
     /**
      * Remove a list of submeshes by handle

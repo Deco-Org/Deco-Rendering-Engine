@@ -73,7 +73,7 @@ std::vector<SubmeshHandle> SubmeshSystem::add(ufbx_mesh* mesh)
     return handles;
 }
 
-SubmeshHandle SubmeshSystem::add(ufbx_mesh* mesh, ufbx_mesh_part* submesh, SubmeshSkinningProperty skinningProperty)
+SubmeshHandle SubmeshSystem::add(ufbx_mesh* mesh, ufbx_mesh_part* submesh)
 {
     SubmeshHandle* handles = getNextNHandles(1);
     SubmeshHandle handle = handles[0];
