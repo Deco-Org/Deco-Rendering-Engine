@@ -185,3 +185,26 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
     aSceneIsFreed(lampScene);
     aSceneIsFreed(cubeScene);
 }
+
+TEST_CASE("submeshes should only be added and removed after the the additions and removal input buffers are drained", "[submesh][asset system][add][remove]")
+{
+    SubmeshSystem system;
+    ufbx_scene* lampScene = aSceneWithATestLampModel();
+    ufbx_mesh* lampMesh = lampScene->meshes.data[0];
+
+    system.add(lampMesh);
+    REQUIRE(0 == numberOfSubmeshesInSystem(system));
+    system.drainAdditionsInputBuffer();
+    size_t numberOfSubmeshesPriorToRemoval = numberOfSubmeshesInSystem(system);
+    REQUIRE(lampMesh->material_parts.count == numberOfSubmeshesPriorToRemoval);
+
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+
+    system.remove((SubmeshList) {
+        .data = &consumedHandles[0],
+        .count = 1
+    });
+    REQUIRE(lampMesh->material_parts.count == numberOfSubmeshesPriorToRemoval);
+    system.drainRemovalBuffer();
+    REQUIRE(lampMesh->material_parts.count - 1 == numberOfSubmeshesInSystem(system));
+}

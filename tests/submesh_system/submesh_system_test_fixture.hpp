@@ -33,7 +33,7 @@ ufbx_scene* aSceneWithATestLampModel()
 
 inline size_t numberOfSubmeshesInSystem(SubmeshSystem& system)
 {
-    return system.indexBuffers.size();
+    return system.indexBuffers.size() - system.freeHandles.size();
 }
 
 inline void aSceneIsFreed(ufbx_scene* scene)
