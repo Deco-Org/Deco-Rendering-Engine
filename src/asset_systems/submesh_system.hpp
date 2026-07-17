@@ -15,6 +15,8 @@ using SubmeshHandle = uint32_t;
 static constexpr SubmeshHandle INVALID_SUBMESH_HANDLE = UINT32_MAX;
 static constexpr NS::UInteger INVALID_INDEX_COUNT = NS::UIntegerMax;
 
+DECO_ENGINE_LIST_TYPE(SubmeshList, SubmeshHandle);
+
 enum class SubmeshSkinningProperty: char
 {
     Unskinned = 0,
@@ -31,16 +33,6 @@ struct SubmeshRenderThreadInputBufferEntry
     simd_float3 boundsMax;
     SubmeshSkinningProperty skinningProperty;
     uint32_t boneCount;
-};
-
-struct SubmeshList
-{
-    SubmeshHandle* data;
-    size_t count;
-
-    SubmeshHandle &operator[](size_t index) const { return data[index]; }
-    SubmeshHandle* begin() const { return data; }
-    SubmeshHandle* end() const { return data + count; }
 };
 
 class SubmeshSystem

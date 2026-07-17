@@ -10,6 +10,12 @@
 #include <mutex>
 #include "vertex.hpp"
 
+#define DECO_ENGINE_LIST_TYPE(p_name, p_type) struct p_name { p_type *data; size_t count; \
+    p_type& operator[](size_t index) const { return data[index]; } \
+    p_type* begin() const { return data; } \
+    p_type* end() const { return data + count; } \
+};
+
 using TransformationHandle = uint32_t;
 
 inline constexpr TransformationHandle TRANSFORMATION_HANDLE_INVALID = UINT32_MAX;
