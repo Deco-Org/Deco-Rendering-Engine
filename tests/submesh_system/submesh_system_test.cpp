@@ -15,7 +15,7 @@ TEST_CASE("adding one submesh and draining the input buffer should add a new ver
     SubmeshSystem system;
     REQUIRE(0 == system.vertexBuffers.size());
 
-    ufbx_scene* scene = aCubeHasBeenLoadedIntoAScene();
+    ufbx_scene* scene = aSceneWithACubeModel();
     
     ufbx_mesh* cubeMesh = scene->meshes.data[0];
     ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
@@ -37,7 +37,7 @@ TEST_CASE("the output buffer should contain a single submesh if the input buffer
     SubmeshSystem system;
     REQUIRE(0 == system.vertexBuffers.size());
 
-    ufbx_scene* scene = aCubeHasBeenLoadedIntoAScene();
+    ufbx_scene* scene = aSceneWithACubeModel();
 
     ufbx_mesh* cubeMesh = scene->meshes.data[0];
     ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
@@ -55,7 +55,7 @@ TEST_CASE("adding n submeshes and draining the input buffer should add n entries
     SubmeshSystem system;
     REQUIRE(0 == numberOfSubmeshesInSystem(system));
 
-    ufbx_scene* scene = aCubeHasBeenLoadedIntoAScene();
+    ufbx_scene* scene = aSceneWithACubeModel();
 
     ufbx_mesh* cubeMesh = scene->meshes.data[0];
     ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
@@ -171,7 +171,7 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
     size_t oldNumberOfFreeHandles = system.freeHandles.size();
     REQUIRE(1 == system.freeHandles.size());
 
-    ufbx_scene* cubeScene = aCubeHasBeenLoadedIntoAScene();
+    ufbx_scene* cubeScene = aSceneWithACubeModel();
     ufbx_mesh* cubeMesh = cubeScene->meshes.data[0];
     SubmeshHandle additionHandle = system.add(cubeMesh)[0];
     system.drainAdditionsInputBuffer();
@@ -180,4 +180,5 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
     REQUIRE(oldNumberOfFreeHandles - 1 == system.freeHandles.size());
 
     aSceneIsFreed(lampScene);
+    aSceneIsFreed(cubeScene);
 }

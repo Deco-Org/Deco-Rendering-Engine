@@ -5,7 +5,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "asset_systems/submesh_system.hpp"
 
-ufbx_scene* aCubeHasBeenLoadedIntoAScene()
+ufbx_scene* aSceneWithACubeModel()
 {
     const char cubeFilepath[21] = "assets/test_cube.fbx";
     ufbx_load_opts opts = { };
@@ -36,7 +36,7 @@ inline size_t numberOfSubmeshesInSystem(SubmeshSystem& system)
     return system.indexBuffers.size();
 }
 
-void aSceneIsFreed(ufbx_scene* scene)
+inline void aSceneIsFreed(ufbx_scene* scene)
 {
     ufbx_free_scene(scene);
 }
