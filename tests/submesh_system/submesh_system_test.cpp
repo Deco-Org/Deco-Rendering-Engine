@@ -6,6 +6,7 @@
 #pragma once
 
 #include <catch2/catch_test_macros.hpp>
+#include <thread>
 #include "asset_systems/submesh_system.hpp"
 #include "submesh_system_test_fixture.hpp"
 #include "test_utils.hpp"
@@ -207,4 +208,6 @@ TEST_CASE("submeshes should only be added and removed after the the additions an
     REQUIRE(lampMesh->material_parts.count == numberOfSubmeshesPriorToRemoval);
     system.drainRemovalBuffer();
     REQUIRE(lampMesh->material_parts.count - 1 == numberOfSubmeshesInSystem(system));
+
+    aSceneIsFreed(lampScene);
 }
