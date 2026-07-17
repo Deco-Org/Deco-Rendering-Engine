@@ -41,35 +41,7 @@ std::vector<SubmeshHandle> SubmeshSystem::add(ufbx_mesh* mesh)
     }
     delete[] handlesToUse;
 
-    // Adding to input buffer
-    {
-        std::lock_guard<std::mutex> lock(inputEntries.mutex);
-
-        // Critical section
-        size_t oldSize = inputEntries.count;
-        if (oldSize > 0)
-        {
-            inputEntries.maxHandle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
-
-            // Allocating space for new entries
-            const size_t newSize = oldSize + numberOfSubmeshes;
-            SubmeshRenderThreadInputBufferEntry* temp = inputEntries.buffer;
-            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[newSize];
-            memcpy(inputEntries.buffer, temp, oldSize * sizeof(SubmeshRenderThreadInputBufferEntry));
-            memcpy(inputEntries.buffer + oldSize, &inputBufferEntries, numberOfSubmeshes * sizeof(SubmeshRenderThreadInputBufferEntry));
-            inputEntries.count = newSize;
-            delete[] temp;
-        }
-        else
-        {
-            inputEntries.maxHandle = largestHandle;
-            if (inputEntries.buffer)
-                delete[] inputEntries.buffer;
-            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[numberOfSubmeshes];
-            memcpy(inputEntries.buffer, &inputBufferEntries, numberOfSubmeshes * sizeof(SubmeshRenderThreadInputBufferEntry));
-            inputEntries.count = numberOfSubmeshes;
-        }
-    }
+    addInputEntriesToAdditionsBuffer(inputBufferEntries, numberOfSubmeshes);
     return handles;
 }
 
@@ -78,36 +50,9 @@ SubmeshHandle SubmeshSystem::add(ufbx_mesh* mesh, ufbx_mesh_part* submesh)
     SubmeshHandle* handles = getNextNHandles(1);
     SubmeshHandle handle = handles[0];
     delete[] handles;
+
     SubmeshRenderThreadInputBufferEntry inputBufferEntry = generateInputEntryForSubmesh(mesh, submesh, handle);
-
-    // Adding to input buffer
-    {
-        std::lock_guard<std::mutex> lock(inputEntries.mutex);
-
-        // Critical section
-        size_t oldSize = inputEntries.count;
-        if (oldSize > 0)
-        {
-            // Allocating space for new entries
-            const size_t newSize = oldSize + 1;
-            SubmeshRenderThreadInputBufferEntry* temp = inputEntries.buffer;
-            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[newSize];
-            memcpy(inputEntries.buffer, temp, oldSize * sizeof(SubmeshRenderThreadInputBufferEntry));
-            memcpy(inputEntries.buffer + oldSize, &inputBufferEntry, 1 * sizeof(SubmeshRenderThreadInputBufferEntry));
-            inputEntries.count = newSize;
-            inputEntries.maxHandle = handle;
-            delete[] temp;
-        }
-        else
-        {
-            if (inputEntries.buffer)
-                delete[] inputEntries.buffer;
-            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[1];
-            memcpy(inputEntries.buffer, &inputBufferEntry, 1 * sizeof(SubmeshRenderThreadInputBufferEntry));
-            inputEntries.count = 1;
-            inputEntries.maxHandle = handle;
-        }
-    }
+    addInputEntriesToAdditionsBuffer(&inputBufferEntry, 1);
     return handle;
 }
 
@@ -209,7 +154,7 @@ void SubmeshSystem::drainAdditionsInputBuffer()
         }
         else
         {
-            if (outputHandles.buffer) delete[] outputHandles.buffer;
+            delete[] outputHandles.buffer;
             outputHandles.buffer = new SubmeshHandle[n];
             memcpy(outputHandles.buffer, consumedHandles, n * sizeof(SubmeshHandle));
             outputHandles.count = n;
@@ -345,6 +290,36 @@ SubmeshRenderThreadInputBufferEntry SubmeshSystem::generateInputEntryForSubmesh(
     inputBufferEntry.skinningProperty = (mesh->skin_deformers.count > 0) ? SubmeshSkinningProperty::Skinned : SubmeshSkinningProperty::Unskinned;
 
     return inputBufferEntry;
+}
+
+void SubmeshSystem::addInputEntriesToAdditionsBuffer(SubmeshRenderThreadInputBufferEntry* entries, size_t count)
+{
+    std::lock_guard<std::mutex> lock(inputEntries.mutex);
+
+    // Critical section
+    size_t oldSize = inputEntries.count;
+    if (oldSize > 0)
+    {
+        inputEntries.maxHandle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
+
+        // Allocating space for new entries
+        const size_t newSize = oldSize + count;
+        SubmeshRenderThreadInputBufferEntry* temp = inputEntries.buffer;
+        inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[newSize];
+        memcpy(inputEntries.buffer, temp, oldSize * sizeof(SubmeshRenderThreadInputBufferEntry));
+        memcpy(inputEntries.buffer + oldSize, entries, count * sizeof(SubmeshRenderThreadInputBufferEntry));
+        inputEntries.count = newSize;
+        delete[] temp;
+    }
+    else
+    {
+        inputEntries.maxHandle = largestHandle;
+        if (inputEntries.buffer)
+            delete[] inputEntries.buffer;
+        inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[count];
+        memcpy(inputEntries.buffer, entries, count * sizeof(SubmeshRenderThreadInputBufferEntry));
+        inputEntries.count = count;
+    }
 }
 
 void SubmeshSystem::createAndFillVertexAndIndexBuffers(

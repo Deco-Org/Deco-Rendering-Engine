@@ -104,6 +104,11 @@ class SubmeshSystem
         ufbx_mesh* parent,
         ufbx_mesh_part* submesh,
         SubmeshHandle handle);
+
+    void addInputEntriesToAdditionsBuffer(
+        SubmeshRenderThreadInputBufferEntry* entries,
+        size_t count
+    );
         
     void createAndFillVertexAndIndexBuffers(
         SubmeshRenderThreadInputBufferEntry& entry,
