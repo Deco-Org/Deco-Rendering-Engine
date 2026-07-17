@@ -10,7 +10,6 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests 
     test.cpp
-    # mesh/mesh_test.cpp
     transformation_system/transformation_system_test.cpp
     submesh_system/submesh_system_test.cpp
     tools/synchronized_buffer_test.cpp
