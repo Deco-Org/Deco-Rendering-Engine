@@ -211,3 +211,59 @@ TEST_CASE("submeshes should only be added and removed after the the additions an
 
     aSceneIsFreed(lampScene);
 }
+
+
+TEST_CASE("submeshes should be able to be added to and removed from the system while the render thread loops over the items in the system", "[submesh][asset system][add][remove][threading]")
+{
+    SubmeshSystem system;
+    std::atomic<bool> loadingThreadDone = false;
+    size_t expectedNumberOfLivingHandles = 0;
+    
+    {
+         std::jthread renderThread([&system, &loadingThreadDone]() {
+            while (!loadingThreadDone)
+            {
+                system.drainRemovalBuffer();
+                system.drainAdditionsInputBuffer();
+            }
+        });
+
+        std::jthread loadingThread([&system, &loadingThreadDone, &expectedNumberOfLivingHandles]() {
+            ufbx_scene* lampScene = aSceneWithATestLampModel();
+
+            std::vector<std::vector<SubmeshHandle>> meshes;
+
+            for (ufbx_mesh* mesh : lampScene->meshes)
+            {
+                meshes.push_back(system.add(mesh));
+                expectedNumberOfLivingHandles += 1;
+            }
+
+            for (std::vector<SubmeshHandle>& submeshes : meshes)
+            {
+                system.remove((SubmeshList) {
+                    .data = submeshes.data(),
+                    .count = submeshes.size()
+                });
+                expectedNumberOfLivingHandles -= submeshes.size();
+                std::vector<SubmeshHandle> newlyFreedHandles = system.getItemsAndDrainOutputBuffer();
+            }
+
+            ufbx_scene* cubeScene = aSceneWithACubeModel();
+            for (ufbx_mesh* mesh : cubeScene->meshes)
+            {
+                meshes.push_back(system.add(mesh));
+                expectedNumberOfLivingHandles += 1;
+            }
+
+            loadingThreadDone = true;
+            aSceneIsFreed(lampScene);
+            aSceneIsFreed(cubeScene);
+        });
+
+        REQUIRE(expectedNumberOfLivingHandles == system.indexCounts.size() - system.freeHandles.size());
+
+        allFreeHandlesShouldBeTombstones(system);
+        allTombstonesShouldBeFreeHandles(system);
+    }
+}

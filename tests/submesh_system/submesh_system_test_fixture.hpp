@@ -3,6 +3,7 @@
  */
 #pragma once
 #include <catch2/catch_test_macros.hpp>
+#include <algorithm>
 #include "asset_systems/submesh_system.hpp"
 
 ufbx_scene* aSceneWithACubeModel()
@@ -39,4 +40,21 @@ inline size_t numberOfSubmeshesInSystem(SubmeshSystem& system)
 inline void aSceneIsFreed(ufbx_scene* scene)
 {
     ufbx_free_scene(scene);
+}
+
+void allFreeHandlesShouldBeTombstones(SubmeshSystem& system)
+{
+    for (SubmeshHandle handle : system.freeHandles)
+    {
+        REQUIRE(system.isTombstone(handle));
+    }
+}
+
+void allTombstonesShouldBeFreeHandles(SubmeshSystem& system)
+{
+    for (SubmeshHandle handle = 0; handle < system.indexBuffers.size(); ++handle)
+    {
+        if (system.indexCounts[handle] == INVALID_INDEX_COUNT)
+            REQUIRE(std::find(system.freeHandles.begin(), system.freeHandles.end(), handle) != system.freeHandles.end());
+    }
 }

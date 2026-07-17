@@ -235,7 +235,7 @@ void SubmeshSystem::drainRemovalBuffer()
     
     for (size_t i = 0; i < n; ++i)
     {
-        tombstones.push_back(handlesToRemove[i]);
+        indexCounts[handlesToRemove[i]] = INVALID_INDEX_COUNT;
         // Untested code
         if (vertexBuffers[handlesToRemove[i]])
         {

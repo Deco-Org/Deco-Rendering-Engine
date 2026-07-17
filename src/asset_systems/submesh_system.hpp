@@ -90,6 +90,12 @@ class SubmeshSystem
      */
     std::vector<SubmeshHandle> getItemsAndDrainOutputBuffer();
 
+    /**
+     * @returns true if the submesh is a tombstone (the handle is free)
+     * @warning This should only be called on the render thread.
+     */
+    bool isTombstone(SubmeshHandle handle) const;
+
     std::vector<MetalBufferPtr> vertexBuffers;
     std::vector<MetalBufferPtr> indexBuffers;
     std::vector<NS::UInteger> indexCounts;
@@ -98,11 +104,6 @@ class SubmeshSystem
     std::vector<SubmeshSkinningProperty> skinningProperties;
     std::vector<uint32_t> boneCounts;
     std::vector<SubmeshHandle> freeHandles;
-        
-    /**
-     * Used by render thread. Values are identical to the values in `freeHandles`.
-     */
-    std::vector<SubmeshHandle> tombstones;
 
     SubmeshHandle largestHandle = INVALID_SUBMESH_HANDLE;
     
@@ -124,3 +125,5 @@ class SubmeshSystem
     SystemOutputBuffer<SubmeshHandle> outputHandles;
     MTL::Device* device;
 };
+
+inline bool SubmeshSystem::isTombstone(SubmeshHandle handle) const { return indexCounts[handle] == INVALID_INDEX_COUNT; }
