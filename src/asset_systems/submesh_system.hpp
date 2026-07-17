@@ -77,7 +77,7 @@ class SubmeshSystem
      * Adds entries in `inputEntries` to the submesh system.
      * @warning Should only be called on the render thread.
      */
-    void drainInputBuffer();
+    void drainAdditionsInputBuffer();
 
     /**
      * Drains the removal buffer and removes items from the system.

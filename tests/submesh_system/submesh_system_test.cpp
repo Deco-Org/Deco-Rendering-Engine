@@ -21,7 +21,7 @@ TEST_CASE("adding one submesh and draining the input buffer should add a new ver
     ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
     system.add(cubeMesh, &submesh);
     REQUIRE(0 == system.vertexBuffers.size());
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
 
     REQUIRE(1 == system.vertexBuffers.size());
     REQUIRE(1 == system.indexBuffers.size());
@@ -42,7 +42,7 @@ TEST_CASE("the output buffer should contain a single submesh if the input buffer
     ufbx_mesh* cubeMesh = scene->meshes.data[0];
     ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
     system.add(cubeMesh, &submesh);
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
 
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
     REQUIRE(1 == consumedHandles.size());
@@ -62,7 +62,7 @@ TEST_CASE("adding n submeshes and draining the input buffer should add n entries
 
     system.add(cubeMesh, &submesh);
     system.add(cubeMesh, &submesh);
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
 
     REQUIRE(2 == system.vertexBuffers.size());
 
@@ -83,7 +83,7 @@ TEST_CASE("adding n submeshes that are a part of a shared parent mesh should add
 
     ufbx_mesh* mesh = scene->meshes.data[0];
     system.add(mesh);
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
     REQUIRE(mesh->material_parts.count == consumedHandles.size());
 
@@ -100,7 +100,7 @@ TEST_CASE("removing a submesh from the system should free the handle", "[submesh
     ufbx_mesh* mesh = scene->meshes.data[0];
 
     system.add(mesh);
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
     REQUIRE(mesh->material_parts.count == consumedHandles.size());
     size_t numberOfFreeHandles = system.freeHandles.size();
@@ -130,7 +130,7 @@ TEST_CASE("removing n submeshes from the system should free n handles", "[submes
     ufbx_mesh* mesh = scene->meshes.data[0];
 
     system.add(mesh);
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
     REQUIRE(mesh->material_parts.count == consumedHandles.size());
     size_t numberOfFreeHandles = system.freeHandles.size();
@@ -158,7 +158,7 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
     ufbx_mesh* lampMesh = lampScene->meshes.data[0];
 
     system.add(lampMesh);
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
 
     SubmeshHandle removedHandle = consumedHandles[1];
@@ -174,7 +174,7 @@ TEST_CASE("removed submeshes should have their handles recycled", "[submesh][ass
     ufbx_scene* cubeScene = aCubeHasBeenLoadedIntoAScene();
     ufbx_mesh* cubeMesh = cubeScene->meshes.data[0];
     SubmeshHandle additionHandle = system.add(cubeMesh)[0];
-    system.drainInputBuffer();
+    system.drainAdditionsInputBuffer();
 
     REQUIRE(removedHandle == additionHandle);
     REQUIRE(oldNumberOfFreeHandles - 1 == system.freeHandles.size());

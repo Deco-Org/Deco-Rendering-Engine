@@ -143,7 +143,7 @@ void SubmeshSystem::remove(SubmeshList submeshes)
     }
 }
 
-void SubmeshSystem::drainInputBuffer()
+void SubmeshSystem::drainAdditionsInputBuffer()
 {
     SubmeshRenderThreadInputBufferEntry* entries;
     SubmeshHandle maxHandle;
@@ -235,6 +235,17 @@ void SubmeshSystem::drainRemovalBuffer()
     for (size_t i = 0; i < n; ++i)
     {
         tombstones.push_back(handlesToRemove[i]);
+        // Untested code
+        if (vertexBuffers[handlesToRemove[i]])
+        {
+            vertexBuffers[handlesToRemove[i]].release()->release(); // releasing both the unique_ptr and the buffer
+            vertexBuffers[handlesToRemove[i]] = nullptr;
+        }
+        if (indexBuffers[handlesToRemove[i]])
+        {
+            indexBuffers[handlesToRemove[i]].release()->release(); // releasing both the unique_ptr and the buffer
+            indexBuffers[handlesToRemove[i]] = nullptr;
+        }
     }
 
     delete[] handlesToRemove;
