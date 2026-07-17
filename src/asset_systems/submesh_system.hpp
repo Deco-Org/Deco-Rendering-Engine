@@ -52,7 +52,6 @@ class SubmeshSystem
      * Queue given submeshes of a mesh to be added to the system
      * @param mesh The parent mesh of the submeshes
      * @param submeshes The submeshes that are to be added to the system.
-     * These should share the same material.
      */
     SubmeshHandle add(
         ufbx_mesh* mesh, 
