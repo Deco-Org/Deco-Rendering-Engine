@@ -8,6 +8,7 @@
 #include "core_engine_types.h"
 #include "utils/AAPLMathUtilities.h"
 #include "tools/synchronized_buffer.hpp"
+#include "texture_loader.hpp"
 #define UFBX_REAL_IS_FLOAT 1
 #include "ufbx.h"
 
@@ -66,7 +67,7 @@ DECO_ENGINE_LIST_TYPE(MaterialEntryList, MaterialEntry);
 class MaterialSystem
 {
     public:
-    MaterialSystem();
+    MaterialSystem(TextureLoader* loader);
 
     MaterialHandleList add(MaterialEntryList materials);
 
@@ -74,11 +75,38 @@ class MaterialSystem
 
     void updateMaterial(MaterialHandle handle, Material& material);
 
+    /**
+     * 
+     * @warning This should only be called on the render thread.
+     */
+    void drainAdditionsInputBuffer();
+
+    /**
+     * 
+     * @note This is used to communicate with the render thread.
+     */
+    std::vector<MaterialHandle> getAndDrainAdditionsOutputBuffer();
+
+    /**
+     * 
+     * @warning This should only be called on the render thread.
+     */
+    void drainRemovalsInputBuffer();
+
+    /**
+     * 
+     * @note This is used to communicate with the render thread.
+     */
+    void drainRemovalsOutputBufferAndUnloadResources();
+
     std::vector<Material> materials;
 
     SystemInputBuffer<Material, MaterialHandle> additionsInputBuffer;
     SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
     SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
+    SynchronizedBuffer<Material> removalsOutputBuffer;
+    
     private:
+    TextureLoader* textureLoader;
     std::vector<MaterialHandle> freeMaterialHandles;
 };
