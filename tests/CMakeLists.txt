@@ -12,6 +12,7 @@ add_executable(tests
     test.cpp
     transformation_system/transformation_system_test.cpp
     submesh_system/submesh_system_test.cpp
+    material_system/texture_loader_test.cpp
     tools/synchronized_buffer_test.cpp
 )
 
