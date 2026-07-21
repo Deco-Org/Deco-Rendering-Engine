@@ -3,8 +3,6 @@
  * @brief Unit tests for the submesh system
  */
 
-#pragma once
-
 #include <catch2/catch_test_macros.hpp>
 #include <thread>
 #include "asset_systems/submesh_system.hpp"
