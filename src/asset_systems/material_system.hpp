@@ -110,6 +110,8 @@ class MaterialSystem
     MaterialHandle largestHandle = INVALID_MATERIAL;
     
     private:
+    Material* loadMaterial(ufbx_material* material);
+
     TextureLoader* textureLoader;
     std::vector<MaterialHandle> freeMaterialHandles;
 };

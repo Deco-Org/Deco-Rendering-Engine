@@ -36,6 +36,43 @@ TEST_CASE("adding a PBR material should increase the number of materials by one"
     REQUIRE(1 == system.materials.size());
 }
 
+TEST_CASE("adding a PBR material from ufbx without textures should increase the number of materials by one", "[material][asset system][add][fbx]")
+{
+    TextureLoader textureLoader;
+    MaterialSystem system(&textureLoader);
+
+    ufbx_material* material = new ufbx_material();
+    material->element = {
+        .name = {
+            .data = "Material",
+            .length = 9
+        }
+    };
+    material-> pbr = (ufbx_material_pbr_maps) {
+        (ufbx_material_map) {
+            .value_vec3 = {0.8f, 0.8f, 0.8f},
+            .texture = nullptr,
+            .texture_enabled = false,
+            .feature_disabled = false,
+            .value_components = 3
+        },
+    };
+
+    ufbx_material_list materialsToInsert = {
+        .data = &material,
+        .count = 1
+    };
+
+    std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+
+    REQUIRE(1 == system.materials.size());
+
+    delete material;
+}
+
 TEST_CASE("adding a toon material should increase the number of materials by one", "[material][asset system][add]")
 {
     TextureLoader textureLoader;
