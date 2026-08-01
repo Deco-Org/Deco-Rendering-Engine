@@ -13,4 +13,4 @@ clean:
 test:
 	cmake -B build -G Xcode --log-level=ERROR
 	cmake --build build --target tests
-	./build/tests/Debug/tests $(if $(TAGS), $(TAGS))
+	./build/tests/Debug/tests $(if $(TAGS), "$(TAGS)")
