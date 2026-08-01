@@ -50,6 +50,7 @@ TEST_CASE("adding a PBR material from ufbx without textures should increase the 
     };
     material-> pbr = (ufbx_material_pbr_maps) {
         (ufbx_material_map) {
+            // Base Color
             .value_vec3 = {0.8f, 0.8f, 0.8f},
             .texture = nullptr,
             .texture_enabled = false,
