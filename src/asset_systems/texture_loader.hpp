@@ -7,7 +7,6 @@
 #include <Metal/Metal.hpp>
 #include <filesystem>
 #include "core_engine_types.h"
-#include "utils/AAPLMathUtilities.h"
 #include "tools/synchronized_buffer.hpp"
 #define UFBX_REAL_IS_FLOAT 1
 #include "ufbx.h"
