@@ -28,14 +28,22 @@ struct PBRMaterial
     MTL::Texture* normalTexture = nullptr;
     MTL::Texture* metallicRoughnessAoTexture = nullptr;
     MTL::Texture* emission = nullptr;
+
     simd_float4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+    float metallicFactor = 1.0f;
+    float roughnessFactor = 1.0f;
+    float ambientOcclusionFactor = 1.0f;
+    simd_float3 emissionFactor = { 0.0f, 0.0f, 0.0f };
 };
 
 struct ToonMaterial
 {
     MTL::Texture* albedoTexture = nullptr;
     MTL::Texture* shadowThresholdTexture = nullptr;
+    
     simd_float4 baseColorFactor = { 1.0f, 1.0f, 1.0f, 1.0f };
+    float shadowThresholdValue = 0.5f;
+    
     float shadowSoftness = 0.0f;
 };
 
