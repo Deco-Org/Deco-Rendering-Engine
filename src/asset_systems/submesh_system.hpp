@@ -25,8 +25,8 @@ enum class SubmeshSkinningProperty: char
 struct SubmeshRenderThreadInputBufferEntry
 {
     SubmeshHandle handle;
-    MetalBufferPtr vertexBuffer;
-    MetalBufferPtr indexBuffer;
+    MTL::Buffer* vertexBuffer;
+    MTL::Buffer* indexBuffer;
     NS::UInteger indexCount;
     simd_float3 boundsMin;
     simd_float3 boundsMax;
@@ -39,6 +39,8 @@ class SubmeshSystem
     public:
 
     SubmeshSystem(MTL::Device* metalDevice = nullptr);
+
+    ~SubmeshSystem();
 
     /**
      * Queue the submeshes of a given mesh to be added to the system.
@@ -86,8 +88,8 @@ class SubmeshSystem
      */
     bool isTombstone(SubmeshHandle handle) const;
 
-    std::vector<MetalBufferPtr> vertexBuffers;
-    std::vector<MetalBufferPtr> indexBuffers;
+    std::vector<MTL::Buffer*> vertexBuffers;
+    std::vector<MTL::Buffer*> indexBuffers;
     std::vector<NS::UInteger> indexCounts;
     std::vector<simd_float3> boundsMin; // Min bounds of submeshes
     std::vector<simd_float3> boundsMax; // Max bounds of submeshes

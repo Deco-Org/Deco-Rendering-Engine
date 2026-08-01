@@ -31,6 +31,34 @@ TEST_CASE("adding one submesh and draining the input buffer should add a new ver
     aSceneIsFreed(scene);
 }
 
+TEST_CASE("adding one submesh and draining the input buffer when a metal device is present should add a new vertex buffer and a new index buffer to the system", "[submesh][asset system][add][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    SubmeshSystem system(metalDevice);
+    REQUIRE(0 == system.vertexBuffers.size());
+
+    ufbx_scene* scene = aSceneWithACubeModel();
+    
+    ufbx_mesh* cubeMesh = scene->meshes.data[0];
+    ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
+    system.add(cubeMesh, &submesh);
+    REQUIRE(0 == system.vertexBuffers.size());
+    system.drainAdditionsInputBuffer();
+
+    REQUIRE(1 == system.vertexBuffers.size());
+    REQUIRE(1 == system.indexBuffers.size());
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(1 == consumedHandles.size());
+
+    aSceneIsFreed(scene);
+
+    // Freeing metal stuff
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
 TEST_CASE("the output buffer should contain a single submesh if the input buffer was drained with a single submesh inside", "[submesh][asset system][add]")
 {
     SubmeshSystem system;
@@ -81,6 +109,7 @@ TEST_CASE("adding n submeshes that are a part of a shared parent mesh should add
     ufbx_scene* scene = aSceneWithATestLampModel();
 
     ufbx_mesh* mesh = scene->meshes.data[0];
+
     system.add(mesh);
     system.drainAdditionsInputBuffer();
     std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
@@ -147,6 +176,48 @@ TEST_CASE("removing n submeshes from the system should free n handles", "[submes
     REQUIRE(0 == memcmp(consumedHandles.data(), system.freeHandles.data(), consumedHandles.size() * sizeof(SubmeshHandle)));
 
     aSceneIsFreed(scene);
+}
+
+TEST_CASE("removed submeshes should have their metal buffers released", "[submesh][asset system][remove][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    SubmeshSystem system(metalDevice);
+    REQUIRE(0 == system.vertexBuffers.size());
+
+    ufbx_scene* scene = aSceneWithACubeModel();
+    
+    ufbx_mesh* cubeMesh = scene->meshes.data[0];
+    ufbx_mesh_part submesh = cubeMesh->material_parts.data[0];
+    system.add(cubeMesh, &submesh);
+    REQUIRE(0 == system.vertexBuffers.size());
+    system.drainAdditionsInputBuffer();
+
+    REQUIRE(1 == system.vertexBuffers.size());
+    REQUIRE(1 == system.indexBuffers.size());
+    std::vector<SubmeshHandle> consumedHandles = system.getItemsAndDrainOutputBuffer();
+    REQUIRE(1 == consumedHandles.size());
+
+    SubmeshList removalList = {
+        .data = consumedHandles.data(),
+        .count = consumedHandles.size()
+    };
+
+    system.remove(removalList);
+    system.drainRemovalBuffer();
+
+    for (size_t i = 0; i < removalList.count; ++i)
+    {
+        REQUIRE(nullptr == system.vertexBuffers[i]);
+        REQUIRE(nullptr == system.indexBuffers[i]);
+    }
+
+    aSceneIsFreed(scene);
+
+    // Freeing metal stuff
+    metalDevice->release();
+    autoReleasePool->release();
 }
 
 TEST_CASE("removed submeshes should have their handles recycled", "[submesh][asset system][add][remove]")

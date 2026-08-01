@@ -16,6 +16,16 @@ SubmeshSystem::SubmeshSystem(MTL::Device* metalDevice)
     inputEntries.maxHandle = 0;
 }
 
+SubmeshSystem::~SubmeshSystem()
+{
+    // Releasing all buffers
+    for (SubmeshHandle handle = 0; handle < largestHandle; ++handle)
+    {
+        vertexBuffers[handle]->release();
+        indexBuffers[handle]->release();
+    }
+}
+
 std::vector<SubmeshHandle> SubmeshSystem::add(ufbx_mesh* mesh)
 {
     std::vector<SubmeshHandle> handles;
@@ -126,8 +136,8 @@ void SubmeshSystem::drainAdditionsInputBuffer()
     {
         SubmeshRenderThreadInputBufferEntry* entry = entries + i;
         consumedHandles[i] = entry->handle;
-        vertexBuffers[entry->handle] = std::move(entry->vertexBuffer);
-        indexBuffers[entry->handle] = std::move(entry->indexBuffer);
+        vertexBuffers[entry->handle] = entry->vertexBuffer;
+        indexBuffers[entry->handle] = entry->indexBuffer;
         indexCounts[entry->handle] = entry->indexCount;
         boundsMin[entry->handle] = entry->boundsMin;
         boundsMax[entry->handle] = entry->boundsMax;
@@ -183,15 +193,15 @@ void SubmeshSystem::drainRemovalBuffer()
     for (size_t i = 0; i < n; ++i)
     {
         indexCounts[handlesToRemove[i]] = INVALID_INDEX_COUNT;
-        // Untested code
+        
         if (vertexBuffers[handlesToRemove[i]])
         {
-            vertexBuffers[handlesToRemove[i]].release()->release(); // releasing both the unique_ptr and the buffer
+            vertexBuffers[handlesToRemove[i]]->release();
             vertexBuffers[handlesToRemove[i]] = nullptr;
         }
         if (indexBuffers[handlesToRemove[i]])
         {
-            indexBuffers[handlesToRemove[i]].release()->release(); // releasing both the unique_ptr and the buffer
+            indexBuffers[handlesToRemove[i]]->release();
             indexBuffers[handlesToRemove[i]] = nullptr;
         }
     }
@@ -318,7 +328,7 @@ void SubmeshSystem::addInputEntriesToAdditionsBuffer(SubmeshRenderThreadInputBuf
         inputEntries.maxHandle = largestHandle;
         if (inputEntries.buffer)
             delete[] inputEntries.buffer;
-        inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[count];
+            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[count];
         memcpy(inputEntries.buffer, entries, count * sizeof(SubmeshRenderThreadInputBufferEntry));
         inputEntries.count = count;
     }
@@ -339,12 +349,8 @@ void SubmeshSystem::createAndFillVertexAndIndexBuffers(
     }
     else
     {
-        entry.vertexBuffer = MetalBufferPtr(
-            device->newBuffer(vertices.data(), vertices.size() * sizeof(Vertex), MTL::ResourceStorageModeShared),
-            BufferDeleter());
-        entry.indexBuffer = MetalBufferPtr(
-            device->newBuffer(indices.data(), indices.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared),
-            BufferDeleter());
+        entry.vertexBuffer = device->newBuffer(vertices.data(), vertices.size() * sizeof(Vertex), MTL::ResourceStorageModeShared);
+        entry.indexBuffer = device->newBuffer(indices.data(), indices.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared);
     }
 }
 
