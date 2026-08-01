@@ -6,7 +6,6 @@
 #pragma once
 #include <Metal/Metal.hpp>
 #include "core_engine_types.h"
-#include "utils/AAPLMathUtilities.h"
 #include "tools/synchronized_buffer.hpp"
 #include "texture_loader.hpp"
 #define UFBX_REAL_IS_FLOAT 1
@@ -69,7 +68,9 @@ class MaterialSystem
     public:
     MaterialSystem(TextureLoader* loader);
 
-    MaterialHandleList add(MaterialEntryList materials);
+    std::vector<MaterialHandle> add(MaterialEntryList materials);
+
+    std::vector<MaterialHandle> add(ufbx_material_list* materials);
 
     void remove(MaterialHandleList materials);
 
@@ -105,6 +106,8 @@ class MaterialSystem
     SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
     SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
     SynchronizedBuffer<Material> removalsOutputBuffer;
+
+    MaterialHandle largestHandle = INVALID_MATERIAL;
     
     private:
     TextureLoader* textureLoader;

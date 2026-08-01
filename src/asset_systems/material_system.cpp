@@ -9,3 +9,19 @@ MaterialSystem::MaterialSystem(TextureLoader* loader)
 {
     textureLoader = loader;
 }
+
+std::vector<MaterialHandle> MaterialSystem::add(MaterialEntryList materials)
+{
+    std::vector<MaterialHandle> handles;
+    handles.reserve(materials.count);
+    for (MaterialHandle handle = 0; handle < materials.count; ++handle)
+    {
+        handles.push_back(handle);
+    }
+    return handles;
+}
+
+void MaterialSystem::drainAdditionsInputBuffer()
+{
+
+}

@@ -24,7 +24,7 @@ TEST_CASE("adding a PBR material should increase the number of materials by one"
         },
     };
 
-    MaterialHandleList addedMaterials = system.add((MaterialEntryList) {
+    std::vector<MaterialHandle> addedMaterials = system.add((MaterialEntryList) {
         .data = &addedPBRMaterial,
         .count = 1
     });
@@ -51,7 +51,7 @@ TEST_CASE("adding a toon material should increase the number of materials by one
         }
     };
 
-    MaterialHandleList addedMaterials = system.add((MaterialEntryList) {
+    std::vector<MaterialHandle> addedMaterials = system.add((MaterialEntryList) {
         .data = &addedToonMaterial,
         .count = 1
     });
@@ -61,6 +61,7 @@ TEST_CASE("adding a toon material should increase the number of materials by one
     system.drainAdditionsInputBuffer();
 
     REQUIRE(1 == system.materials.size());
+    REQUIRE(addedMaterials.size() - 1 == system.largestHandle);
 }
 
 TEST_CASE("Adding n materials should increase the number of materials by n", "[material][asset system][add]")
@@ -91,7 +92,7 @@ TEST_CASE("Adding n materials should increase the number of materials by n", "[m
 
     MaterialEntry entries[2] = {addedToonMaterial, addedPBRMaterial};
     
-    MaterialHandleList handles = system.add((MaterialEntryList) {
+    std::vector<MaterialHandle> handles = system.add((MaterialEntryList) {
         .data = entries,
         .count = 2
     });
@@ -101,5 +102,7 @@ TEST_CASE("Adding n materials should increase the number of materials by n", "[m
     system.drainAdditionsInputBuffer();
 
     REQUIRE(2 == system.materials.size());
-    REQUIRE(handles.count == system.materials.size());
+    REQUIRE(handles.size() == system.materials.size());
+    REQUIRE(handles.size() - 1 == system.largestHandle);
+
 }
