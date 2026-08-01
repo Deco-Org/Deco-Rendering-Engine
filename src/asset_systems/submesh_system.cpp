@@ -21,8 +21,10 @@ SubmeshSystem::~SubmeshSystem()
     // Releasing all buffers
     for (SubmeshHandle handle = 0; handle < largestHandle; ++handle)
     {
-        vertexBuffers[handle]->release();
-        indexBuffers[handle]->release();
+        if (vertexBuffers[handle])
+            vertexBuffers[handle]->release();
+        if (indexBuffers[handle])
+            indexBuffers[handle]->release();
     }
 }
 
@@ -193,7 +195,7 @@ void SubmeshSystem::drainRemovalBuffer()
     for (size_t i = 0; i < n; ++i)
     {
         indexCounts[handlesToRemove[i]] = INVALID_INDEX_COUNT;
-        
+
         if (vertexBuffers[handlesToRemove[i]])
         {
             vertexBuffers[handlesToRemove[i]]->release();
