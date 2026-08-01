@@ -20,6 +20,7 @@ enum class MaterialType : uint8_t
 {
     PBR = 0,
     Toon = 0,
+    Unknown = (uint8_t)(-1)
 };
 
 struct PBRMaterial
@@ -49,8 +50,8 @@ struct ToonMaterial
 
 struct Material
 {
-    MaterialType type;
-    bool isTombstone;
+    MaterialType type = MaterialType::Unknown;
+    bool isTombstone = false;
     union
     {
         PBRMaterial pbrMaterial;
@@ -66,6 +67,12 @@ struct MaterialEntry
         PBRMaterial pbrMaterial;
         ToonMaterial toonMaterial;
     };
+};
+
+struct MaterialRenderThreadInputBufferEntry
+{
+    MaterialHandle handle = INVALID_MATERIAL;
+    Material material = {};
 };
 
 DECO_ENGINE_LIST_TYPE(MaterialHandleList, MaterialHandle);
@@ -94,7 +101,7 @@ class MaterialSystem
      * 
      * @note This is used to communicate with the render thread.
      */
-    std::vector<MaterialHandle> getAndDrainAdditionsOutputBuffer();
+    std::vector<MaterialHandle> getItemsAndDrainAdditionsOutputBuffer();
 
     /**
      * 
@@ -110,7 +117,7 @@ class MaterialSystem
 
     std::vector<Material> materials;
 
-    SystemInputBuffer<Material, MaterialHandle> additionsInputBuffer;
+    SystemInputBuffer<MaterialRenderThreadInputBufferEntry, MaterialHandle> additionsInputBuffer;
     SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
     SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
     SynchronizedBuffer<Material> removalsOutputBuffer;
@@ -119,7 +126,9 @@ class MaterialSystem
     
     private:
     Material* loadMaterial(ufbx_material* material);
+    MaterialHandle* getNextNHandles(size_t n);
+    void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
 
     TextureLoader* textureLoader;
-    std::vector<MaterialHandle> freeMaterialHandles;
+    std::vector<MaterialHandle> freeHandles;
 };
