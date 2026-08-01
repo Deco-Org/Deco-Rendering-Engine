@@ -102,7 +102,7 @@ TEST_CASE("adding a toon material should increase the number of materials by one
     REQUIRE(addedMaterials.size() - 1 == system.largestHandle);
 }
 
-TEST_CASE("Adding n materials should increase the number of materials by n", "[material][asset system][add]")
+TEST_CASE("adding n materials should increase the number of materials by n", "[material][asset system][add]")
 {
     TextureLoader textureLoader;
     MaterialSystem system(&textureLoader);
@@ -142,5 +142,4 @@ TEST_CASE("Adding n materials should increase the number of materials by n", "[m
     REQUIRE(2 == system.materials.size());
     REQUIRE(handles.size() == system.materials.size());
     REQUIRE(handles.size() - 1 == system.largestHandle);
-
 }
