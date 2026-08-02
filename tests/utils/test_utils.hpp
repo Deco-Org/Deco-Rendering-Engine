@@ -1,6 +1,16 @@
 #pragma once
 #include <simd/simd.h>
 
+inline bool floatsNearEqual(float a, float b, float abs_epsilon = 0.0001f, float rel_epsilon = 0.0001f) {
+    const float diff = std::fabs(a - b);
+    if (diff <= abs_epsilon) {
+        return true;
+    }
+
+    const float largest = std::max(std::fabs(a), std::fabs(b));
+    return diff <= largest * rel_epsilon;
+}
+
 inline bool simdFloat3Equal(simd_float3 a, simd_float3 b, float epsilon = 0.0001f) {
     return std::abs(a[0] - b[0]) < epsilon &&
            std::abs(a[1] - b[1]) < epsilon &&
