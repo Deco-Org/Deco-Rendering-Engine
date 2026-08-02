@@ -19,7 +19,7 @@ ufbx_scene* aSceneWithACubeModel()
     return scene;
 }
 
-ufbx_scene* aSceneWithATestLampModel()
+static ufbx_scene* aSceneWithATestLampModel()
 {
     const char filepath[24] = "assets/test_lamp_01.fbx";
     ufbx_load_opts opts = { };
