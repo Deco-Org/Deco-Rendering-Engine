@@ -21,7 +21,7 @@ struct PBRMaterial
     MTL::Texture* albedoTexture = nullptr;
     MTL::Texture* normalTexture = nullptr;
     MTL::Texture* metallicRoughnessAoTexture = nullptr;
-    MTL::Texture* emission = nullptr;
+    MTL::Texture* emissionTexture = nullptr;
 
     simd_float4 baseColorFactor = DEFAULT_COLOR_4_CHANNELS;
     float metallicFactor = 1.0f;
