@@ -69,12 +69,13 @@ class MaterialSystem
     void drainRemovalsOutputBufferAndUnloadResources();
 
     std::vector<Material> materials;
-
+    
     SystemInputBuffer<MaterialRenderThreadInputBufferEntry, MaterialHandle> additionsInputBuffer;
     SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
     SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
     SynchronizedBuffer<Material> removalsOutputBuffer;
-
+    
+    std::vector<MaterialHandle> freeHandles;
     MaterialHandle largestHandle = INVALID_MATERIAL;
     
     private:
@@ -86,5 +87,4 @@ class MaterialSystem
     void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
 
     TextureLoader* textureLoader;
-    std::vector<MaterialHandle> freeHandles;
 };
