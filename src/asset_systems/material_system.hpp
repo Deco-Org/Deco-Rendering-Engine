@@ -63,17 +63,17 @@ class MaterialSystem
     void drainRemovalsInputBuffer();
 
     /**
-     * 
+     * Unloads unused materials
      * @note This is used to communicate with the render thread.
      */
-    void drainRemovalsOutputBufferAndUnloadResources();
+    std::vector<MaterialHandle> drainRemovalsOutputBufferAndUnloadResources();
 
     std::vector<Material> materials;
     
     SystemInputBuffer<MaterialRenderThreadInputBufferEntry, MaterialHandle> additionsInputBuffer;
     SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
     SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
-    SynchronizedBuffer<Material> removalsOutputBuffer;
+    SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> removalsOutputBuffer;
     
     std::vector<MaterialHandle> freeHandles;
     MaterialHandle largestHandle = INVALID_MATERIAL;

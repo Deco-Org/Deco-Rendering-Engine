@@ -20,7 +20,7 @@ TEST_CASE("adding a PBR material should increase the number of materials by one"
             .albedoTexture = nullptr,
             .normalTexture = nullptr,
             .metallicRoughnessAoTexture = nullptr,
-            .emission = nullptr,
+            .emissionTexture = nullptr,
             .baseColorFactor = simd_float4{1.0f, 1.0f, 1.0f, 1.0f},
         },
     };
@@ -124,7 +124,7 @@ TEST_CASE("adding n materials should increase the number of materials by n", "[m
             .albedoTexture = nullptr,
             .normalTexture = nullptr,
             .metallicRoughnessAoTexture = nullptr,
-            .emission = nullptr,
+            .emissionTexture = nullptr,
             .baseColorFactor = simd_float4{1.0f, 1.0f, 1.0f, 1.0f},
         },
     };
@@ -162,7 +162,7 @@ TEST_CASE("adding n materials from ufbx without textures should increase the num
     someUfbxMaterialsAreFreed(materialsToInsert);
 }
 
-TEST_CASE("adding n materials and draining the additions input buffer should put n handles into the output buffer", "[material][asset system][add][fbx]")
+TEST_CASE("adding n materials and draining the additions input buffer should put n handles into the output buffer", "[material][asset system][add]")
 {
     TextureLoader textureLoader;
     MaterialSystem system(&textureLoader);
@@ -206,4 +206,42 @@ TEST_CASE("materials added using ufbx materials without textures should have sam
     }
 
     aSceneIsFreed(scene);
+}
+
+TEST_CASE("removing a material from the system should free the handle", "[material][asset system][remove]")
+{
+    TextureLoader textureLoader;
+    MaterialSystem system(&textureLoader);
+
+    ufbx_material_list materialsToInsert = nUntexturedUfbxMaterials(4);
+
+    std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+    REQUIRE(4 == system.materials.size());
+
+    std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
+    MaterialHandle removedHandle = consumedHandles[1];
+
+    // When an item is removed
+    system.remove((MaterialHandleList) {
+        .data = &removedHandle,
+        .count = 1
+    });
+    REQUIRE(4 == system.materials.size());
+    
+    system.drainRemovalsInputBuffer();
+    REQUIRE(system.freeHandles.size() == 0);
+    
+    system.drainRemovalsOutputBufferAndUnloadResources();
+    REQUIRE(removedHandle == system.freeHandles[system.freeHandles.size() - 1]);
+    REQUIRE(3 == system.materials.size() - system.freeHandles.size());
+
+    someUfbxMaterialsAreFreed(materialsToInsert);
+}
+
+TEST_CASE("removing a material from the system should decrement the use count of the texture when the removals output buffer is drained", "[material][asset system][remove][texture][metal]")
+{
+
 }
