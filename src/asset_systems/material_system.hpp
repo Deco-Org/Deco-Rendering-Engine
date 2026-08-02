@@ -38,7 +38,7 @@ class MaterialSystem
 
     std::vector<MaterialHandle> add(MaterialEntryList materials);
 
-    std::vector<MaterialHandle> add(ufbx_material_list* materials);
+    std::vector<MaterialHandle> add(ufbx_material_list* materials, MaterialType type = MaterialType::PBR);
 
     void remove(MaterialHandleList materials);
 
@@ -78,7 +78,10 @@ class MaterialSystem
     MaterialHandle largestHandle = INVALID_MATERIAL;
     
     private:
-    Material* loadMaterial(ufbx_material* material);
+    Material* loadMaterial(ufbx_material* material, MaterialType type);
+    float getScalarValueFromUfbxMaterialmap(ufbx_material_map& materialMap);
+    simd_float3 getThreeChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
+    simd_float4 getFourChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
     MaterialHandle* getNextNHandles(size_t n);
     void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
 

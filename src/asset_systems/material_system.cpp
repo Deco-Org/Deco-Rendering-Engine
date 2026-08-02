@@ -49,7 +49,7 @@ std::vector<MaterialHandle> MaterialSystem::add(MaterialEntryList materials)
     return handles;
 }
 
-std::vector<MaterialHandle> MaterialSystem::add(ufbx_material_list* materials)
+std::vector<MaterialHandle> MaterialSystem::add(ufbx_material_list* materials, MaterialType type)
 {
     std::vector<MaterialHandle> handles;
 
@@ -60,7 +60,7 @@ std::vector<MaterialHandle> MaterialSystem::add(ufbx_material_list* materials)
     for (size_t i = 0; i < materials->count; ++i)
     {
         ufbx_material* material = materials->data[i];
-        Material* loadedMaterial = loadMaterial(material);
+        Material* loadedMaterial = loadMaterial(material, type);
         inputBufferEntries[i] = {
             .handle = handlesToUse[i],
             .material = *loadedMaterial
@@ -159,9 +159,143 @@ std::vector<MaterialHandle> MaterialSystem::getItemsAndDrainAdditionsOutputBuffe
 
 }
 
-Material* MaterialSystem::loadMaterial(ufbx_material* material)
+Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType type)
 {
+    Material* resultMaterial = new Material{(Material){.type = type, .isTombstone = false, .pbrMaterial = {}}};
+    switch (type) 
+    {
+        case MaterialType::PBR:
+        {
+            PBRMaterial* pbrMat = &resultMaterial->pbrMaterial;
+            pbrMat->baseColorFactor = getFourChannelColorFromUfbxMaterialMap(material->pbr.base_color);
+            pbrMat->metallicFactor = getScalarValueFromUfbxMaterialmap(material->pbr.metalness);
+            pbrMat->roughnessFactor = getScalarValueFromUfbxMaterialmap(material->pbr.roughness);
+            pbrMat->ambientOcclusionFactor = getScalarValueFromUfbxMaterialmap(material->pbr.ambient_occlusion);
+            pbrMat->emissionFactor = getThreeChannelColorFromUfbxMaterialMap(material->pbr.emission_color) * getScalarValueFromUfbxMaterialmap(material->pbr.emission_factor);
+        }
+        break;
 
+        default:
+        {
+            delete resultMaterial;
+            resultMaterial = nullptr;
+        }
+        break;
+    }
+    return resultMaterial;
+}
+
+float MaterialSystem::getScalarValueFromUfbxMaterialmap(ufbx_material_map& materialMap)
+{
+    float result = 1.0f;
+    if (materialMap.has_value)
+    {
+        switch (materialMap.value_components)
+        {
+            case 1:
+                result = materialMap.value_real;
+                break;
+
+            case 2:
+                result = (materialMap.value_vec2.x + materialMap.value_vec2.y) / 2;
+                break;
+
+            case 3:
+                result = (materialMap.value_vec3.x + materialMap.value_vec3.y + materialMap.value_vec3.z) / 3;
+                break;
+
+            case 4:
+                result = (materialMap.value_vec4.x + materialMap.value_vec4.y + materialMap.value_vec4.z + materialMap.value_vec4.w) / 4;
+                break;
+        }
+    }
+    return result;
+}
+
+simd_float3 MaterialSystem::getThreeChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap)
+{
+    simd_float3 result = DEFAULT_COLOR_3_CHANNELS;
+    if (materialMap.has_value)
+    {
+        switch (materialMap.value_components)
+        {
+            case 3:
+            case 4:
+            {
+                // If there are three value components, the values are copied.
+                // If there are four value components, the alpha is discarded
+                result = {
+                    materialMap.value_vec3.v[0],
+                    materialMap.value_vec3.v[1],
+                    materialMap.value_vec3.v[2]
+                };
+            }
+            break;
+
+            case 1:
+            {
+                result = {
+                    materialMap.value_real,
+                    materialMap.value_real,
+                    materialMap.value_real
+                };
+            }
+            break;
+
+            default:
+                break;
+        }
+    }
+    return result;
+}
+
+simd_float4 MaterialSystem::getFourChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap)
+{
+    simd_float4 result = DEFAULT_COLOR_4_CHANNELS;
+    if (materialMap.has_value)
+    {
+        switch (materialMap.value_components)
+        {
+            case 4:
+            {
+                // If there are four values, we can just fill them directly into the result
+                result = {
+                    materialMap.value_vec4.v[0],
+                    materialMap.value_vec4.v[1],
+                    materialMap.value_vec4.v[2],
+                    materialMap.value_vec4.v[3]
+                };
+            }
+            break;
+
+            case 3:
+            {
+                // Alpha is just default
+                result = {
+                    materialMap.value_vec3.v[0],
+                    materialMap.value_vec3.v[1],
+                    materialMap.value_vec3.v[2],
+                    DEFAULT_COLOR_4_CHANNELS[3]
+                };
+            }
+            break;
+
+            case 1:
+            {
+                result = {
+                    materialMap.value_real,
+                    materialMap.value_real,
+                    materialMap.value_real,
+                    DEFAULT_COLOR_4_CHANNELS[3],
+                };
+            }
+            break;
+
+            default:
+                break;
+        }
+    }
+    return result;
 }
 
 MaterialHandle* MaterialSystem::getNextNHandles(size_t n)
