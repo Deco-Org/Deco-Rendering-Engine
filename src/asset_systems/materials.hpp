@@ -12,7 +12,7 @@ inline constexpr simd_float3 DEFAULT_COLOR_3_CHANNELS = { 1.0f, 1.0f, 1.0f };
 enum class MaterialType : uint8_t
 {
     PBR = 0,
-    Toon = 0,
+    Toon = 1,
     Unknown = (uint8_t)(-1)
 };
 
