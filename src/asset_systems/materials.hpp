@@ -7,6 +7,7 @@ using MaterialHandle = uint16_t;
 inline constexpr MaterialHandle INVALID_MATERIAL = UINT16_MAX;
 
 inline constexpr simd_float4 DEFAULT_COLOR_4_CHANNELS = { 1.0f, 1.0f, 1.0f, 1.0f };
+inline constexpr simd_float3 DEFAULT_COLOR_3_CHANNELS = { 1.0f, 1.0f, 1.0f };
 
 enum class MaterialType : uint8_t
 {
