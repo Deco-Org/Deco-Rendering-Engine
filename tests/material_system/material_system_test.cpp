@@ -154,10 +154,36 @@ TEST_CASE("adding n materials from ufbx without textures should increase the num
 
     std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
     REQUIRE(0 == system.materials.size());
-    
+
     system.drainAdditionsInputBuffer();
 
     REQUIRE(4 == system.materials.size());
 
     someUfbxMaterialsAreFreed(materialsToInsert);
+}
+
+TEST_CASE("materials added using ufbx materials without textures should have same material information as ufbx materials", "[material][asset system][add][fbx]")
+{
+    TextureLoader textureLoader;
+    MaterialSystem system(&textureLoader);
+
+    ufbx_scene* scene = aSceneWithATestLampModel();
+    ufbx_material_list materialsToInsert = scene->nodes[2]->materials;
+
+    std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+    REQUIRE(materialsToInsert.count == system.materials.size());
+    for (size_t i = 0; i < materialsToInsert.count; ++i)
+    {
+        untexturedMaterialInSystemShouldMatchUfbxMaterial(
+            system,
+            addedMaterials[i],
+            materialsToInsert[i],
+            MaterialType::PBR
+        );
+    }
+
+    aSceneIsFreed(scene);
 }
