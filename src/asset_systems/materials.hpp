@@ -27,7 +27,7 @@ struct PBRMaterial
     float metallicFactor = 1.0f;
     float roughnessFactor = 1.0f;
     float ambientOcclusionFactor = 1.0f;
-    simd_float3 emissionFactor = { 0.0f, 0.0f, 0.0f };
+    simd_float4 emissionColorAndFactor = { 0.0f, 0.0f, 0.0f, 1.0f };
 };
 
 struct ToonMaterial

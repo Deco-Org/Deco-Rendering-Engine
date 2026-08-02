@@ -168,10 +168,10 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
         {
             PBRMaterial* pbrMat = &resultMaterial->pbrMaterial;
             pbrMat->baseColorFactor = getFourChannelColorFromUfbxMaterialMap(material->pbr.base_color);
-            pbrMat->metallicFactor = getScalarValueFromUfbxMaterialmap(material->pbr.metalness);
-            pbrMat->roughnessFactor = getScalarValueFromUfbxMaterialmap(material->pbr.roughness);
-            pbrMat->ambientOcclusionFactor = getScalarValueFromUfbxMaterialmap(material->pbr.ambient_occlusion);
-            pbrMat->emissionFactor = getThreeChannelColorFromUfbxMaterialMap(material->pbr.emission_color) * getScalarValueFromUfbxMaterialmap(material->pbr.emission_factor);
+            pbrMat->metallicFactor = getScalarValueFromUfbxMaterialMap(material->pbr.metalness);
+            pbrMat->roughnessFactor = getScalarValueFromUfbxMaterialMap(material->pbr.roughness);
+            pbrMat->ambientOcclusionFactor = getScalarValueFromUfbxMaterialMap(material->pbr.ambient_occlusion);
+            pbrMat->emissionColorAndFactor = simd_make_float4(getThreeChannelColorFromUfbxMaterialMap(material->pbr.emission_color), getScalarValueFromUfbxMaterialMap(material->pbr.emission_factor));
         }
         break;
 
@@ -185,7 +185,7 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
     return resultMaterial;
 }
 
-float MaterialSystem::getScalarValueFromUfbxMaterialmap(ufbx_material_map& materialMap)
+float MaterialSystem::getScalarValueFromUfbxMaterialMap(ufbx_material_map& materialMap)
 {
     float result = 1.0f;
     if (materialMap.has_value)

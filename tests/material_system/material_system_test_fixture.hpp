@@ -225,11 +225,21 @@ static void untexturedMaterialInSystemShouldMatchUfbxMaterial(MaterialSystem& sy
             scalarMaterialValueShouldCorrespondToValuesInMaterialMap(ambientOcclusionMaterialMap, actual->pbrMaterial.ambientOcclusionFactor);
         }
 
-        ufbx_material_map emissionMaterialMap = material->pbr.emission_color;
-        if (emissionMaterialMap.has_value)
+        ufbx_material_map emissionColorMaterialMap = material->pbr.emission_color;
+        if (emissionColorMaterialMap.has_value)
         {
-            INFO("Emissions Material Map");
-            float3MaterialValueShouldCorrespondToValuesInMaterialMap(emissionMaterialMap, actual->pbrMaterial.emissionFactor);
+            INFO("Emissions Color Material Map");
+            float3MaterialValueShouldCorrespondToValuesInMaterialMap(emissionColorMaterialMap, simd_make_float3(
+                actual->pbrMaterial.emissionColorAndFactor[0],
+                actual->pbrMaterial.emissionColorAndFactor[1],
+                actual->pbrMaterial.emissionColorAndFactor[2]));
+        }
+
+        ufbx_material_map emissionFactorMaterialMap = material->pbr.emission_factor;
+        if (emissionFactorMaterialMap.has_value)
+        {
+            INFO("Emissions Factor Material Map");
+            scalarMaterialValueShouldCorrespondToValuesInMaterialMap(emissionFactorMaterialMap, actual->pbrMaterial.emissionColorAndFactor[3]);
         }
     }
     break;

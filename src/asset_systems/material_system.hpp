@@ -79,7 +79,7 @@ class MaterialSystem
     
     private:
     Material* loadMaterial(ufbx_material* material, MaterialType type);
-    float getScalarValueFromUfbxMaterialmap(ufbx_material_map& materialMap);
+    float getScalarValueFromUfbxMaterialMap(ufbx_material_map& materialMap);
     simd_float3 getThreeChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
     simd_float4 getFourChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
     MaterialHandle* getNextNHandles(size_t n);
