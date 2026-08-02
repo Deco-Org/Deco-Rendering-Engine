@@ -105,17 +105,17 @@ void MaterialSystem::drainAdditionsInputBuffer()
     if (maxHandle >= materials.size())
     {
         // Allocating new space for the entries
-        materials.reserve(maxHandle - materials.size() + 1);
-        for (size_t i = 0; i < maxHandle - materials.size() + 2; ++i)
+        materials.reserve(maxHandle + 1);
+        const size_t numOfMaterialsToAdd = maxHandle - materials.size();
+        for (size_t i = 0; i < numOfMaterialsToAdd + 1; ++i)
         {
             materials.push_back((Material) {
                 .type = MaterialType::Unknown,
                 .isTombstone = false,
-                .pbrMaterial = {}
+                .pbrMaterial = {0}
             });
         }
     }
-
 
     for (size_t i = 0; i < n; ++i)
     {

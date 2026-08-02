@@ -6,6 +6,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <thread>
 #include "asset_systems/material_system.hpp"
+#include "material_system_test_fixture.hpp"
 #include "test_utils.hpp"
 
 TEST_CASE("adding a PBR material should increase the number of materials by one", "[material][asset system][add]")
@@ -48,7 +49,7 @@ TEST_CASE("adding a PBR material from ufbx without textures should increase the 
             .length = 9
         }
     };
-    material-> pbr = (ufbx_material_pbr_maps) {
+    material->pbr = (ufbx_material_pbr_maps) {
         (ufbx_material_map) {
             // Base Color
             .value_vec3 = {0.8f, 0.8f, 0.8f},
@@ -142,4 +143,21 @@ TEST_CASE("adding n materials should increase the number of materials by n", "[m
     REQUIRE(2 == system.materials.size());
     REQUIRE(handles.size() == system.materials.size());
     REQUIRE(handles.size() - 1 == system.largestHandle);
+}
+
+TEST_CASE("adding n materials from ufbx without textures should increase the number of materials by n", "[material][asset system][add][fbx]")
+{
+    TextureLoader textureLoader;
+    MaterialSystem system(&textureLoader);
+
+    ufbx_material_list materialsToInsert = nUntexturedUfbxMaterials(4);
+
+    std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
+    REQUIRE(0 == system.materials.size());
+    
+    system.drainAdditionsInputBuffer();
+
+    REQUIRE(4 == system.materials.size());
+
+    someUfbxMaterialsAreFreed(materialsToInsert);
 }
