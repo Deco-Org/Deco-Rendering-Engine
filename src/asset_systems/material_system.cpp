@@ -113,6 +113,13 @@ void MaterialSystem::remove(MaterialHandleList materials)
     }
 }
 
+void MaterialSystem::updateMaterial(MaterialHandle handle, Material& material) {}
+
+void MaterialSystem::setRelativeTextureFilepath(std::filesystem::path filename)
+{
+    currentlyLoadingPath = filename;
+}
+
 void MaterialSystem::drainAdditionsInputBuffer()
 {
     MaterialRenderThreadInputBufferEntry* entries;
@@ -336,6 +343,17 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
         case MaterialType::PBR:
         {
             PBRMaterial* pbrMat = &resultMaterial->pbrMaterial;
+
+            // Textures
+            // Base Color
+            if (material->pbr.base_color.texture_enabled && material->pbr.base_color.texture != nullptr && material->pbr.base_color.texture->has_file)
+            {
+                std::filesystem::path texturePath = currentlyLoadingPath;
+                texturePath /= material->pbr.base_color.texture->filename.data;
+                pbrMat->albedoTexture = textureLoader->loadTexture(texturePath);
+            }
+            
+            // Scalars and Vectors
             pbrMat->baseColorFactor = getFourChannelColorFromUfbxMaterialMap(material->pbr.base_color);
             pbrMat->metallicFactor = getScalarValueFromUfbxMaterialMap(material->pbr.metalness);
             pbrMat->roughnessFactor = getScalarValueFromUfbxMaterialMap(material->pbr.roughness);
