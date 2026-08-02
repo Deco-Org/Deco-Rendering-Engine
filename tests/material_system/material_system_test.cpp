@@ -210,7 +210,7 @@ TEST_CASE("materials added using ufbx materials without textures should have sam
 
 TEST_CASE("materials added using ufbx without textures should resolve issues of value component counts not matching engine component counts", "[material][asset system][add][fbx]") {}
 
-TEST_CASE("a ufbx material with an albedo texture being added through should result in a material with the specified albedo texture", "[material][asset system][add][fbx][metal]")
+TEST_CASE("a ufbx material with a texture being added through should result in a material with the specified texture", "[material][asset system][add][fbx][metal]")
 {
     NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
     MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
@@ -220,18 +220,27 @@ TEST_CASE("a ufbx material with an albedo texture being added through should res
 
     system.setRelativeTextureFilepath(std::filesystem::path("assets/"));
 
-    ufbx_texture texture = {
+    ufbx_texture albedoTexture = {
         .type = UFBX_TEXTURE_FILE,
         .filename = (ufbx_string) {
             .data = "test_cube_texture.png",
             .length = 22
         }
     };
+    ufbx_texture normalTexture = {
+        .type = UFBX_TEXTURE_FILE,
+        .filename = (ufbx_string) { .data = "climate_map.png", .length = 16 }
+    };
 
     ufbx_material_list materialsToInsert = nUntexturedUfbxMaterials(4);
+
     materialsToInsert[1]->pbr.base_color.texture_enabled = true;
-    materialsToInsert[1]->pbr.base_color.texture = &texture;
+    materialsToInsert[1]->pbr.base_color.texture = &albedoTexture;
     materialsToInsert[1]->pbr.base_color.texture->has_file = true;
+
+    materialsToInsert[1]->pbr.normal_map.texture_enabled = true;
+    materialsToInsert[1]->pbr.normal_map.texture = &normalTexture;
+    materialsToInsert[1]->pbr.normal_map.texture->has_file = true;
 
     std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
     REQUIRE(0 == system.materials.size());
@@ -239,7 +248,9 @@ TEST_CASE("a ufbx material with an albedo texture being added through should res
     system.drainAdditionsInputBuffer();
     REQUIRE(4 == system.materials.size());
     REQUIRE(nullptr != system.materials[addedMaterials[1]].pbrMaterial.albedoTexture);
+    REQUIRE(nullptr != system.materials[addedMaterials[1]].pbrMaterial.normalTexture);
     REQUIRE(1 == textureLoader.getUseCount(system.materials[addedMaterials[1]].pbrMaterial.albedoTexture));
+    REQUIRE(1 == textureLoader.getUseCount(system.materials[addedMaterials[1]].pbrMaterial.normalTexture));
     
     std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
     system.remove((MaterialHandleList) {

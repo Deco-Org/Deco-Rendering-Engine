@@ -352,6 +352,13 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
                 texturePath /= material->pbr.base_color.texture->filename.data;
                 pbrMat->albedoTexture = textureLoader->loadTexture(texturePath);
             }
+
+            if (material->pbr.normal_map.texture_enabled && material->pbr.normal_map.texture != nullptr && material->pbr.normal_map.texture->has_file)
+            {
+                std::filesystem::path texturePath = currentlyLoadingPath;
+                texturePath /= material->pbr.normal_map.texture->filename.data;
+                pbrMat->normalTexture = textureLoader->loadTexture(texturePath);
+            }
             
             // Scalars and Vectors
             pbrMat->baseColorFactor = getFourChannelColorFromUfbxMaterialMap(material->pbr.base_color);
