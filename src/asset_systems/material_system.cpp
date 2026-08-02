@@ -81,6 +81,38 @@ std::vector<MaterialHandle> MaterialSystem::add(ufbx_material_list* materials, M
     return handles;
 }
 
+void MaterialSystem::remove(MaterialHandleList materials)
+{
+    const size_t oldSize = freeHandles.size();
+
+    // The list of free handles is not updated here; instead, it is updated when the removals output buffer is drained.
+    // This is done to keep the 'semi-freed' slots from being overwritten before the textures can be released on the loading thread.
+
+    // Filling removal buffer
+    {
+        std::lock_guard<std::mutex> lock(removalsInputBuffer.mutex);
+
+        // Critical section
+        const size_t oldBufferSize = removalsInputBuffer.count;
+        if (oldBufferSize > 0)
+        {
+            MaterialHandle* temp = removalsInputBuffer.buffer;
+            removalsInputBuffer.buffer = new MaterialHandle[oldBufferSize + materials.count];
+            memcpy(removalsInputBuffer.buffer, materials.data, materials.count * sizeof(MaterialHandle));
+            memcpy(removalsInputBuffer.buffer + materials.count, temp, oldBufferSize * sizeof(MaterialHandle));
+            removalsInputBuffer.count = oldBufferSize + materials.count;
+            delete[] temp;
+        }
+        else
+        {
+            delete[] removalsInputBuffer.buffer;
+            removalsInputBuffer.buffer = new MaterialHandle[materials.count];
+            removalsInputBuffer.count = materials.count;
+            memcpy(removalsInputBuffer.buffer, materials.data, materials.count * sizeof(MaterialHandle));
+        }
+    }
+}
+
 void MaterialSystem::drainAdditionsInputBuffer()
 {
     MaterialRenderThreadInputBufferEntry* entries;
@@ -170,6 +202,130 @@ std::vector<MaterialHandle> MaterialSystem::getItemsAndDrainAdditionsOutputBuffe
         largestHandle = additionsOutputBuffer.largestHandle;
     }
     return consumedHandles;
+}
+
+void MaterialSystem::drainRemovalsInputBuffer()
+{
+    MaterialHandle* handlesToRemove;
+    MaterialRenderThreadInputBufferEntry* materialsToRemove;
+    size_t n;
+
+    {
+        std::lock_guard<std::mutex> lock(removalsInputBuffer.mutex);
+
+        // Critical section
+        n = removalsInputBuffer.count;
+        handlesToRemove = removalsInputBuffer.buffer;
+        removalsInputBuffer.buffer = nullptr;
+        removalsInputBuffer.count = 0;
+    }
+
+    materialsToRemove = new MaterialRenderThreadInputBufferEntry[n]{};
+    
+    // Materials are designated as tombstones so they are not sent to the GPU
+    // The materials are unloaded on the loading thread after the removals thread is drained
+    for (size_t i = 0; i < n; ++i)
+    {
+        materials[handlesToRemove[i]].isTombstone = true;
+        materialsToRemove[i] = {
+            .handle = handlesToRemove[i],
+            .material = materials[handlesToRemove[i]]
+        };
+    }
+
+    // Loading up the output buffer
+    {
+        std::lock_guard<std::mutex> lock(removalsOutputBuffer.mutex);
+
+        // Critical section
+        size_t oldSize = removalsOutputBuffer.count;
+        if (oldSize > 0)
+        {
+            // If there are already items in the output buffer, more space must be allocated
+            const size_t newSize = oldSize + n;
+            MaterialRenderThreadInputBufferEntry* temp = removalsOutputBuffer.buffer;
+            removalsOutputBuffer.buffer = new MaterialRenderThreadInputBufferEntry[newSize]{};
+            memcpy(removalsOutputBuffer.buffer, temp, oldSize * sizeof(MaterialRenderThreadInputBufferEntry));
+            memcpy(removalsOutputBuffer.buffer + oldSize, materialsToRemove, n * sizeof(MaterialRenderThreadInputBufferEntry));
+            removalsOutputBuffer.count = newSize;
+            delete[] temp;
+        }
+        else
+        {
+            delete[] removalsOutputBuffer.buffer;
+            removalsOutputBuffer.buffer = new MaterialRenderThreadInputBufferEntry[n]{};
+            memcpy(removalsOutputBuffer.buffer, materialsToRemove, n * sizeof(MaterialRenderThreadInputBufferEntry));
+            removalsOutputBuffer.count = n;
+        }
+    }
+
+    delete[] handlesToRemove;
+    delete[] materialsToRemove;
+}
+
+std::vector<MaterialHandle> MaterialSystem::drainRemovalsOutputBufferAndUnloadResources()
+{
+    std::vector<MaterialHandle> freedMaterialHandles;
+    MaterialRenderThreadInputBufferEntry* materialsAndHandlesToFree;
+    size_t n;
+
+    {
+        std::lock_guard<std::mutex> lock(removalsOutputBuffer.mutex);
+
+        // Critical section
+        n = removalsOutputBuffer.count;
+        materialsAndHandlesToFree = new MaterialRenderThreadInputBufferEntry[n]{};
+        memcpy(materialsAndHandlesToFree, removalsOutputBuffer.buffer, n * sizeof(MaterialRenderThreadInputBufferEntry));
+        delete[] removalsOutputBuffer.buffer;
+        removalsOutputBuffer.buffer = nullptr;
+        removalsOutputBuffer.count = 0;
+    }
+
+    freedMaterialHandles.reserve(n);
+
+    // Freeing the materials
+    for (size_t i = 0; i < n; ++i)
+    {
+        Material* material = &materialsAndHandlesToFree[i].material;
+        switch (material->type)
+        {
+            case MaterialType::PBR:
+            {
+                PBRMaterial* pbr = &material->pbrMaterial;
+
+                if (pbr->albedoTexture)
+                    textureLoader->unloadTexture(pbr->albedoTexture);
+                if (pbr->normalTexture)
+                    textureLoader->unloadTexture(pbr->normalTexture);
+                if (pbr->metallicRoughnessAoTexture)
+                    textureLoader->unloadTexture(pbr->metallicRoughnessAoTexture);
+                if (pbr->emissionTexture)
+                    textureLoader->unloadTexture(pbr->emissionTexture);
+                
+                break;
+            }
+
+            case MaterialType::Toon:
+            {
+                ToonMaterial* toon = &material->toonMaterial;
+
+                if (toon->albedoTexture)
+                    textureLoader->unloadTexture(toon->albedoTexture);
+                if (toon->shadowThresholdTexture)
+                    textureLoader->unloadTexture(toon->shadowThresholdTexture);
+                
+                break;
+            }
+
+            default:
+                break;
+        }
+
+        // Adding freed handles to freeHandles
+        freeHandles.push_back(materialsAndHandlesToFree[i].handle);
+    }
+
+    return freedMaterialHandles;
 }
 
 Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType type)
