@@ -162,6 +162,26 @@ TEST_CASE("adding n materials from ufbx without textures should increase the num
     someUfbxMaterialsAreFreed(materialsToInsert);
 }
 
+TEST_CASE("adding n materials and draining the additions input buffer should put n handles into the output buffer", "[material][asset system][add][fbx]")
+{
+    TextureLoader textureLoader;
+    MaterialSystem system(&textureLoader);
+
+    ufbx_material_list materialsToInsert = nUntexturedUfbxMaterials(4);
+
+    std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+
+    REQUIRE(4 == system.materials.size());
+
+    std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
+    REQUIRE(4 == consumedHandles.size());
+
+    someUfbxMaterialsAreFreed(materialsToInsert);
+}
+
 TEST_CASE("materials added using ufbx materials without textures should have same material information as ufbx materials", "[material][asset system][add][fbx]")
 {
     TextureLoader textureLoader;

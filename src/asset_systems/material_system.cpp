@@ -156,7 +156,20 @@ void MaterialSystem::drainAdditionsInputBuffer()
 
 std::vector<MaterialHandle> MaterialSystem::getItemsAndDrainAdditionsOutputBuffer()
 {
+    std::vector<MaterialHandle> consumedHandles;
+    {
+        std::lock_guard<std::mutex> lock(additionsOutputBuffer.mutex);
 
+        // Critical section
+        size_t n = additionsOutputBuffer.count;
+        consumedHandles.resize(n);
+        memcpy(consumedHandles.data(), additionsOutputBuffer.buffer, n * sizeof(MaterialHandle));
+        delete[] additionsOutputBuffer.buffer;
+        additionsOutputBuffer.buffer = nullptr;
+        additionsOutputBuffer.count = 0;
+        largestHandle = additionsOutputBuffer.largestHandle;
+    }
+    return consumedHandles;
 }
 
 Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType type)
