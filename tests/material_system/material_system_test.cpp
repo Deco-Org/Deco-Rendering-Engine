@@ -298,8 +298,6 @@ TEST_CASE("adding a ufbx material without a diffuse color value should result in
     autoReleasePool->release();
 }
 
-TEST_CASE("adding a ufbx material with a metalness, roughness, and ambient occlusion texture should result in a material with a combined texture", "[material][asset system][add][fbx][metal]") {}
-
 TEST_CASE("removing a material from the system should free the handle", "[material][asset system][remove]")
 {
     TextureLoader textureLoader;
@@ -386,3 +384,11 @@ TEST_CASE("removing a material from the system should decrement the use count of
     metalDevice->release();
     autoReleasePool->release();
 }
+
+TEST_CASE("updating a material should update the material within the system", "[material][asset system][update][fbx][metal]") {}
+
+TEST_CASE("updating a material by adding a texture should be reflected in the system and should increment the use count of the new texture", "[material][asset system][update][fbx][metal]") {}
+
+TEST_CASE("updating a material by replacing a texture should be reflected in the system", "[material][asset system][update][fbx][metal]") {}
+
+TEST_CASE("adding a ufbx material with a metalness, roughness, and ambient occlusion texture should result in a material with a combined texture", "[material][asset system][add][fbx][metal]") {}
