@@ -115,6 +115,8 @@ void MaterialSystem::remove(MaterialHandleList materials)
 
 void MaterialSystem::updateMaterial(MaterialHandle handle, Material& material) {}
 
+void MaterialSystem::updateMaterialTexture(MaterialHandle handle, MaterialTextureOffset textureOffset) {}
+
 void MaterialSystem::drainAdditionsInputBuffer()
 {
     MaterialRenderThreadInputBufferEntry* entries;

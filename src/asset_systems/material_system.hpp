@@ -44,6 +44,8 @@ class MaterialSystem
 
     void updateMaterial(MaterialHandle handle, Material& material);
 
+    void updateMaterialTexture(MaterialHandle handle, MaterialTextureOffset textureOffset);
+
     /**
      * 
      * @warning This should only be called on the render thread.
