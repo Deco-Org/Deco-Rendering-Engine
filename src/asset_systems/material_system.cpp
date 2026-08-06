@@ -115,11 +115,6 @@ void MaterialSystem::remove(MaterialHandleList materials)
 
 void MaterialSystem::updateMaterial(MaterialHandle handle, Material& material) {}
 
-void MaterialSystem::setRelativeTextureFilepath(std::filesystem::path filename)
-{
-    currentlyLoadingPath = filename;
-}
-
 void MaterialSystem::drainAdditionsInputBuffer()
 {
     MaterialRenderThreadInputBufferEntry* entries;
@@ -345,8 +340,7 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
             PBRMaterial* pbrMat = &resultMaterial->pbrMaterial;
 
             // Textures
-            // Base Color
-            // if (material->pbr.base_color.texture_enabled && material->pbr.base_color.texture != nullptr && material->pbr.base_color.texture->has_file)
+            // Albedo Color
             if (material->fbx.diffuse_color.has_value)
             {
                 if (material->fbx.diffuse_color.texture_enabled && material->fbx.diffuse_color.texture != nullptr)
@@ -367,7 +361,6 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
                 pbrMat->albedoTexture = nullptr;
             }
 
-            // if (material->pbr.normal_map.texture_enabled && material->pbr.normal_map.texture != nullptr && material->pbr.normal_map.texture->has_file)
             if (material->fbx.normal_map.has_value)
             {
                 if (material->fbx.normal_map.texture_enabled && material->fbx.normal_map.texture != nullptr)
@@ -377,7 +370,7 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
                         std::filesystem::path texturePath = material->fbx.normal_map.texture->filename.data;
                         pbrMat->normalTexture = textureLoader->loadTexture(texturePath);
                     } 
-                } 
+                }
             }
             else
             {
@@ -395,12 +388,15 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
                     }
                 }
             }
+            else
+            {
+                pbrMat->emissionTexture = nullptr;
+            }
             
             // Scalars and Vectors
             pbrMat->baseColorFactor = getFourChannelColorFromUfbxMaterialMap(material->fbx.diffuse_color);
             pbrMat->metallicFactor = getScalarValueFromUfbxMaterialMap(material->fbx.specular_exponent);
             pbrMat->roughnessFactor = getScalarValueFromUfbxMaterialMap(material->fbx.reflection_factor);
-            // pbrMat->ambientOcclusionFactor = getScalarValueFromUfbxMaterialMap(material->fbx.ambient_factor);
             pbrMat->emissionColorAndFactor = simd_make_float4(getThreeChannelColorFromUfbxMaterialMap(material->fbx.emission_color), getScalarValueFromUfbxMaterialMap(material->fbx.emission_factor));
         }
         break;

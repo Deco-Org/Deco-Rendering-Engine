@@ -227,8 +227,6 @@ TEST_CASE("a ufbx material with a texture being added through should result in a
     REQUIRE(0 < albedoMaterialIndices.size());
     REQUIRE(0 < normalMaterialIndices.size());
     REQUIRE(0 < emissionMaterialIndices.size());
-
-    system.setRelativeTextureFilepath(std::filesystem::path("assets/"));
     
     std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
     REQUIRE(0 < handles.size());
@@ -274,8 +272,6 @@ TEST_CASE("adding a ufbx material without a diffuse color value should result in
     cubeNode->materials.data[albedoMaterialIndices[0]]->fbx.diffuse_color.has_value = false;
     cubeNode->materials.data[albedoMaterialIndices[0]]->fbx.diffuse_color.texture_enabled = false;
     cubeNode->materials.data[albedoMaterialIndices[0]]->fbx.diffuse_color.value_components = 0;
-
-    system.setRelativeTextureFilepath(std::filesystem::path("assets/"));
     
     std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
     REQUIRE(0 < handles.size());
@@ -344,8 +340,6 @@ TEST_CASE("removing a material from the system should decrement the use count of
 
     TextureLoader textureLoader(metalDevice);
     MaterialSystem system(&textureLoader);
-
-    system.setRelativeTextureFilepath(std::filesystem::path("assets/"));
 
     ufbx_texture texture = {
         .type = UFBX_TEXTURE_FILE,

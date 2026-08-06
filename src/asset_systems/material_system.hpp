@@ -45,13 +45,6 @@ class MaterialSystem
     void updateMaterial(MaterialHandle handle, Material& material);
 
     /**
-     * Sets the filepath by which textures with relative filepaths
-     * will be loaded in relative to.
-     * @param filename The path to the .fbx scene being loaded
-     */
-    void setRelativeTextureFilepath(std::filesystem::path filename);
-
-    /**
      * 
      * @warning This should only be called on the render thread.
      */
