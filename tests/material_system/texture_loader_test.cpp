@@ -83,3 +83,23 @@ TEST_CASE("removing a texture should decrease the use count of the texture", "[t
     metalDevice->release();
     autoReleasePool->release();
 }
+
+TEST_CASE("textures wtih only one channel should be able to be loaded", "[texture][loading][asset system][add][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader loader(metalDevice);
+
+    MTL::Texture* texture = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormatR8Unorm,
+        1
+    );
+
+    REQUIRE(nullptr != texture);
+    REQUIRE(1 == loader.getUseCount(texture));
+
+    metalDevice->release();
+    autoReleasePool->release();
+}

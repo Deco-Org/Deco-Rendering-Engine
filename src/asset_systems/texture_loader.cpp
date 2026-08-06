@@ -25,7 +25,7 @@ TextureLoader::~TextureLoader()
     }
 }
 
-MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::PixelFormat pixelFormat)
+MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::PixelFormat pixelFormat, int desiredChannels)
 {
     std::string absoluteFileStr = std::filesystem::absolute(filepath).string();
     // If the file is already loaded, increment the uasge count and return the texture

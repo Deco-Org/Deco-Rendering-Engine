@@ -25,7 +25,8 @@ class TextureLoader
 
     MTL::Texture* loadTexture(
         std::filesystem::path filepath,
-        MTL::PixelFormat pixelFormat = MTL::PixelFormat::PixelFormatBGRA8Unorm
+        MTL::PixelFormat pixelFormat = MTL::PixelFormat::PixelFormatBGRA8Unorm,
+        int desiredChannels = 4
     );
 
     void unloadTexture(MTL::Texture* texture);
