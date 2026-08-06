@@ -346,26 +346,62 @@ Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType typ
 
             // Textures
             // Base Color
-            if (material->pbr.base_color.texture_enabled && material->pbr.base_color.texture != nullptr && material->pbr.base_color.texture->has_file)
+            // if (material->pbr.base_color.texture_enabled && material->pbr.base_color.texture != nullptr && material->pbr.base_color.texture->has_file)
+            if (material->fbx.diffuse_color.has_value)
             {
-                std::filesystem::path texturePath = currentlyLoadingPath;
-                texturePath /= material->pbr.base_color.texture->filename.data;
-                pbrMat->albedoTexture = textureLoader->loadTexture(texturePath);
+                if (material->fbx.diffuse_color.texture_enabled && material->fbx.diffuse_color.texture != nullptr)
+                {
+                    if (material->fbx.diffuse_color.texture->has_file)
+                    {
+                        std::filesystem::path texturePath = material->fbx.diffuse_color.texture->filename.data;
+                        pbrMat->albedoTexture = textureLoader->loadTexture(texturePath);
+                    }
+                }
+                else if (material->fbx.diffuse_color.texture != nullptr && material->fbx.diffuse_color.texture->content.size != 0)
+                {
+                    // The texture must be loaded from memory
+                }
+            }
+            else
+            {
+                pbrMat->albedoTexture = nullptr;
             }
 
-            if (material->pbr.normal_map.texture_enabled && material->pbr.normal_map.texture != nullptr && material->pbr.normal_map.texture->has_file)
+            // if (material->pbr.normal_map.texture_enabled && material->pbr.normal_map.texture != nullptr && material->pbr.normal_map.texture->has_file)
+            if (material->fbx.normal_map.has_value)
             {
-                std::filesystem::path texturePath = currentlyLoadingPath;
-                texturePath /= material->pbr.normal_map.texture->filename.data;
-                pbrMat->normalTexture = textureLoader->loadTexture(texturePath);
+                if (material->fbx.normal_map.texture_enabled && material->fbx.normal_map.texture != nullptr)
+                {
+                    if (material->fbx.normal_map.texture->has_file)
+                    {
+                        std::filesystem::path texturePath = material->fbx.normal_map.texture->filename.data;
+                        pbrMat->normalTexture = textureLoader->loadTexture(texturePath);
+                    } 
+                } 
+            }
+            else
+            {
+                pbrMat->normalTexture = nullptr;
+            }
+
+            if (material->fbx.emission_color.has_value)
+            {
+                if (material->fbx.emission_color.texture_enabled && material->fbx.emission_color.texture != nullptr)
+                {
+                    if (material->fbx.emission_color.texture->has_file)
+                    {
+                        std::filesystem::path texturePath = material->fbx.emission_color.texture->filename.data;
+                        pbrMat->emissionTexture = textureLoader->loadTexture(texturePath);
+                    }
+                }
             }
             
             // Scalars and Vectors
-            pbrMat->baseColorFactor = getFourChannelColorFromUfbxMaterialMap(material->pbr.base_color);
-            pbrMat->metallicFactor = getScalarValueFromUfbxMaterialMap(material->pbr.metalness);
-            pbrMat->roughnessFactor = getScalarValueFromUfbxMaterialMap(material->pbr.roughness);
-            pbrMat->ambientOcclusionFactor = getScalarValueFromUfbxMaterialMap(material->pbr.ambient_occlusion);
-            pbrMat->emissionColorAndFactor = simd_make_float4(getThreeChannelColorFromUfbxMaterialMap(material->pbr.emission_color), getScalarValueFromUfbxMaterialMap(material->pbr.emission_factor));
+            pbrMat->baseColorFactor = getFourChannelColorFromUfbxMaterialMap(material->fbx.diffuse_color);
+            pbrMat->metallicFactor = getScalarValueFromUfbxMaterialMap(material->fbx.specular_exponent);
+            pbrMat->roughnessFactor = getScalarValueFromUfbxMaterialMap(material->fbx.reflection_factor);
+            // pbrMat->ambientOcclusionFactor = getScalarValueFromUfbxMaterialMap(material->fbx.ambient_factor);
+            pbrMat->emissionColorAndFactor = simd_make_float4(getThreeChannelColorFromUfbxMaterialMap(material->fbx.emission_color), getScalarValueFromUfbxMaterialMap(material->fbx.emission_factor));
         }
         break;
 

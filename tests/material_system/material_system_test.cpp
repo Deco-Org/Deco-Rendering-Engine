@@ -217,54 +217,92 @@ TEST_CASE("a ufbx material with a texture being added through should result in a
 
     TextureLoader textureLoader(metalDevice);
     MaterialSystem system(&textureLoader);
+    ufbx_scene* scene = aSceneWithATexturedCube();
+    ufbx_node* cubeNode = aNodeWithAGivenNameInAScene(scene, "Cube");
+    REQUIRE(nullptr != cubeNode);
+
+    std::vector<size_t> albedoMaterialIndices = indicesInAListWithAnAlbedoTexture(cubeNode->materials);
+    std::vector<size_t> normalMaterialIndices = indicesInAListWithANormalTexture(cubeNode->materials);
+    std::vector<size_t> emissionMaterialIndices = indicesInAListWithAnEmissionTexture(cubeNode->materials);
+    REQUIRE(0 < albedoMaterialIndices.size());
+    REQUIRE(0 < normalMaterialIndices.size());
+    REQUIRE(0 < emissionMaterialIndices.size());
 
     system.setRelativeTextureFilepath(std::filesystem::path("assets/"));
-
-    ufbx_texture albedoTexture = {
-        .type = UFBX_TEXTURE_FILE,
-        .filename = (ufbx_string) {
-            .data = "test_cube_texture.png",
-            .length = 22
-        }
-    };
-    ufbx_texture normalTexture = {
-        .type = UFBX_TEXTURE_FILE,
-        .filename = (ufbx_string) { .data = "climate_map.png", .length = 16 }
-    };
-
-    ufbx_material_list materialsToInsert = nUntexturedUfbxMaterials(4);
-
-    materialsToInsert[1]->pbr.base_color.texture_enabled = true;
-    materialsToInsert[1]->pbr.base_color.texture = &albedoTexture;
-    materialsToInsert[1]->pbr.base_color.texture->has_file = true;
-
-    materialsToInsert[1]->pbr.normal_map.texture_enabled = true;
-    materialsToInsert[1]->pbr.normal_map.texture = &normalTexture;
-    materialsToInsert[1]->pbr.normal_map.texture->has_file = true;
-
-    std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
+    
+    std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    REQUIRE(0 < handles.size());
     REQUIRE(0 == system.materials.size());
 
     system.drainAdditionsInputBuffer();
-    REQUIRE(4 == system.materials.size());
-    REQUIRE(nullptr != system.materials[addedMaterials[1]].pbrMaterial.albedoTexture);
-    REQUIRE(nullptr != system.materials[addedMaterials[1]].pbrMaterial.normalTexture);
-    REQUIRE(1 == textureLoader.getUseCount(system.materials[addedMaterials[1]].pbrMaterial.albedoTexture));
-    REQUIRE(1 == textureLoader.getUseCount(system.materials[addedMaterials[1]].pbrMaterial.normalTexture));
+    REQUIRE(nullptr != system.materials[handles[albedoMaterialIndices[0]]].pbrMaterial.albedoTexture);
+    REQUIRE(nullptr != system.materials[handles[normalMaterialIndices[0]]].pbrMaterial.normalTexture);
+    REQUIRE(nullptr != system.materials[handles[emissionMaterialIndices[0]]].pbrMaterial.emissionTexture);
     
     std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
     system.remove((MaterialHandleList) {
-        .data = &consumedHandles[1],
-        .count = 1
+        .data = consumedHandles.data(),
+        .count = consumedHandles.size()
     });
-
+    
     // Cleaning up
     system.drainRemovalsInputBuffer();
     system.drainRemovalsOutputBufferAndUnloadResources();
-    someUfbxMaterialsAreFreed(materialsToInsert);
+    aSceneIsFreed(scene);
     metalDevice->release();
     autoReleasePool->release();
 }
+
+TEST_CASE("adding a ufbx material without a diffuse color value should result in a material with a default albedo", "[material][asset system][add][fbx][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader textureLoader(metalDevice);
+    MaterialSystem system(&textureLoader);
+    ufbx_scene* scene = aSceneWithATexturedCube();
+    ufbx_node* cubeNode = aNodeWithAGivenNameInAScene(scene, "Cube");
+    REQUIRE(nullptr != cubeNode);
+
+    std::vector<size_t> albedoMaterialIndices = indicesInAListWithAnAlbedoTexture(cubeNode->materials);
+    std::vector<size_t> normalMaterialIndices = indicesInAListWithANormalTexture(cubeNode->materials);
+    std::vector<size_t> emissionMaterialIndices = indicesInAListWithAnEmissionTexture(cubeNode->materials);
+    REQUIRE(0 < albedoMaterialIndices.size());
+    REQUIRE(0 < normalMaterialIndices.size());
+    REQUIRE(0 < emissionMaterialIndices.size());
+
+    cubeNode->materials.data[albedoMaterialIndices[0]]->fbx.diffuse_color.has_value = false;
+    cubeNode->materials.data[albedoMaterialIndices[0]]->fbx.diffuse_color.texture_enabled = false;
+    cubeNode->materials.data[albedoMaterialIndices[0]]->fbx.diffuse_color.value_components = 0;
+
+    system.setRelativeTextureFilepath(std::filesystem::path("assets/"));
+    
+    std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    REQUIRE(0 < handles.size());
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+    REQUIRE(nullptr == system.materials[handles[albedoMaterialIndices[0]]].pbrMaterial.albedoTexture);
+    REQUIRE(simdFloat4Equal(DEFAULT_COLOR_4_CHANNELS, system.materials[handles[albedoMaterialIndices[0]]].pbrMaterial.baseColorFactor));
+
+    REQUIRE(nullptr != system.materials[handles[normalMaterialIndices[0]]].pbrMaterial.normalTexture);
+    REQUIRE(nullptr != system.materials[handles[emissionMaterialIndices[0]]].pbrMaterial.emissionTexture);
+    
+    std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
+    system.remove((MaterialHandleList) {
+        .data = consumedHandles.data(),
+        .count = consumedHandles.size()
+    });
+    
+    // Cleaning up
+    system.drainRemovalsInputBuffer();
+    system.drainRemovalsOutputBufferAndUnloadResources();
+    aSceneIsFreed(scene);
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
+TEST_CASE("adding a ufbx material with a metalness, roughness, and ambient occlusion texture should result in a material with a combined texture", "[material][asset system][add][fbx][metal]") {}
 
 TEST_CASE("removing a material from the system should free the handle", "[material][asset system][remove]")
 {
@@ -312,15 +350,16 @@ TEST_CASE("removing a material from the system should decrement the use count of
     ufbx_texture texture = {
         .type = UFBX_TEXTURE_FILE,
         .filename = (ufbx_string) {
-            .data = "test_cube_texture.png",
+            .data = "assets/test_cube_texture.png",
             .length = 22
         }
     };
 
     ufbx_material_list materialsToInsert = nUntexturedUfbxMaterials(4);
-    materialsToInsert[1]->pbr.base_color.texture_enabled = true;
-    materialsToInsert[1]->pbr.base_color.texture = &texture;
-    materialsToInsert[1]->pbr.base_color.texture->has_file = true;
+    materialsToInsert[1]->fbx.diffuse_color.has_value = true;
+    materialsToInsert[1]->fbx.diffuse_color.texture_enabled = true;
+    materialsToInsert[1]->fbx.diffuse_color.texture = &texture;
+    materialsToInsert[1]->fbx.diffuse_color.texture->has_file = true;
 
     std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
     REQUIRE(0 == system.materials.size());

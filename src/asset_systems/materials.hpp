@@ -16,6 +16,8 @@ enum class MaterialType : uint8_t
     Unknown = (uint8_t)(-1)
 };
 
+#define ufbxMaterialFeature(material, feature) material->features.features[offsetof(ufbx_material_features, feature)]
+
 struct PBRMaterial
 {
     MTL::Texture* albedoTexture = nullptr;

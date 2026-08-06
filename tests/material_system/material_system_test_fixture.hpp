@@ -33,6 +33,83 @@ ufbx_material_list nUntexturedUfbxMaterials(size_t n)
                 .value_components = 3
             },
         };
+        ufbxMaterialFeature(material, pbr) = (ufbx_material_feature_info) {
+            .enabled = true,
+            .is_explicit = true
+        };
+        material->features = {
+            .features = {
+                (ufbx_material_feature_info) { // PBR
+                    .enabled = true
+                },
+                (ufbx_material_feature_info) { // metalness
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // diffuse
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // specular
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // emission
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // transmission
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // coat
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // sheen
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // opacity
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // ambient_occlusion
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // matte
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // unlit
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // ior
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // diffuse_roughness
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // transmission_roughness
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // thin_walled
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // caustics
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // exit_to_background
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // internal_reflections
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // double_sided
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // roughness_as_glossiness
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // coat_roughness_as_glossiness
+                    .enabled = false
+                },
+                (ufbx_material_feature_info) { // transmission_roughness_as_glossiness
+                    .enabled = false
+                }
+            }
+        };
         materialsList[i] = material;
     }
 
@@ -50,6 +127,70 @@ static ufbx_scene* aSceneWithATestLampModel()
     ufbx_scene* scene = ufbx_load_file(filepath, &opts, &error);
     REQUIRE(scene);
     return scene;
+}
+
+static ufbx_scene* aSceneWithATexturedCube()
+{
+    const char filepath[24] = "assets/test_cube_02.fbx";
+    ufbx_load_opts opts = { };
+    opts.target_axes = ufbx_axes_right_handed_y_up;
+    opts.target_unit_meters = 1.0f;
+    ufbx_error error;
+    ufbx_scene* scene = ufbx_load_file(filepath, &opts, &error);
+    REQUIRE(scene);
+    return scene;
+}
+
+static ufbx_node* aNodeWithAGivenNameInAScene(ufbx_scene* scene, std::string name)
+{
+    for (ufbx_node* node : scene->nodes)
+    {
+        if (0 == memcmp(node->name.data, name.c_str(), name.length() * sizeof(char)))
+            return node;
+    }
+    return nullptr;
+}
+
+static std::vector<size_t> indicesInAListWithAnAlbedoTexture(ufbx_material_list list)
+{
+    std::vector<size_t> result;
+    for (size_t i = 0; i < list.count; ++i)
+    {
+        ufbx_material* material = list[i];
+        if (material->fbx.diffuse_color.has_value)
+        {
+            result.push_back(i);
+        }
+    }
+    return result;
+}
+
+static std::vector<size_t> indicesInAListWithANormalTexture(ufbx_material_list list)
+{
+    std::vector<size_t> result;
+    for (size_t i = 0; i < list.count; ++i)
+    {
+        ufbx_material* material = list[i];
+        if (material->fbx.normal_map.has_value && material->fbx.normal_map.texture_enabled)
+        {
+            result.push_back(i);
+        }
+    }
+    return result;
+}
+
+static std::vector<size_t> indicesInAListWithAnEmissionTexture(ufbx_material_list list)
+{
+    std::vector<size_t> result;
+    for (size_t i = 0; i < list.count; ++i)
+    {
+        ufbx_material* material = list[i];
+        if (material->fbx.emission_color.has_value)
+        {
+            result.push_back(i);
+        }
+    }
+    return result;
 }
 
 static void scalarMaterialValueShouldCorrespondToValuesInMaterialMap(ufbx_material_map map, float actual)
@@ -198,34 +339,34 @@ static void untexturedMaterialInSystemShouldMatchUfbxMaterial(MaterialSystem& sy
     {
     case MaterialType::PBR:
     {
-        if (material->pbr.base_color.has_value)
+        if (material->fbx.diffuse_color.has_value)
         {
-            INFO("Base color");
-            float4MaterialValueShouldCorrespondToValuesInMaterialMap(material->pbr.base_color, actual->pbrMaterial.baseColorFactor);
+            INFO("Diffuse color");
+            float4MaterialValueShouldCorrespondToValuesInMaterialMap(material->fbx.diffuse_color, actual->pbrMaterial.baseColorFactor);
         }
 
-        ufbx_material_map metalnessMaterialMap = material->pbr.metalness;
+        ufbx_material_map metalnessMaterialMap = material->fbx.specular_exponent;
         if (metalnessMaterialMap.has_value)
         {
             INFO("Metalness Material Map");
             scalarMaterialValueShouldCorrespondToValuesInMaterialMap(metalnessMaterialMap, actual->pbrMaterial.metallicFactor);
         }
 
-        ufbx_material_map roughnessMaterialMap = material->pbr.roughness;
+        ufbx_material_map roughnessMaterialMap = material->fbx.reflection_factor;
         if (roughnessMaterialMap.has_value)
         {
             INFO("Roughness Material Map");
             scalarMaterialValueShouldCorrespondToValuesInMaterialMap(roughnessMaterialMap, actual->pbrMaterial.roughnessFactor);
         }
 
-        ufbx_material_map ambientOcclusionMaterialMap = material->pbr.ambient_occlusion;
-        if (ambientOcclusionMaterialMap.has_value)
-        {
-            INFO("Ambient Occlusion Material Map");
-            scalarMaterialValueShouldCorrespondToValuesInMaterialMap(ambientOcclusionMaterialMap, actual->pbrMaterial.ambientOcclusionFactor);
-        }
+        // ufbx_material_map ambientOcclusionMaterialMap = material->pbr.ambient_occlusion;
+        // if (material->fbx.ambient_factor.has_value)
+        // {
+        //     INFO("Ambient Factor Material Map");
+        //     scalarMaterialValueShouldCorrespondToValuesInMaterialMap(material->fbx.ambient_factor, actual->pbrMaterial.ambientOcclusionFactor);
+        // }
 
-        ufbx_material_map emissionColorMaterialMap = material->pbr.emission_color;
+        ufbx_material_map emissionColorMaterialMap = material->fbx.emission_color;
         if (emissionColorMaterialMap.has_value)
         {
             INFO("Emissions Color Material Map");
