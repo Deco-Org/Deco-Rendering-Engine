@@ -391,4 +391,4 @@ TEST_CASE("updating a material by adding a texture should be reflected in the sy
 
 TEST_CASE("updating a material by replacing a texture should be reflected in the system", "[material][asset system][update][fbx][metal]") {}
 
-TEST_CASE("adding a ufbx material with a metalness, roughness, and ambient occlusion texture should result in a material with a combined texture", "[material][asset system][add][fbx][metal]") {}
+TEST_CASE("updating a component of the ORM texture of a material should update the ORM texture of the material within the system", "[material][asset system][update][fbx][metal]") {}
