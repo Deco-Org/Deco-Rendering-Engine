@@ -385,6 +385,52 @@ TEST_CASE("removing a material from the system should decrement the use count of
     autoReleasePool->release();
 }
 
+TEST_CASE("material handles should be recycled when a handle is removed", "[material][asset system][add][remove][fbx][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader textureLoader(metalDevice);
+    MaterialSystem system(&textureLoader);
+    ufbx_scene* scene = aSceneWithATexturedCube();
+    ufbx_node* cubeNode = aNodeWithAGivenNameInAScene(scene, "Cube");
+    REQUIRE(nullptr != cubeNode);
+
+    std::vector<size_t> albedoMaterialIndices = indicesInAListWithAnAlbedoTexture(cubeNode->materials);
+    std::vector<size_t> normalMaterialIndices = indicesInAListWithANormalTexture(cubeNode->materials);
+    std::vector<size_t> emissionMaterialIndices = indicesInAListWithAnEmissionTexture(cubeNode->materials);
+    REQUIRE(0 < albedoMaterialIndices.size());
+    REQUIRE(0 < normalMaterialIndices.size());
+    REQUIRE(0 < emissionMaterialIndices.size());
+    
+    std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    REQUIRE(0 < handles.size());
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+    std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
+    MaterialHandle handleToBeRecycled = consumedHandles[1];
+    REQUIRE(false == system.materials[handleToBeRecycled].isTombstone);
+
+    system.remove((MaterialHandleList){.data = &handleToBeRecycled, .count = 1});
+    system.drainRemovalsInputBuffer();
+    system.drainRemovalsOutputBufferAndUnloadResources();
+
+    REQUIRE(true == system.materials[handleToBeRecycled].isTombstone);
+
+    std::vector<MaterialHandle> newlyAddedHandles = system.add(&cubeNode->materials, MaterialType::PBR);
+    REQUIRE(handleToBeRecycled == newlyAddedHandles[0]);
+
+    // Cleaning up
+    system.drainRemovalsInputBuffer();
+    system.drainRemovalsOutputBufferAndUnloadResources();
+    aSceneIsFreed(scene);
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
 TEST_CASE("updating a material should update the material within the system", "[material][asset system][update][fbx][metal]") {}
 
 TEST_CASE("updating a material by adding a texture should be reflected in the system and should increment the use count of the new texture", "[material][asset system][update][fbx][metal]") {}
