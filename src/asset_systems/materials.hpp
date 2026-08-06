@@ -53,3 +53,20 @@ struct Material
         ToonMaterial toonMaterial;
     };
 };
+
+struct MaterialTextureOffset
+{
+    enum class PBRTextureOffset: uint8_t
+    {
+        Albedo = offsetof(Material, pbrMaterial.albedoTexture),
+        Normal = offsetof(Material, pbrMaterial.normalTexture),
+        ORM = offsetof(Material, pbrMaterial.metallicRoughnessAoTexture),
+        Emission = offsetof(Material, pbrMaterial.emissionTexture),
+    };
+
+    enum class ToonTextureOffset: uint8_t
+    {
+        Albedo = offsetof(Material, toonMaterial.albedoTexture),
+        Shadow = offsetof(Material, toonMaterial.shadowThresholdTexture),
+    };
+};
