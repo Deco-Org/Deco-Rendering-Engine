@@ -560,7 +560,52 @@ TEST_CASE("updating a material by adding a texture should be reflected in the sy
     autoReleasePool->release();
 }
 
-TEST_CASE("no textures should be removed when the update input buffers are empty when drained", "[material][asset system][update][fbx][metal]") {}
+TEST_CASE("no textures should be removed when the update input buffers are empty when drained", "[material][asset system][update][fbx][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader textureLoader(metalDevice);
+    MaterialSystem system(&textureLoader);
+    ufbx_scene* scene = aSceneWithATexturedCube();
+    ufbx_node* cubeNode = aNodeWithAGivenNameInAScene(scene, "Cube");
+    REQUIRE(nullptr != cubeNode);
+
+    std::vector<size_t> albedoMaterialIndices = indicesInAListWithAnAlbedoTexture(cubeNode->materials);
+    std::vector<size_t> normalMaterialIndices = indicesInAListWithANormalTexture(cubeNode->materials);
+    std::vector<size_t> emissionMaterialIndices = indicesInAListWithAnEmissionTexture(cubeNode->materials);
+    REQUIRE(0 < albedoMaterialIndices.size());
+    REQUIRE(0 < normalMaterialIndices.size());
+    REQUIRE(0 < emissionMaterialIndices.size());
+
+    std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+
+    system.drainAdditionsInputBuffer();
+    system.getItemsAndDrainAdditionsOutputBuffer();
+    MaterialHandle someMaterialHandle = handles[1];
+    MTL::Texture* oldTexture = system.materials[someMaterialHandle].pbrMaterial.albedoTexture;
+
+    REQUIRE(0 == system.updatesInputBuffer.count);
+
+    system.drainUpdatesInputBuffers();
+    REQUIRE(0 == system.updatesInputBuffer.count);
+
+    REQUIRE(false == system.materials[someMaterialHandle].isTombstone);
+    REQUIRE(simdFloat4Equal(DEFAULT_COLOR_4_CHANNELS, system.materials[someMaterialHandle].pbrMaterial.baseColorFactor));
+    REQUIRE(oldTexture == system.materials[someMaterialHandle].pbrMaterial.albedoTexture);
+
+    
+    // Cleaning up
+    system.unloadUnusedReplacedTextures();
+    system.drainRemovalsInputBuffer();
+    system.drainRemovalsOutputBufferAndUnloadResources();
+    aSceneIsFreed(scene);
+    metalDevice->release();
+    autoReleasePool->release();
+}
 
 TEST_CASE("texture updates should take precedence over material updates when a material is both updated entirely and has a texture updated before the update buffers are drained", "[material][asset system][update][fbx][metal]") {}
 
