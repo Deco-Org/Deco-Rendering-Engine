@@ -17,6 +17,7 @@ struct MaterialEntry
     MaterialType type;
     union
     {
+        AnonymousMaterial material;
         PBRMaterial pbrMaterial;
         ToonMaterial toonMaterial;
     };
@@ -42,9 +43,9 @@ class MaterialSystem
 
     void remove(MaterialHandleList materials);
 
-    void updateMaterial(MaterialHandle handle, Material& material);
+    void updateMaterial(MaterialHandle handle, MaterialEntry& material);
 
-    void updateMaterialTexture(MaterialHandle handle, MaterialTextureOffset textureOffset);
+    void updateMaterialTexture(MaterialHandle handle, const MaterialTextureOffset textureOffset);
 
     /**
      * 
@@ -70,13 +71,20 @@ class MaterialSystem
      */
     std::vector<MaterialHandle> drainRemovalsOutputBufferAndUnloadResources();
 
+    /**
+     * 
+     * @warning This should only be called on the render thread.
+     */
+    void drainUpdatesInputBuffer();
+
     std::vector<Material> materials;
     
     SystemInputBuffer<MaterialRenderThreadInputBufferEntry, MaterialHandle> additionsInputBuffer;
     SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
     SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
     SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> removalsOutputBuffer;
-    
+    SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> updatesInputBuffer;
+
     std::vector<MaterialHandle> freeHandles;
     MaterialHandle largestHandle = INVALID_MATERIAL;
     
@@ -87,6 +95,9 @@ class MaterialSystem
     simd_float4 getFourChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
     MaterialHandle* getNextNHandles(size_t n);
     void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
+
+    // Filled by the render thread, drained by the loading thread.
+    SynchronizedBuffer<MTL::Texture*> texturesToUnloadBuffer;
 
     TextureLoader* textureLoader;
     std::filesystem::path currentlyLoadingPath;
