@@ -65,7 +65,7 @@ namespace MaterialTextureOffset
 {
     using TextureOffset = uint8_t;
 
-    enum class PBRTextureOffset: uint8_t
+    enum class PBRTextureOffset: TextureOffset
     {
         Albedo = offsetof(Material, pbrMaterial.albedoTexture),
         Normal = offsetof(Material, pbrMaterial.normalTexture),
@@ -73,18 +73,18 @@ namespace MaterialTextureOffset
         Emission = offsetof(Material, pbrMaterial.emissionTexture),
         // Combined Textures
         // ORM (252 - 255)
-        AmbientOcclusion = (uint8_t)(-4),
+        AmbientOcclusion = (TextureOffset)(-4),
         Roughness,
         Metallic,
     };
 
-    enum class ToonTextureOffset: uint8_t
+    enum class ToonTextureOffset: TextureOffset
     {
         Albedo = offsetof(Material, toonMaterial.albedoTexture),
         Shadow = offsetof(Material, toonMaterial.shadowThresholdTexture),
     };
 
-    enum class TextureCounts: uint8_t
+    enum class TextureCounts: TextureOffset
     {
         NUMBER_OF_PBR_TEXTURES = offsetof(Material, pbrMaterial.baseColorFactor) / sizeof(MTL::Texture) - (sizeof(Material::pbrMaterial.baseColorFactor) / 8),
         NUMBER_OF_TOON_TEXTURES = offsetof(Material, toonMaterial.baseColorFactor) / sizeof(MTL::Texture) - (sizeof(Material::toonMaterial.baseColorFactor) / 8),

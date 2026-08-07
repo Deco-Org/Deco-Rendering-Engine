@@ -484,7 +484,7 @@ TEST_CASE("updating a material should update the material within the system", "[
     REQUIRE(1 == system.updatesInputBuffer.count);
 
     // When the updates input buffer is drained
-    system.drainUpdatesInputBuffer();
+    system.drainUpdatesInputBuffers();
     // The updates input buffer should have zero items
     REQUIRE(0 == system.updatesInputBuffer.count);
 
@@ -495,6 +495,10 @@ TEST_CASE("updating a material should update the material within the system", "[
     REQUIRE(nullptr == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
     REQUIRE(nullptr == system.materials[materialToUpdate].pbrMaterial.emissionTexture);
 
+    REQUIRE(0 != system.texturesToUnloadBuffer.count);
+    system.unloadUnusedReplacedTextures();
+    REQUIRE(0 == system.texturesToUnloadBuffer.count);
+
     // Cleaning up
     system.drainRemovalsInputBuffer();
     system.drainRemovalsOutputBufferAndUnloadResources();
@@ -503,7 +507,62 @@ TEST_CASE("updating a material should update the material within the system", "[
     autoReleasePool->release();
 }
 
-TEST_CASE("updating a material by adding a texture should be reflected in the system and should increment the use count of the new texture", "[material][asset system][update][fbx][metal]") {}
+TEST_CASE("updating a material by adding a texture should be reflected in the system and should increment the use count of the new texture", "[material][asset system][update][fbx][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader textureLoader(metalDevice);
+    MaterialSystem system(&textureLoader);
+    ufbx_scene* scene = aSceneWithATexturedCube();
+    ufbx_node* cubeNode = aNodeWithAGivenNameInAScene(scene, "Cube");
+    REQUIRE(nullptr != cubeNode);
+
+    std::vector<size_t> albedoMaterialIndices = indicesInAListWithAnAlbedoTexture(cubeNode->materials);
+    std::vector<size_t> normalMaterialIndices = indicesInAListWithANormalTexture(cubeNode->materials);
+    std::vector<size_t> emissionMaterialIndices = indicesInAListWithAnEmissionTexture(cubeNode->materials);
+    REQUIRE(0 < albedoMaterialIndices.size());
+    REQUIRE(0 < normalMaterialIndices.size());
+    REQUIRE(0 < emissionMaterialIndices.size());
+    
+    std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    REQUIRE(0 < handles.size());
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+    std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
+    MaterialHandle materialToUpdate = consumedHandles[1];
+
+    MTL::Texture* textureToAdd = textureLoader.loadTexture("assets/test_cube_four_channel_texture.png");
+    REQUIRE(system.materials[materialToUpdate].pbrMaterial.albedoTexture != textureToAdd);
+
+    // When the call is made to update the material texture
+    system.updateMaterialTexture(materialToUpdate, (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Albedo, textureToAdd);
+    // The texture updates input buffer should have one item
+    REQUIRE(1 == system.textureUpdatesInputBuffer.count);
+    REQUIRE(textureToAdd != system.materials[materialToUpdate].pbrMaterial.albedoTexture);
+
+    // When the updates input buffer is drained
+    system.drainUpdatesInputBuffers();
+    // The texture updates input buffer should have zero items
+    REQUIRE(0 == system.textureUpdatesInputBuffer.count);
+
+    REQUIRE(textureToAdd == system.materials[materialToUpdate].pbrMaterial.albedoTexture);
+
+    // Cleaning up
+    system.drainRemovalsInputBuffer();
+    system.drainRemovalsOutputBufferAndUnloadResources();
+    aSceneIsFreed(scene);
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
+TEST_CASE("no textures should be removed when the update input buffers are empty when drained", "[material][asset system][update][fbx][metal]") {}
+
+TEST_CASE("texture updates should take precedence over material updates when a material is both updated entirely and has a texture updated before the update buffers are drained", "[material][asset system][update][fbx][metal]") {}
 
 TEST_CASE("updating a material by replacing a texture should be reflected in the system", "[material][asset system][update][fbx][metal]") {}
 

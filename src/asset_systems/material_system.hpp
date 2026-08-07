@@ -29,6 +29,13 @@ struct MaterialRenderThreadInputBufferEntry
     Material material = {};
 };
 
+struct MaterialRenderThreadUpdateTextureBufferEntry
+{
+    MaterialHandle handle = INVALID_MATERIAL;
+    const MaterialTextureOffset::TextureOffset textureOffset = 0;
+    MTL::Texture* texture = nullptr;
+};
+
 DECO_ENGINE_LIST_TYPE(MaterialHandleList, MaterialHandle);
 DECO_ENGINE_LIST_TYPE(MaterialEntryList, MaterialEntry);
 
@@ -45,7 +52,7 @@ class MaterialSystem
 
     void updateMaterial(MaterialHandle handle, MaterialEntry& material);
 
-    void updateMaterialTexture(MaterialHandle handle, const MaterialTextureOffset textureOffset);
+    void updateMaterialTexture(MaterialHandle handle, const MaterialTextureOffset::TextureOffset textureOffset, MTL::Texture* texture);
 
     /**
      * 
@@ -73,9 +80,16 @@ class MaterialSystem
 
     /**
      * 
+     * @note Individual texture updates take precedence over material updates.
      * @warning This should only be called on the render thread.
      */
-    void drainUpdatesInputBuffer();
+    void drainUpdatesInputBuffers();
+
+    /**
+     * Unloads the texturesToUnloadBuffer
+     * @note This is used to communicate with the render thread.
+     */
+    void unloadUnusedReplacedTextures();
 
     std::vector<Material> materials;
     
@@ -84,6 +98,10 @@ class MaterialSystem
     SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
     SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> removalsOutputBuffer;
     SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> updatesInputBuffer;
+    SynchronizedBuffer<MaterialRenderThreadUpdateTextureBufferEntry> textureUpdatesInputBuffer;
+
+    // Filled by the render thread, drained by the loading thread.
+    SynchronizedBuffer<MTL::Texture*> texturesToUnloadBuffer;
 
     std::vector<MaterialHandle> freeHandles;
     MaterialHandle largestHandle = INVALID_MATERIAL;
@@ -96,8 +114,14 @@ class MaterialSystem
     MaterialHandle* getNextNHandles(size_t n);
     void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
 
-    // Filled by the render thread, drained by the loading thread.
-    SynchronizedBuffer<MTL::Texture*> texturesToUnloadBuffer;
+    /**
+     * @warning This should only be called on the render thread.
+     */
+    std::vector<MTL::Texture*> drainMaterialUpdatesInputBufferAndGetTexturesToUnload();
+    /**
+     * @warning This should only be called on the render thread.
+     */
+    std::vector<MTL::Texture*> drainTextureUpdatesInputBufferAndGetTexturesToUnload();
 
     TextureLoader* textureLoader;
     std::filesystem::path currentlyLoadingPath;

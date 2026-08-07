@@ -155,7 +155,41 @@ void MaterialSystem::updateMaterial(MaterialHandle handle, MaterialEntry& materi
     }
 }
 
-void MaterialSystem::updateMaterialTexture(MaterialHandle handle, const MaterialTextureOffset textureOffset) {}
+void MaterialSystem::updateMaterialTexture(MaterialHandle handle, const MaterialTextureOffset::TextureOffset textureOffset, MTL::Texture* texture)
+{
+    MaterialRenderThreadUpdateTextureBufferEntry entry = {
+        .handle = handle,
+        .textureOffset = textureOffset,
+        .texture = texture
+    };
+
+    size_t count = 1;
+    {
+        std::lock_guard<std::mutex> lock(textureUpdatesInputBuffer.mutex);
+
+        // Critical section
+        size_t oldSize = textureUpdatesInputBuffer.count;
+        if (oldSize > 0)
+        {
+            // Allocating space for new entries
+            const size_t newSize = oldSize + count;
+            MaterialRenderThreadUpdateTextureBufferEntry* temp = textureUpdatesInputBuffer.buffer;
+            textureUpdatesInputBuffer.buffer = new MaterialRenderThreadUpdateTextureBufferEntry[newSize];
+            memcpy(textureUpdatesInputBuffer.buffer, temp, oldSize * sizeof(MaterialRenderThreadUpdateTextureBufferEntry));
+            memcpy(textureUpdatesInputBuffer.buffer + oldSize, &entry, count * sizeof(MaterialRenderThreadUpdateTextureBufferEntry));
+            textureUpdatesInputBuffer.count = newSize;
+            delete[] temp;
+        }
+        else
+        {
+            if (textureUpdatesInputBuffer.buffer)
+                delete[] textureUpdatesInputBuffer.buffer;
+            textureUpdatesInputBuffer.buffer = new MaterialRenderThreadUpdateTextureBufferEntry[count];
+            memcpy(textureUpdatesInputBuffer.buffer, &entry, count * sizeof(MaterialRenderThreadUpdateTextureBufferEntry));
+            textureUpdatesInputBuffer.count = count;
+        }
+    }
+}
 
 void MaterialSystem::drainAdditionsInputBuffer()
 {
@@ -372,104 +406,10 @@ std::vector<MaterialHandle> MaterialSystem::drainRemovalsOutputBufferAndUnloadRe
     return freedMaterialHandles;
 }
 
-void MaterialSystem::drainUpdatesInputBuffer()
+void MaterialSystem::drainUpdatesInputBuffers()
 {
-    MaterialRenderThreadInputBufferEntry* entries;
-    size_t n;
-
-    {
-        std::lock_guard<std::mutex> lock(updatesInputBuffer.mutex);
-
-        // Critical Section
-        n = updatesInputBuffer.count;
-        if (n == 0)
-            return;
-        
-        entries = updatesInputBuffer.buffer;
-        updatesInputBuffer.buffer = nullptr;
-        updatesInputBuffer.count = 0;
-    }
-
-    std::vector<MTL::Texture*> texturesToUnload;
-    texturesToUnload.reserve(n * (uint8_t)MaterialTextureOffset::TextureCounts::MAX_NUMBER_OF_TEXTURES_IN_MATERIAL);
-
-    for (size_t i = 0; i < n; ++i)
-    {
-        MaterialHandle handle = (entries + i)->handle;
-        Material* material = &(entries + i)->material;
-
-        // Replacing values and textures
-        switch (material->type)
-        {
-            case (MaterialType::PBR):
-            {
-                PBRMaterial* pbrMat = &material->pbrMaterial;
-                // Looping over the textures in the material being updated. If a texture is being replaced,
-                // add the old texture to the unloading buffer.
-                for (uint8_t offset = 0; offset < (uint8_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_PBR_TEXTURES; ++offset)
-                {
-                    // MTL::Texture** textureSlot = (MTL::Texture**)pbrMat + offset;
-                    MTL::Texture** textureSlot = (MTL::Texture**)(&materials[handle].pbrMaterial) + offset;
-                    if (*textureSlot != nullptr)
-                        texturesToUnload.push_back(*textureSlot);
-
-                    *textureSlot = *((MTL::Texture**)pbrMat + offset);
-                }
-
-                // Copying over the data from the entry to the material
-                
-                // Getting the offset for the first 'non-texture' field
-                constexpr size_t numberOfTextures = (size_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_PBR_TEXTURES;
-                constexpr size_t nonTexturesOffset = numberOfTextures * sizeof(MTL::Texture*);
-
-                // The size of the data that comes after the textures. This is likely a bit more data than needed due to 
-                // padding, but it shouldn't hurt.
-                constexpr size_t nonTextureFieldsSize = sizeof(PBRMaterial) - nonTexturesOffset;
-
-                memcpy(
-                    (MTL::Texture**)(&materials[handle].pbrMaterial) + numberOfTextures,
-                    (MTL::Texture**)pbrMat + numberOfTextures,
-                    nonTextureFieldsSize
-                );
-
-                materials[handle].isTombstone = false;
-                break;
-            }
-
-            case (MaterialType::Toon):
-            {
-                ToonMaterial* toonMat = &material->toonMaterial;
-                for (uint8_t offset = 0; offset < (uint8_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_TOON_TEXTURES; ++offset)
-                {
-                    MTL::Texture** textureSlot = (MTL::Texture**)toonMat + offset;
-                    if (*textureSlot != nullptr)
-                        texturesToUnload.push_back(*textureSlot);
-
-                    *textureSlot = *((MTL::Texture**)toonMat + offset);
-                }
-
-                // Copying over the data from the entry to the material
-
-                // Getting the offset for the first 'non-texture' field
-                constexpr size_t nonTexturesOffset = ((size_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_TOON_TEXTURES * sizeof(MTL::Texture*));
-                
-                // The size of the data that comes after the textures. This is likely a bit more data than needed due to 
-                // padding, but it shouldn't hurt.
-                constexpr size_t nonTextureFieldsSize = sizeof(ToonMaterial) - nonTexturesOffset;
-                memcpy(
-                    (&materials[handle].toonMaterial) + nonTexturesOffset,
-                    toonMat + nonTexturesOffset,
-                    nonTextureFieldsSize
-                );
-
-                materials[handle].isTombstone = false;
-                break;
-            }
-
-            default:
-                break;
-        }
-    }
+    std::vector<MTL::Texture*> texturesToUnload = drainMaterialUpdatesInputBufferAndGetTexturesToUnload();
+    texturesToUnload.append_range(drainTextureUpdatesInputBufferAndGetTexturesToUnload());
 
     // Filling in the unload buffer with replaced textures
     {
@@ -484,7 +424,7 @@ void MaterialSystem::drainUpdatesInputBuffer()
             MTL::Texture** temp = texturesToUnloadBuffer.buffer;
             texturesToUnloadBuffer.buffer = new MTL::Texture*[newSize];
             memcpy(texturesToUnloadBuffer.buffer, temp, oldSize * sizeof(MTL::Texture*));
-            memcpy(texturesToUnloadBuffer.buffer + oldSize, entries, texturesToUnload.size() * sizeof(MTL::Texture*));
+            memcpy(texturesToUnloadBuffer.buffer + oldSize, texturesToUnload.data(), texturesToUnload.size() * sizeof(MTL::Texture*));
             texturesToUnloadBuffer.count = newSize;
             delete[] temp;
         }
@@ -493,10 +433,35 @@ void MaterialSystem::drainUpdatesInputBuffer()
             if (texturesToUnloadBuffer.buffer)
                 delete[] texturesToUnloadBuffer.buffer;
             texturesToUnloadBuffer.buffer = new MTL::Texture*[texturesToUnload.size()];
-            memcpy(texturesToUnloadBuffer.buffer, entries, texturesToUnload.size() * sizeof(MTL::Texture*));
-            additionsInputBuffer.count = texturesToUnload.size();
+            memcpy(texturesToUnloadBuffer.buffer, texturesToUnload.data(), texturesToUnload.size() * sizeof(MTL::Texture*));
+            texturesToUnloadBuffer.count = texturesToUnload.size();
         }
     }
+}
+
+void MaterialSystem::unloadUnusedReplacedTextures()
+{
+    MTL::Texture** texturesToUnload;
+    size_t count;
+    {
+        std::lock_guard<std::mutex> lock(texturesToUnloadBuffer.mutex);
+
+        // Critical section
+        if (texturesToUnloadBuffer.count == 0)
+            return;
+        
+        count = texturesToUnloadBuffer.count;
+        texturesToUnload = texturesToUnloadBuffer.buffer;
+        texturesToUnloadBuffer.count = 0;
+        texturesToUnloadBuffer.buffer = nullptr;
+    }
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        textureLoader->unloadTexture(texturesToUnload[i]);
+    }
+
+    delete[] texturesToUnload;
 }
 
 Material* MaterialSystem::loadMaterial(ufbx_material* material, MaterialType type)
@@ -748,4 +713,143 @@ void MaterialSystem::addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputB
         memcpy(additionsInputBuffer.buffer, entries, count * sizeof(MaterialRenderThreadInputBufferEntry));
         additionsInputBuffer.count = count;
     }
+}
+
+std::vector<MTL::Texture*> MaterialSystem::drainMaterialUpdatesInputBufferAndGetTexturesToUnload()
+{
+    MaterialRenderThreadInputBufferEntry* entries;
+    size_t n;
+
+    {
+        std::lock_guard<std::mutex> lock(updatesInputBuffer.mutex);
+
+        // Critical Section
+        n = updatesInputBuffer.count;
+        if (n == 0)
+            return std::vector<MTL::Texture*> {};
+        
+        entries = updatesInputBuffer.buffer;
+        updatesInputBuffer.buffer = nullptr;
+        updatesInputBuffer.count = 0;
+    }
+
+    std::vector<MTL::Texture*> texturesToUnload;
+    texturesToUnload.reserve(n * (uint8_t)MaterialTextureOffset::TextureCounts::MAX_NUMBER_OF_TEXTURES_IN_MATERIAL);
+
+    // Draining the material updates input buffer
+    for (size_t i = 0; i < n; ++i)
+    {
+        MaterialHandle handle = (entries + i)->handle;
+        Material* material = &(entries + i)->material;
+
+        // Replacing values and textures
+        switch (material->type)
+        {
+            case (MaterialType::PBR):
+            {
+                PBRMaterial* pbrMat = &material->pbrMaterial;
+                // Looping over the textures in the material being updated. If a texture is being replaced,
+                // add the old texture to the unloading buffer.
+                for (uint8_t offset = 0; offset < (uint8_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_PBR_TEXTURES; ++offset)
+                {
+                    MTL::Texture** textureSlot = (MTL::Texture**)(&materials[handle].pbrMaterial) + offset;
+                    if (*textureSlot != nullptr)
+                        texturesToUnload.push_back(*textureSlot);
+
+                    *textureSlot = *((MTL::Texture**)pbrMat + offset);
+                }
+
+                // Copying over the data from the entry to the material
+                
+                // Getting the offset for the first 'non-texture' field
+                constexpr size_t numberOfTextures = (size_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_PBR_TEXTURES;
+                constexpr size_t nonTexturesOffset = numberOfTextures * sizeof(MTL::Texture*);
+
+                // The size of the data that comes after the textures. This is likely a bit more data than needed due to 
+                // padding, but it shouldn't hurt.
+                constexpr size_t nonTextureFieldsSize = sizeof(PBRMaterial) - nonTexturesOffset;
+
+                memcpy(
+                    (MTL::Texture**)(&materials[handle].pbrMaterial) + numberOfTextures,
+                    (MTL::Texture**)pbrMat + numberOfTextures,
+                    nonTextureFieldsSize
+                );
+
+                materials[handle].isTombstone = false;
+                break;
+            }
+
+            case (MaterialType::Toon):
+            {
+                ToonMaterial* toonMat = &material->toonMaterial;
+                for (uint8_t offset = 0; offset < (uint8_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_TOON_TEXTURES; ++offset)
+                {
+                    MTL::Texture** textureSlot = (MTL::Texture**)toonMat + offset;
+                    if (*textureSlot != nullptr)
+                        texturesToUnload.push_back(*textureSlot);
+
+                    *textureSlot = *((MTL::Texture**)toonMat + offset);
+                }
+
+                // Copying over the data from the entry to the material
+
+                // Getting the offset for the first 'non-texture' field
+                constexpr size_t nonTexturesOffset = ((size_t)MaterialTextureOffset::TextureCounts::NUMBER_OF_TOON_TEXTURES * sizeof(MTL::Texture*));
+                
+                // The size of the data that comes after the textures. This is likely a bit more data than needed due to 
+                // padding, but it shouldn't hurt.
+                constexpr size_t nonTextureFieldsSize = sizeof(ToonMaterial) - nonTexturesOffset;
+                memcpy(
+                    (&materials[handle].toonMaterial) + nonTexturesOffset,
+                    toonMat + nonTexturesOffset,
+                    nonTextureFieldsSize
+                );
+
+                materials[handle].isTombstone = false;
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+
+    delete[] entries;
+    return texturesToUnload;
+}
+
+std::vector<MTL::Texture*> MaterialSystem::drainTextureUpdatesInputBufferAndGetTexturesToUnload()
+{
+    MaterialRenderThreadUpdateTextureBufferEntry* entries;
+    size_t n;
+
+    {
+        std::lock_guard<std::mutex> lock(textureUpdatesInputBuffer.mutex);
+
+        // Critical Section
+        n = textureUpdatesInputBuffer.count;
+        if (n == 0)
+            return std::vector<MTL::Texture*> {};
+        
+        entries = textureUpdatesInputBuffer.buffer;
+        textureUpdatesInputBuffer.buffer = nullptr;
+        textureUpdatesInputBuffer.count = 0;
+    }
+
+    std::vector<MTL::Texture*> texturesToUnload;
+    texturesToUnload.reserve(n);
+
+    for (size_t i = 0; i < n; ++i)
+    {
+        MaterialHandle handle = (entries + i)->handle;
+        const MaterialTextureOffset::TextureOffset textureOffset = (entries + i)->textureOffset;
+        MTL::Texture* texture = (entries + i)->texture;
+
+        MTL::Texture** textureSlot = (((MTL::Texture**)&materials[handle]) + (textureOffset / sizeof(MTL::Texture*)));
+        texturesToUnload.push_back(*textureSlot);
+        *textureSlot = texture;
+    }
+
+    delete[] entries;
+    return texturesToUnload;
 }
