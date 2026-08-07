@@ -728,4 +728,53 @@ TEST_CASE("updating a material by replacing a texture should be reflected in the
     autoReleasePool->release();
 }
 
-TEST_CASE("updating a component of the ORM texture of a material should update the ORM texture of the material within the system", "[material][asset system][update][fbx][metal]") {}
+TEST_CASE("updating a component of the ORM texture of a material should update the ORM texture of the material within the system", "[material][asset system][update][fbx][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader textureLoader(metalDevice);
+    MaterialSystem system(&textureLoader);
+    ufbx_scene* scene = aSceneWithATexturedCube();
+    ufbx_node* cubeNode = aNodeWithAGivenNameInAScene(scene, "Cube");
+    REQUIRE(nullptr != cubeNode);
+
+    std::vector<size_t> albedoMaterialIndices = indicesInAListWithAnAlbedoTexture(cubeNode->materials);
+    std::vector<size_t> normalMaterialIndices = indicesInAListWithANormalTexture(cubeNode->materials);
+    std::vector<size_t> emissionMaterialIndices = indicesInAListWithAnEmissionTexture(cubeNode->materials);
+    REQUIRE(0 < albedoMaterialIndices.size());
+    REQUIRE(0 < normalMaterialIndices.size());
+    REQUIRE(0 < emissionMaterialIndices.size());
+    
+    std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    system.drainAdditionsInputBuffer();
+    system.getItemsAndDrainAdditionsOutputBuffer();
+    MaterialHandle materialToUpdate = handles[1];
+    MTL::Texture* oldTexture = system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture;
+
+    SECTION("Adding components of an ORM texture to a material should update the material's ORM texture")
+    {
+        SECTION("Adding an AO texture to a material should update the material's ORM texture") {}
+    
+        SECTION("Adding a roughness texture to a material should update the material's ORM texture") {}
+    
+        SECTION("Adding a metallic texture to a material should update the material's ORM texture") {}
+    }
+
+    SECTION("Updating components of a material's ORM texture should update the material's ORM texture")
+    {
+        SECTION("Replacing the AO texture of a material should update the material's ORM texture") {}
+    
+        SECTION("Replacing the roughness texture of a material should update the material's ORM texture") {}
+    
+        SECTION("Replacing the metallic texture of a material should update the material's ORM texture") {}
+    }
+
+    // Cleaning up
+    system.unloadUnusedReplacedTextures();
+    system.drainRemovalsInputBuffer();
+    system.drainRemovalsOutputBufferAndUnloadResources();
+    aSceneIsFreed(scene);
+    metalDevice->release();
+    autoReleasePool->release();
+}
