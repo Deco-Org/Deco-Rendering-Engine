@@ -3,6 +3,8 @@
  * @brief Structures for materials
  */
 
+#include <algorithm>
+
 using MaterialHandle = uint16_t;
 inline constexpr MaterialHandle INVALID_MATERIAL = UINT16_MAX;
 
@@ -43,12 +45,17 @@ struct ToonMaterial
     float shadowSoftness = 0.0f;
 };
 
+struct AnonymousMaterial {
+    MTL::Texture* albedoTexture = nullptr;
+};
+
 struct Material
 {
     MaterialType type = MaterialType::Unknown;
     bool isTombstone = false;
     union
     {
+        AnonymousMaterial material;
         PBRMaterial pbrMaterial;
         ToonMaterial toonMaterial;
     };
@@ -62,11 +69,23 @@ struct MaterialTextureOffset
         Normal = offsetof(Material, pbrMaterial.normalTexture),
         ORM = offsetof(Material, pbrMaterial.metallicRoughnessAoTexture),
         Emission = offsetof(Material, pbrMaterial.emissionTexture),
+        // Combined Textures
+        // ORM (252 - 255)
+        AmbientOcclusion = (uint8_t)(-4),
+        Roughness,
+        Metallic,
     };
 
     enum class ToonTextureOffset: uint8_t
     {
         Albedo = offsetof(Material, toonMaterial.albedoTexture),
         Shadow = offsetof(Material, toonMaterial.shadowThresholdTexture),
+    };
+
+    enum class TextureCounts: uint8_t
+    {
+        NUMBER_OF_PBR_TEXTURES = offsetof(Material, pbrMaterial.baseColorFactor) / sizeof(MTL::Texture) - (sizeof(Material::pbrMaterial.baseColorFactor) / 8),
+        NUMBER_OF_TOON_TEXTURES = offsetof(Material, toonMaterial.baseColorFactor) / sizeof(MTL::Texture) - (sizeof(Material::toonMaterial.baseColorFactor) / 8),
+        MAX_NUMBER_OF_TEXTURES_IN_MATERIAL = std::max(NUMBER_OF_PBR_TEXTURES, NUMBER_OF_TOON_TEXTURES),
     };
 };
