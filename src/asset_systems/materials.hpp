@@ -61,8 +61,10 @@ struct Material
     };
 };
 
-struct MaterialTextureOffset
+namespace MaterialTextureOffset
 {
+    using TextureOffset = uint8_t;
+
     enum class PBRTextureOffset: uint8_t
     {
         Albedo = offsetof(Material, pbrMaterial.albedoTexture),
