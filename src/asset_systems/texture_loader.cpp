@@ -15,9 +15,9 @@ TextureLoader::~TextureLoader()
 {
     std::vector<MTL::Texture*> textures;
     textures.reserve(uniqueTexturesCount);
-    for (const auto& pair : fileToTextureMap)
+    for (const auto& pair : fileToHandleMap)
     {
-        textures.push_back(pair.second.texture);
+        textures.push_back(trackedTextures[pair.second].texture);
     }
     for (size_t i = 0; i < uniqueTexturesCount; ++i)
     {
@@ -29,10 +29,10 @@ MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::Pi
 {
     std::string absoluteFileStr = std::filesystem::absolute(filepath).string();
     // If the file is already loaded, increment the uasge count and return the texture
-    if (fileToTextureMap.contains(absoluteFileStr) && fileToTextureMap[absoluteFileStr].texture != nullptr)
+    if (fileToHandleMap.contains(absoluteFileStr) && trackedTextures[fileToHandleMap[absoluteFileStr]].texture != nullptr)
     {
-        fileToTextureMap[absoluteFileStr].useCount += 1;
-        return fileToTextureMap[absoluteFileStr].texture;
+        trackedTextures[fileToHandleMap[absoluteFileStr]].useCount += 1;
+        return trackedTextures[fileToHandleMap[absoluteFileStr]].texture;
     }
 
     int width, height, channels;
@@ -72,7 +72,9 @@ MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::Pi
 
         
         // Mapping
-        fileToTextureMap[absoluteFileStr] = {
+        const TextureHandle index = getNNextFreeHandles(1)[0];
+        fileToHandleMap[absoluteFileStr] = index;
+        trackedTextures[index] = {
             .texture = texture,
             .useCount = 1
         };
@@ -88,15 +90,16 @@ void TextureLoader::unloadTexture(MTL::Texture* texture)
     if (textureToFileMap.contains(texture))
     {
         std::string fileStr = textureToFileMap.at(texture);
-        if (fileToTextureMap.contains(fileStr))
+        if (fileToHandleMap.contains(fileStr))
         {
-            fileToTextureMap[fileStr].useCount -= 1;
+            trackedTextures[fileToHandleMap[fileStr]].useCount -= 1;
 
             // If there are no remaining references to the texture, unload it
-            if (fileToTextureMap[fileStr].useCount < 1)
+            if (trackedTextures[fileToHandleMap[fileStr]].useCount < 1)
             {
-                fileToTextureMap[fileStr].texture->release();
-                fileToTextureMap.erase(fileStr);
+                trackedTextures[fileToHandleMap[fileStr]].texture->release();
+                trackedTextures[fileToHandleMap[fileStr]].texture = nullptr;
+                fileToHandleMap.erase(fileStr);
                 uniqueTexturesCount -= 1;
             }
         }
@@ -108,10 +111,50 @@ uint32_t TextureLoader::getUseCount(MTL::Texture* texture) const
     if (texture && textureToFileMap.contains(texture))
     {
         std::string fileStr = textureToFileMap.at(texture);
-        if (fileToTextureMap.contains(fileStr))
+        if (fileToHandleMap.contains(fileStr))
         {
-            return fileToTextureMap.at(fileStr).useCount;
+            return trackedTextures[fileToHandleMap.at(fileStr)].useCount;
         }
     }
     return 0;
+}
+
+std::vector<TextureLoader::TextureHandle> TextureLoader::getNNextFreeHandles(size_t n)
+{
+    std::vector<TextureHandle> handles;
+    handles.reserve(n);
+
+    if (freeHandles.size() == 0)
+    {
+        // Appending n empty textures to the end of the trackedTextures std::vector
+        const size_t numberOfTrackedTextures = trackedTextures.size();
+        trackedTextures.resize(numberOfTrackedTextures + n);
+        for (size_t i = 0; i < n; ++i)
+        {
+            handles.push_back(numberOfTrackedTextures + i);
+        }
+    }
+    else
+    {
+        // Getting all the free handles
+        const size_t numberOfFreeHandles = freeHandles.size();
+        const size_t numberOfFreeHandlesToTake = std::min(numberOfFreeHandles, n);
+        const size_t numberOfRemainingHandles = numberOfFreeHandles - numberOfFreeHandlesToTake;
+        for (size_t i = 0; i < numberOfFreeHandlesToTake; ++i)
+        {
+            // Getting the free handles from the back (getting from the front would be an O(n) operation)
+            handles.push_back(freeHandles[freeHandles.size() - 1 - i]);
+            handles.pop_back();
+        }
+
+        // Getting the remaining handles
+        const size_t numberOfOldTextures = trackedTextures.size();
+        trackedTextures.resize(trackedTextures.size() + numberOfRemainingHandles);
+        for (size_t i = 0; i < numberOfRemainingHandles; ++i)
+        {
+            handles.push_back(numberOfOldTextures + i);
+        }
+    }
+
+    return handles;
 }

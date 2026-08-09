@@ -20,6 +20,8 @@ struct TrackedTexture
 class TextureLoader
 {
     public:
+    using TextureHandle = size_t;
+
     TextureLoader(MTL::Device* metalDevice = nullptr);
     ~TextureLoader();
 
@@ -36,8 +38,13 @@ class TextureLoader
     uint32_t getUseCount(std::filesystem::path file) const;
 
     private:
+    std::vector<TextureHandle> getNNextFreeHandles(size_t n);
+
     MTL::Device* device;
     size_t uniqueTexturesCount = 0;
-    std::unordered_map<std::string, TrackedTexture> fileToTextureMap;
+    std::unordered_map<std::string, TextureHandle> fileToHandleMap;
     std::unordered_map<MTL::Texture*, std::string> textureToFileMap;
+
+    std::vector<TrackedTexture> trackedTextures;
+    std::vector<TextureHandle> freeHandles;
 };
