@@ -3,6 +3,7 @@
 #include <thread>
 #include "asset_systems/texture_loader.hpp"
 #include "test_utils.hpp"
+#include <stb_image.h>
 
 TEST_CASE("attempting adding a texture that does not exist should return nullptr", "[texture][loading][asset system][add][error handling][metal]")
 {
@@ -84,7 +85,37 @@ TEST_CASE("removing a texture should decrease the use count of the texture", "[t
     autoReleasePool->release();
 }
 
-TEST_CASE("unique textures should be able to be added with correct use count after having been previously unloaded", "[texture][loading][asset system][remove][metal]")
+TEST_CASE("textures should be able to be added using raw data", "[texture][asset system][add][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+    TextureLoader loader(metalDevice);
+
+    std::string filepath = std::filesystem::path("assets/test_cube_texture.png").string();
+    const int desiredChannels = 4;
+    int width, height, channels;
+
+    uint8_t* pixels = stbi_load(filepath.c_str(), &width, &height, &channels, desiredChannels);
+    REQUIRE(nullptr != pixels);
+
+    TextureLoader::AddedTextureInfo info = loader.addTexture(
+        pixels,
+        width,
+        height,
+        channels,
+        desiredChannels,
+        MTL::PixelFormat::PixelFormatBGRA8Unorm
+    );
+
+    REQUIRE(nullptr != info.texture);
+    REQUIRE(1 == loader.getUseCount(info.texture));
+    loader.unloadTexture(info.texture);
+    stbi_image_free(pixels);
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
+TEST_CASE("unique textures should be able to be added with correct use count after having been previously unloaded", "[texture][loading][asset system][add][remove][metal]")
 {
     NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
     MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();

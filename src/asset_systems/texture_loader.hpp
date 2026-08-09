@@ -21,6 +21,13 @@ class TextureLoader
 {
     public:
     using TextureHandle = size_t;
+    static constexpr TextureHandle INVALID_TEXTURE_HANDLE = (TextureHandle)(-1);
+
+    struct AddedTextureInfo
+    {
+        MTL::Texture* texture = nullptr;
+        TextureHandle handle = INVALID_TEXTURE_HANDLE;
+    };
 
     TextureLoader(MTL::Device* metalDevice = nullptr);
     ~TextureLoader();
@@ -31,10 +38,19 @@ class TextureLoader
         int desiredChannels = 4
     );
 
+    AddedTextureInfo addTexture(
+        uint8_t* pixels, 
+        int width, 
+        int height, 
+        int channelsInImage, 
+        int desiredChannels,
+        MTL::PixelFormat pixelFormat);
+
     void unloadTexture(MTL::Texture* texture);
     void forceUnloadTexture(MTL::Texture* texture);
 
     uint32_t getUseCount(MTL::Texture* texture) const;
+    uint32_t getUseCount(TextureHandle handle) const;
     uint32_t getUseCount(std::filesystem::path file) const;
 
     private:
@@ -45,6 +61,9 @@ class TextureLoader
     size_t uniqueTexturesCount = 0;
     std::unordered_map<std::string, TextureHandle> fileToHandleMap;
     std::unordered_map<MTL::Texture*, std::string> textureToFileMap;
+    // Maps textures to handles
+    // TODO: Come up with a better way of doing this.
+    std::unordered_map<MTL::Texture*, TextureHandle> textureToHandleMap;
 
     std::vector<TrackedTexture> trackedTextures;
     std::vector<TextureHandle> freeHandles;

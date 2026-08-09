@@ -54,35 +54,54 @@ MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::Pi
             pixels[i * 4 + 2] = temp; // Setting red to what was in blue
         }
 
-        MTL::TextureDescriptor* textureDescriptor = MTL::TextureDescriptor::alloc()->init();
-        textureDescriptor->setTextureType(MTL::TextureType2D);
-        textureDescriptor->setPixelFormat(pixelFormat);
-        textureDescriptor->setWidth(width);
-        textureDescriptor->setHeight(height);
-        textureDescriptor->setUsage(MTL::TextureUsageShaderRead);
-        textureDescriptor->setStorageMode(MTL::StorageModeShared);
-
-        texture = device->newTexture(textureDescriptor);
-        textureDescriptor->release();
-
-        MTL::Region region = MTL::Region::Make2D(0, 0, width, height);
-        NS::UInteger bytesPerRow = 4 * width; // 4 channels, so 4 bytes
-
-        texture->replaceRegion(region, 0, pixels, bytesPerRow);
-
-        
-        // Mapping
-        const TextureHandle index = getNNextFreeHandles(1)[0];
-        fileToHandleMap[absoluteFileStr] = index;
-        trackedTextures[index] = {
-            .texture = texture,
-            .useCount = 1
-        };
+        const AddedTextureInfo info = addTexture(
+            pixels,
+            width,
+            height,
+            channels,
+            desiredChannels,
+            pixelFormat
+        );
+        texture = info.texture;
+        fileToHandleMap[absoluteFileStr] = info.handle;
         textureToFileMap[texture] = absoluteFileStr;
-        uniqueTexturesCount += 1;
     }
     stbi_image_free(pixels);
     return texture;
+}
+
+TextureLoader::AddedTextureInfo TextureLoader::addTexture(uint8_t* pixels, int width, int height, int channelsInImage, int desiredChannels, MTL::PixelFormat pixelFormat)
+{
+    MTL::Texture* texture = nullptr;
+    MTL::TextureDescriptor* textureDescriptor = MTL::TextureDescriptor::alloc()->init();
+    textureDescriptor->setTextureType(MTL::TextureType2D);
+    textureDescriptor->setPixelFormat(pixelFormat);
+    textureDescriptor->setWidth(width);
+    textureDescriptor->setHeight(height);
+    textureDescriptor->setUsage(MTL::TextureUsageShaderRead);
+    textureDescriptor->setStorageMode(MTL::StorageModeShared);
+
+    texture = device->newTexture(textureDescriptor);
+    textureDescriptor->release();
+
+    MTL::Region region = MTL::Region::Make2D(0, 0, width, height);
+    NS::UInteger bytesPerRow = desiredChannels * width;
+
+    texture->replaceRegion(region, 0, pixels, bytesPerRow);
+
+    // Mapping
+    const TextureHandle handle = getNNextFreeHandles(1)[0];
+    trackedTextures[handle] = {
+        .texture = texture,
+        .useCount = 1
+    };
+    textureToHandleMap[texture] = handle;
+    uniqueTexturesCount += 1;
+    AddedTextureInfo info = {
+        .texture = texture,
+        .handle = handle
+    };
+    return info;
 }
 
 void TextureLoader::unloadTexture(MTL::Texture* texture)
@@ -92,32 +111,56 @@ void TextureLoader::unloadTexture(MTL::Texture* texture)
         std::string fileStr = textureToFileMap.at(texture);
         if (fileToHandleMap.contains(fileStr))
         {
-            trackedTextures[fileToHandleMap[fileStr]].useCount -= 1;
+            const TextureHandle handle = fileToHandleMap[fileStr];
+            trackedTextures[handle].useCount -= 1;
 
             // If there are no remaining references to the texture, unload it
-            if (trackedTextures[fileToHandleMap[fileStr]].useCount < 1)
+            if (trackedTextures[handle].useCount < 1)
             {
-                trackedTextures[fileToHandleMap[fileStr]].texture->release();
-                trackedTextures[fileToHandleMap[fileStr]].texture = nullptr;
-                freeHandles.push_back(fileToHandleMap[fileStr]);
+                trackedTextures[handle].texture->release();
+                trackedTextures[handle].texture = nullptr;
+                freeHandles.push_back(handle);
                 fileToHandleMap.erase(fileStr);
                 uniqueTexturesCount -= 1;
             }
+        }
+    }
+    else if (textureToHandleMap.contains(texture))
+    {
+        const TextureHandle handle = textureToHandleMap.at(texture);
+        trackedTextures[handle].useCount -= 1;
+
+        // If there are no remaining references to the texture, unload it
+        if (trackedTextures[handle].useCount < 1)
+        {
+            trackedTextures[handle].texture->release();
+            trackedTextures[handle].texture = nullptr;
+            freeHandles.push_back(handle);
+            uniqueTexturesCount -= 1;
         }
     }
 }
 
 uint32_t TextureLoader::getUseCount(MTL::Texture* texture) const
 {
-    if (texture && textureToFileMap.contains(texture))
+    uint32_t useCount = 0;
+    if (texture)
     {
-        std::string fileStr = textureToFileMap.at(texture);
-        if (fileToHandleMap.contains(fileStr))
+        if (textureToFileMap.contains(texture))
         {
-            return trackedTextures[fileToHandleMap.at(fileStr)].useCount;
+            std::string fileStr = textureToFileMap.at(texture);
+            if (fileToHandleMap.contains(fileStr))
+            {
+                useCount = trackedTextures[fileToHandleMap.at(fileStr)].useCount;
+            }
+        }
+        else if (textureToHandleMap.contains(texture))
+        {
+            TextureHandle handle = textureToHandleMap.at(texture);
+            useCount = trackedTextures[handle].useCount;
         }
     }
-    return 0;
+    return useCount;
 }
 
 TextureLoader::TextureHandle TextureLoader::getNextFreeHandle()

@@ -21,6 +21,7 @@ target_include_directories(tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/external/ufbx
     ${CMAKE_SOURCE_DIR}/external/metal-cpp
+    ${CMAKE_SOURCE_DIR}/external/stb
     ${CMAKE_SOURCE_DIR}/tests/utils
 )
 
