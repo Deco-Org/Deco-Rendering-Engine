@@ -70,6 +70,15 @@ MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::Pi
     return texture;
 }
 
+TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
+    MTL::Texture* texture0,
+    MTL::Texture* texture1,
+    MTL::Texture* texture2,
+    MTL::Texture* texture3)
+{
+    
+}
+
 TextureLoader::AddedTextureInfo TextureLoader::addTexture(uint8_t* pixels, int width, int height, int channelsInImage, int desiredChannels, MTL::PixelFormat pixelFormat)
 {
     MTL::Texture* texture = nullptr;

@@ -63,6 +63,8 @@ TEST_CASE("adding a texture should increase the use count of the texture", "[tex
     autoReleasePool->release();
 }
 
+TEST_CASE("adding a packed texture with pre-existing components should increment the use counts of its components", "[texture][loading][asset system][add][metal]") {}
+
 TEST_CASE("removing a texture should decrease the use count of the texture", "[texture][loading][asset system][remove][metal]")
 {
     NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
@@ -74,6 +76,12 @@ TEST_CASE("removing a texture should decrease the use count of the texture", "[t
         MTL::PixelFormat::PixelFormatBGRA8Unorm
     );
 
+    sizeof(TrackedTexture);
+    sizeof(MTL::Texture*);
+    sizeof(uint32_t);
+    sizeof(uint8_t);
+    constexpr size_t a = sizeof(MTL::Texture*) + sizeof(uint32_t) + sizeof(uint8_t);
+
     REQUIRE(nullptr != texture);
     REQUIRE(1 == loader.getUseCount(texture));
 
@@ -84,6 +92,8 @@ TEST_CASE("removing a texture should decrease the use count of the texture", "[t
     metalDevice->release();
     autoReleasePool->release();
 }
+
+TEST_CASE("removing a packed texture should decrement the use count of its components", "[texture][loading][asset system][remove][metal]") {}
 
 TEST_CASE("textures should be able to be added using raw data", "[texture][asset system][add][metal]")
 {

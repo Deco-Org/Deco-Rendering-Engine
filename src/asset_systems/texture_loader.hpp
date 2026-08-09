@@ -13,8 +13,26 @@
 
 struct TrackedTexture
 {
+    enum TextureProperty: uint8_t
+    {
+        Unknown = 0,
+        // Number of Channels
+        SingleChannel = 1,
+        TwoChannels = 2,
+        ThreeChannels = 3,
+        FourChannels = 4,
+
+        // Whether or not the texture is made up of multiple channels
+        Packed = 1 << 3,
+    };
+
     MTL::Texture* texture = nullptr;
     uint32_t useCount = 0;
+    TextureProperty propertiesMask = TextureProperty::Unknown;
+    TextureLoader::TextureHandle component0 = TextureLoader::INVALID_TEXTURE_HANDLE;
+    TextureLoader::TextureHandle component1 = TextureLoader::INVALID_TEXTURE_HANDLE;
+    TextureLoader::TextureHandle component2 = TextureLoader::INVALID_TEXTURE_HANDLE;
+    TextureLoader::TextureHandle component3 = TextureLoader::INVALID_TEXTURE_HANDLE;
 };
 
 class TextureLoader
@@ -37,6 +55,12 @@ class TextureLoader
         MTL::PixelFormat pixelFormat = MTL::PixelFormat::PixelFormatBGRA8Unorm,
         int desiredChannels = 4
     );
+
+    AddedTextureInfo loadPackedTexture(
+        MTL::Texture* texture0,
+        MTL::Texture* texture1,
+        MTL::Texture* texture2,
+        MTL::Texture* texture3 = nullptr);
 
     AddedTextureInfo addTexture(
         uint8_t* pixels, 
