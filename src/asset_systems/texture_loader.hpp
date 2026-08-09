@@ -38,6 +38,7 @@ class TextureLoader
     uint32_t getUseCount(std::filesystem::path file) const;
 
     private:
+    TextureHandle getNextFreeHandle();
     std::vector<TextureHandle> getNNextFreeHandles(size_t n);
 
     MTL::Device* device;

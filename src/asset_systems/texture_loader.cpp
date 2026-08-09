@@ -99,6 +99,7 @@ void TextureLoader::unloadTexture(MTL::Texture* texture)
             {
                 trackedTextures[fileToHandleMap[fileStr]].texture->release();
                 trackedTextures[fileToHandleMap[fileStr]].texture = nullptr;
+                freeHandles.push_back(fileToHandleMap[fileStr]);
                 fileToHandleMap.erase(fileStr);
                 uniqueTexturesCount -= 1;
             }
@@ -117,6 +118,21 @@ uint32_t TextureLoader::getUseCount(MTL::Texture* texture) const
         }
     }
     return 0;
+}
+
+TextureLoader::TextureHandle TextureLoader::getNextFreeHandle()
+{
+    if (freeHandles.size() == 0)
+    {
+        trackedTextures.resize(trackedTextures.size() + 1);
+        return trackedTextures.size();
+    }
+    else
+    {
+        TextureHandle handle = freeHandles[freeHandles.size() - 1];
+        freeHandles.pop_back();
+        return freeHandles[handle];
+    }
 }
 
 std::vector<TextureLoader::TextureHandle> TextureLoader::getNNextFreeHandles(size_t n)
@@ -144,7 +160,7 @@ std::vector<TextureLoader::TextureHandle> TextureLoader::getNNextFreeHandles(siz
         {
             // Getting the free handles from the back (getting from the front would be an O(n) operation)
             handles.push_back(freeHandles[freeHandles.size() - 1 - i]);
-            handles.pop_back();
+            freeHandles.pop_back();
         }
 
         // Getting the remaining handles
