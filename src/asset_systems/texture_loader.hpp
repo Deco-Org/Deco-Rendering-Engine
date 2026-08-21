@@ -11,35 +11,33 @@
 #define UFBX_REAL_IS_FLOAT 1
 #include "ufbx.h"
 
-struct TrackedTexture
-{
-    enum TextureProperty: uint8_t
-    {
-        Unknown = 0,
-        // Number of Channels
-        SingleChannel = 1,
-        TwoChannels = 2,
-        ThreeChannels = 3,
-        FourChannels = 4,
-
-        // Whether or not the texture is made up of multiple channels
-        Packed = 1 << 3,
-    };
-
-    MTL::Texture* texture = nullptr;
-    uint32_t useCount = 0;
-    TextureProperty propertiesMask = TextureProperty::Unknown;
-    TextureLoader::TextureHandle component0 = TextureLoader::INVALID_TEXTURE_HANDLE;
-    TextureLoader::TextureHandle component1 = TextureLoader::INVALID_TEXTURE_HANDLE;
-    TextureLoader::TextureHandle component2 = TextureLoader::INVALID_TEXTURE_HANDLE;
-    TextureLoader::TextureHandle component3 = TextureLoader::INVALID_TEXTURE_HANDLE;
-};
-
 class TextureLoader
 {
     public:
     using TextureHandle = size_t;
     static constexpr TextureHandle INVALID_TEXTURE_HANDLE = (TextureHandle)(-1);
+
+    struct TrackedTexture
+    {
+        bool hasParents() const;
+        bool isOnRenderThread() const;
+        void markAsSentToRenderThread(bool sent = true);
+
+        MTL::Texture* texture = nullptr;
+        uint32_t useCount = 0;
+        MTL::PixelFormat pixelFormat;
+
+        TextureLoader::TextureHandle component0 = TextureLoader::INVALID_TEXTURE_HANDLE;
+        TextureLoader::TextureHandle component1 = TextureLoader::INVALID_TEXTURE_HANDLE;
+        TextureLoader::TextureHandle component2 = TextureLoader::INVALID_TEXTURE_HANDLE;
+        TextureLoader::TextureHandle component3 = TextureLoader::INVALID_TEXTURE_HANDLE;
+
+        // Done so that TrackedTexture remains a non-aggregate data type
+        struct
+        {
+            bool accessedByRenderThread = false;
+        } _private;
+    };
 
     struct AddedTextureInfo
     {
@@ -50,17 +48,18 @@ class TextureLoader
     TextureLoader(MTL::Device* metalDevice = nullptr);
     ~TextureLoader();
 
-    MTL::Texture* loadTexture(
+    AddedTextureInfo loadTexture(
         std::filesystem::path filepath,
         MTL::PixelFormat pixelFormat = MTL::PixelFormat::PixelFormatBGRA8Unorm,
         int desiredChannels = 4
     );
 
     AddedTextureInfo loadPackedTexture(
-        MTL::Texture* texture0,
-        MTL::Texture* texture1,
-        MTL::Texture* texture2,
-        MTL::Texture* texture3 = nullptr);
+        TextureHandle textureHandle0,
+        TextureHandle textureHandle1,
+        TextureHandle textureHandle2,
+        TextureHandle textureHandle3 = INVALID_TEXTURE_HANDLE,
+        uint8_t desiredNumberOfChannels = 4);
 
     AddedTextureInfo addTexture(
         uint8_t* pixels, 
@@ -77,9 +76,17 @@ class TextureLoader
     uint32_t getUseCount(TextureHandle handle) const;
     uint32_t getUseCount(std::filesystem::path file) const;
 
+    TextureHandle getHandle(MTL::Texture* texture) const;
+    void markTextureAsUsedByRenderThread(MTL::Texture* texture, bool set = true);
+    bool textureIsOnRenderThread(MTL::Texture* texture) const;
+    
+    std::vector<TrackedTexture> trackedTextures;
+
     private:
     TextureHandle getNextFreeHandle();
     std::vector<TextureHandle> getNNextFreeHandles(size_t n);
+    void getTexturePixels(uint8_t* pixels, MTL::Texture* texture, size_t width, size_t height);
+    uint8_t getNumberOfBytesPerPixelFromPixelFormat(MTL::PixelFormat pixelFormat) const;
 
     MTL::Device* device;
     size_t uniqueTexturesCount = 0;
@@ -89,6 +96,35 @@ class TextureLoader
     // TODO: Come up with a better way of doing this.
     std::unordered_map<MTL::Texture*, TextureHandle> textureToHandleMap;
 
-    std::vector<TrackedTexture> trackedTextures;
     std::vector<TextureHandle> freeHandles;
 };
+
+// Inlines
+
+inline TextureLoader::TextureHandle TextureLoader::getHandle(MTL::Texture* texture) const
+{
+    const auto iterator = textureToHandleMap.find(texture);
+    return (iterator != textureToHandleMap.end()) ? iterator->second : INVALID_TEXTURE_HANDLE;
+}
+
+inline bool TextureLoader::TrackedTexture::hasParents() const
+{
+    return (
+        component0 == INVALID_TEXTURE_HANDLE &&
+        component1 == INVALID_TEXTURE_HANDLE &&
+        component2 == INVALID_TEXTURE_HANDLE &&
+        component3 == INVALID_TEXTURE_HANDLE
+    );
+}
+
+// TODO: Come up with better implementation. For now, this is just a wrapper.
+inline bool TextureLoader::TrackedTexture::isOnRenderThread() const
+{
+    return _private.accessedByRenderThread;
+}
+
+// TODO: Come up with better implementation. For now, this is just a wrapper.
+inline void TextureLoader::TrackedTexture::markAsSentToRenderThread(bool sent)
+{
+    _private.accessedByRenderThread = sent;
+}

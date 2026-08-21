@@ -15,34 +15,52 @@ TextureLoader::~TextureLoader()
 {
     std::vector<MTL::Texture*> textures;
     textures.reserve(uniqueTexturesCount);
-    for (const auto& pair : fileToHandleMap)
+    // for (const auto& pair : fileToHandleMap)
+    // {
+    //     textures.push_back(trackedTextures[pair.second].texture);
+    // }
+    // for (size_t i = 0; i < uniqueTexturesCount; ++i)
+    // {
+    //     textures[i]->release();
+    // }
+    for (TextureHandle i = 0; i < trackedTextures.size(); ++i)
     {
-        textures.push_back(trackedTextures[pair.second].texture);
+        if (trackedTextures[i].texture)
+        {
+            trackedTextures[i].texture->release();
+            textureToFileMap.erase(trackedTextures[i].texture);
+            textureToHandleMap.erase(trackedTextures[i].texture);
+            trackedTextures[i].texture = nullptr;
+        }
     }
-    for (size_t i = 0; i < uniqueTexturesCount; ++i)
-    {
-        textures[i]->release();
-    }
+    textureToFileMap.clear();
+    textureToHandleMap.clear();
 }
 
-MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::PixelFormat pixelFormat, int desiredChannels)
+TextureLoader::AddedTextureInfo TextureLoader::loadTexture(std::filesystem::path filepath, MTL::PixelFormat pixelFormat, int desiredChannels)
 {
     std::string absoluteFileStr = std::filesystem::absolute(filepath).string();
     // If the file is already loaded, increment the uasge count and return the texture
     if (fileToHandleMap.contains(absoluteFileStr) && trackedTextures[fileToHandleMap[absoluteFileStr]].texture != nullptr)
     {
         trackedTextures[fileToHandleMap[absoluteFileStr]].useCount += 1;
-        return trackedTextures[fileToHandleMap[absoluteFileStr]].texture;
+        const TextureHandle handle = fileToHandleMap[absoluteFileStr];
+        return (AddedTextureInfo) {
+            .handle = handle,
+            .texture = trackedTextures[handle].texture
+        };
     }
 
     int width, height, channels;
     unsigned char* pixels = stbi_load(filepath.c_str(), &width, &height, &channels, 4);
 
     MTL::Texture* texture;
+    TextureHandle handle;
 
     if (!pixels)
     {
         texture = nullptr;
+        handle = INVALID_TEXTURE_HANDLE;
     }
     else
     {
@@ -63,24 +81,152 @@ MTL::Texture* TextureLoader::loadTexture(std::filesystem::path filepath, MTL::Pi
             pixelFormat
         );
         texture = info.texture;
+        handle = info.handle;
         fileToHandleMap[absoluteFileStr] = info.handle;
         textureToFileMap[texture] = absoluteFileStr;
     }
     stbi_image_free(pixels);
-    return texture;
+    return (AddedTextureInfo) {
+        .handle = handle,
+        .texture = texture
+    };
 }
 
 TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
-    MTL::Texture* texture0,
-    MTL::Texture* texture1,
-    MTL::Texture* texture2,
-    MTL::Texture* texture3)
+    TextureHandle textureHandle0,
+    TextureHandle textureHandle1,
+    TextureHandle textureHandle2,
+    TextureHandle textureHandle3,
+    uint8_t desiredNumberOfChannels)
 {
-    
+    // TODO: Replace this cpu side texture packing with a compute shader
+    // TODO: Add support for other pixel formats
+    constexpr uint8_t bytesPerPixel = 3;
+
+    AddedTextureInfo addedTexture = {
+        .handle = INVALID_TEXTURE_HANDLE,
+        .texture = nullptr
+    };
+
+    MTL::Texture* texture0 = nullptr;
+    MTL::Texture* texture1 = nullptr;
+    MTL::Texture* texture2 = nullptr;
+    MTL::Texture* texture3 = nullptr;
+
+    size_t texture0Width = 0;
+    size_t texture0Height = 0;
+    size_t texture1Width = 0;
+    size_t texture1Height = 0;
+    size_t texture2Width = 0;
+    size_t texture2Height = 0;
+    size_t texture3Width = 0;
+    size_t texture3Height = 0;
+
+    uint8_t bytesPerPixelOfTextures[4] = {0, 0, 0, 0};
+
+    // If texture0 is nullptr, no texture should be added
+    if (textureHandle0 != INVALID_TEXTURE_HANDLE && textureHandle0 < trackedTextures.size() && trackedTextures[textureHandle0].texture != nullptr)
+    {
+        if (!trackedTextures[textureHandle0].isOnRenderThread())
+        {
+            texture0 = trackedTextures[textureHandle0].texture;
+            bytesPerPixelOfTextures[0] = getNumberOfBytesPerPixelFromPixelFormat(texture0->pixelFormat());
+
+            if (textureHandle1 != INVALID_TEXTURE_HANDLE && textureHandle1 < trackedTextures.size() && trackedTextures[textureHandle1].texture != nullptr)
+            {
+                // If there is texture1, add it
+                // The first channel should be used from texture 1
+                if (trackedTextures[textureHandle1].isOnRenderThread())
+                {
+                    // TODO: Come up with a solution for this lol
+                }
+                else
+                {
+                    texture1 = trackedTextures[textureHandle1].texture;
+                    texture1Width = texture1->width();
+                    texture1Height = texture1->height();
+                    bytesPerPixelOfTextures[1] = getNumberOfBytesPerPixelFromPixelFormat(texture1->pixelFormat());
+                }
+            }
+            if (textureHandle2 != INVALID_TEXTURE_HANDLE && textureHandle2 < trackedTextures.size() && trackedTextures[textureHandle2].texture != nullptr)
+            {
+                if (!trackedTextures[textureHandle2].isOnRenderThread())
+                {
+                    texture2 = trackedTextures[textureHandle2].texture;
+                    texture2Width = texture2->width();
+                    texture2Height = texture2->height();
+                    bytesPerPixelOfTextures[2] = getNumberOfBytesPerPixelFromPixelFormat(texture2->pixelFormat());
+                }
+            }
+            if (textureHandle3 != INVALID_TEXTURE_HANDLE && textureHandle3 < trackedTextures.size() && trackedTextures[textureHandle3].texture != nullptr)
+            {
+                if (!trackedTextures[textureHandle3].isOnRenderThread())
+                {
+                    texture3 = trackedTextures[textureHandle3].texture;
+                    texture3Width = texture3->width();
+                    texture3Height = texture3->height();
+                    bytesPerPixelOfTextures[3] = getNumberOfBytesPerPixelFromPixelFormat(texture3->pixelFormat());
+                }
+            }
+
+            // Getting the raw data from each of the textures
+            texture0Width = texture0->width();
+            texture0Height = texture0->height();
+
+            uint8_t* texture0Data = new uint8_t[texture0Width * texture0Height];
+            uint8_t* texture1Data = new uint8_t[texture1Width * texture1Height];
+            uint8_t* texture2Data = new uint8_t[texture2Width * texture2Height];
+            uint8_t* texture3Data = new uint8_t[texture3Width * texture3Height];
+
+            getTexturePixels(texture0Data, texture0, texture0Width, texture0Height);
+            getTexturePixels(texture1Data, texture1, texture1Width, texture1Height);
+            getTexturePixels(texture2Data, texture2, texture2Width, texture2Height);
+            getTexturePixels(texture3Data, texture3, texture3Width, texture3Height);
+
+            uint8_t* pixels = new uint8_t[texture0Width * texture0Height * desiredNumberOfChannels];
+
+            for (size_t i = 0; i < texture0Width; ++i)
+            {
+                for (size_t j = 0; j < texture0Height; ++j)
+                {
+                    if (i < texture0Width && j < texture0Height)
+                        pixels[i * texture0Width + j + 0] = texture0Data[(i * texture0Width + j) * bytesPerPixelOfTextures[0]];
+                    if (i < texture1Width && j < texture0Height)
+                        pixels[i * texture1Width + j + 0] = texture1Data[(i * texture1Width + j) * bytesPerPixelOfTextures[1]];
+                    if (i < texture2Width && j < texture0Height)
+                        pixels[i * texture2Width + j + 0] = texture2Data[(i * texture2Width + j) * bytesPerPixelOfTextures[2]];
+                    if (i < texture3Width && j < texture0Height)
+                        pixels[i * texture3Width + j + 0] = texture3Data[(i * texture3Width + j) * bytesPerPixelOfTextures[3]];
+                }
+            }
+
+            addedTexture = addTexture(
+                pixels,
+                texture0Width,
+                texture0Height,
+                desiredNumberOfChannels,
+                desiredNumberOfChannels,
+                MTL::PixelFormatRGBA8Unorm
+            );
+
+            trackedTextures[addedTexture.handle].component0 = textureHandle0;
+            trackedTextures[addedTexture.handle].component1 = textureHandle1;
+            trackedTextures[addedTexture.handle].component2 = textureHandle2;
+            trackedTextures[addedTexture.handle].component3 = textureHandle3;
+            
+            delete[] texture0Data;
+            delete[] texture1Data;
+            delete[] texture2Data;
+            delete[] texture3Data;
+            delete[] pixels;
+        }
+    }
+    return addedTexture;
 }
 
 TextureLoader::AddedTextureInfo TextureLoader::addTexture(uint8_t* pixels, int width, int height, int channelsInImage, int desiredChannels, MTL::PixelFormat pixelFormat)
 {
+    // TODO: Find a way to use MTL::StorageModePrivate (probably involves using blit commands)
     MTL::Texture* texture = nullptr;
     MTL::TextureDescriptor* textureDescriptor = MTL::TextureDescriptor::alloc()->init();
     textureDescriptor->setTextureType(MTL::TextureType2D);
@@ -172,6 +318,22 @@ uint32_t TextureLoader::getUseCount(MTL::Texture* texture) const
     return useCount;
 }
 
+void TextureLoader::markTextureAsUsedByRenderThread(MTL::Texture* texture, bool set)
+{
+    TextureHandle handle = getHandle(texture);
+    if (handle != INVALID_TEXTURE_HANDLE)
+        trackedTextures[handle].markAsSentToRenderThread(true);
+}
+
+bool TextureLoader::textureIsOnRenderThread(MTL::Texture* texture) const
+{
+    TextureHandle handle = getHandle(texture);
+    if (handle == INVALID_TEXTURE_HANDLE)
+        return false;
+    
+    return trackedTextures[handle].isOnRenderThread();
+}
+
 TextureLoader::TextureHandle TextureLoader::getNextFreeHandle()
 {
     if (freeHandles.size() == 0)
@@ -225,4 +387,86 @@ std::vector<TextureLoader::TextureHandle> TextureLoader::getNNextFreeHandles(siz
     }
 
     return handles;
+}
+
+void TextureLoader::getTexturePixels(uint8_t* pixels, MTL::Texture* texture, size_t width, size_t height)
+{
+    if (!texture || !pixels)
+        return;
+
+    const uint8_t bytesPerPixel = getNumberOfBytesPerPixelFromPixelFormat(texture->pixelFormat());
+    texture->getBytes(
+        pixels,
+        bytesPerPixel * width,
+        bytesPerPixel * width * height,
+        MTL::Region::Make2D(0, 0, width, height),
+        0,
+        0
+    );
+}
+
+uint8_t TextureLoader::getNumberOfBytesPerPixelFromPixelFormat(MTL::PixelFormat pixelFormat) const
+{
+    uint8_t bytesPerPixel = -1U;
+    switch (pixelFormat)
+    {
+        using enum MTL::PixelFormat;
+        case PixelFormatA8Unorm:
+        case PixelFormatR8Unorm:
+        case PixelFormatR8Unorm_sRGB:
+        case PixelFormatR8Snorm:
+        case PixelFormatR8Uint:
+        case PixelFormatR8Sint:
+            bytesPerPixel = 1;
+            break;
+
+        case PixelFormatR16Unorm:
+        case PixelFormatR16Snorm:
+        case PixelFormatR16Uint:
+        case PixelFormatR16Sint:
+        case PixelFormatR16Float:
+        case PixelFormatRG8Unorm:
+        case PixelFormatRG8Unorm_sRGB:
+        case PixelFormatRG8Snorm:
+        case PixelFormatRG8Uint:
+        case PixelFormatRG8Sint:
+            bytesPerPixel = 2;
+            break;
+
+        case PixelFormatR32Uint:
+        case PixelFormatR32Sint:
+        case PixelFormatR32Float:
+        case PixelFormatRG16Unorm:
+        case PixelFormatRG16Snorm:
+        case PixelFormatRG16Uint:
+        case PixelFormatRG16Sint:
+        case PixelFormatRG16Float:
+        case PixelFormatRGBA8Unorm:
+        case PixelFormatRGBA8Unorm_sRGB:
+        case PixelFormatRGBA8Snorm:
+        case PixelFormatRGBA8Uint:
+        case PixelFormatRGBA8Sint:
+        case PixelFormatBGRA8Unorm:
+        case PixelFormatBGRA8Unorm_sRGB:
+            bytesPerPixel = 4;
+            break;
+
+        case PixelFormatRG32Uint:
+        case PixelFormatRG32Sint:
+        case PixelFormatRG32Float:
+        case PixelFormatRGBA16Unorm:
+        case PixelFormatRGBA16Snorm:
+        case PixelFormatRGBA16Uint:
+        case PixelFormatRGBA16Sint:
+        case PixelFormatRGBA16Float:
+            bytesPerPixel = 8;
+            break;
+            
+        case PixelFormatRGBA32Uint:
+        case PixelFormatRGBA32Sint:
+        case PixelFormatRGBA32Float:
+            bytesPerPixel = 16;
+            break;
+    }
+    return bytesPerPixel;
 }

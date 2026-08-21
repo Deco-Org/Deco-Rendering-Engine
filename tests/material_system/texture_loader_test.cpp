@@ -14,7 +14,7 @@ TEST_CASE("attempting adding a texture that does not exist should return nullptr
 
     MTL::Texture* texture = loader.loadTexture(
         std::filesystem::path("assets/nonexistent_texture.png")
-    );
+    ).texture;
 
     REQUIRE(nullptr == texture);
 
@@ -33,7 +33,7 @@ TEST_CASE("adding a texture should increase the use count of the texture", "[tex
         MTL::Texture* texture = loader.loadTexture(
             std::filesystem::path("assets/test_cube_texture.png"),
             MTL::PixelFormat::PixelFormatBGRA8Unorm
-        );
+        ).texture;
         REQUIRE(nullptr != texture);
         REQUIRE(1 == loader.getUseCount(texture));
     }
@@ -43,7 +43,7 @@ TEST_CASE("adding a texture should increase the use count of the texture", "[tex
         MTL::Texture* texture1 = loader.loadTexture(
             std::filesystem::path("assets/test_cube_texture.png"),
             MTL::PixelFormat::PixelFormatBGRA8Unorm
-        );
+        ).texture;
 
         REQUIRE(nullptr != texture1);
         REQUIRE(1 == loader.getUseCount(texture1));
@@ -51,7 +51,7 @@ TEST_CASE("adding a texture should increase the use count of the texture", "[tex
         MTL::Texture* texture2 = loader.loadTexture(
             std::filesystem::path("assets/test_cube_texture.png"),
             MTL::PixelFormat::PixelFormatBGRA8Unorm
-        );
+        ).texture;
 
         REQUIRE(nullptr != texture2);
         REQUIRE(2 == loader.getUseCount(texture2));
@@ -63,7 +63,168 @@ TEST_CASE("adding a texture should increase the use count of the texture", "[tex
     autoReleasePool->release();
 }
 
-TEST_CASE("adding a packed texture with pre-existing components should increment the use counts of its components", "[texture][loading][asset system][add][metal]") {}
+TEST_CASE("adding a texture and marking it as being used by the render thread should designate the texture as being used by the render thread", "[texture][loading][asset system][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+    TextureLoader loader(metalDevice);
+
+    MTL::Texture* texture = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    ).texture;
+    REQUIRE(nullptr != texture);
+
+    REQUIRE(false == loader.textureIsOnRenderThread(texture));
+    loader.markTextureAsUsedByRenderThread(texture);
+    REQUIRE(true == loader.textureIsOnRenderThread(texture));
+
+    // texture->release();
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
+TEST_CASE("adding a packed texture with pre-existing components should increment the use counts of its components", "[texture][loading][asset system][add][texture packing][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+    TextureLoader loader(metalDevice);
+    TextureLoader::AddedTextureInfo texture0Info = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture0 = texture0Info.texture;
+    TextureLoader::AddedTextureInfo texture1Info = loader.loadTexture(
+        std::filesystem::path("assets/test_cube_one_channel_texture_02.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture1 = texture1Info.texture;
+    TextureLoader::AddedTextureInfo texture2Info = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture2 = texture2Info.texture;
+    TextureLoader::AddedTextureInfo texture3Info = loader.loadTexture(
+        std::filesystem::path("assets/test_cube_one_channel_texture_02.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture3 = texture3Info.texture;
+    REQUIRE(nullptr != texture0);
+    REQUIRE(nullptr != texture1);
+    REQUIRE(nullptr != texture2);
+    REQUIRE(nullptr != texture3);
+
+    MTL::Texture* packedTexture = loader.loadPackedTexture(
+        texture0Info.handle,
+        texture1Info.handle,
+        texture2Info.handle,
+        texture3Info.handle
+    ).texture;
+    REQUIRE(nullptr != packedTexture);
+
+    // The packed texture should have the same dimensions as texture 0.
+    CAPTURE(texture0, packedTexture);
+    REQUIRE(texture0->width() == packedTexture->width());
+
+    // The packed texture should be comprised of data from all three textures
+    
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
+TEST_CASE("adding a packed texture with pre-existing components that have been previously loaded more than once should not access the previously loaded textures", "[texture][loading][asset system][add][texture packing][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+    TextureLoader loader(metalDevice);
+
+    TextureLoader::AddedTextureInfo texture0Info = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture0 = texture0Info.texture;
+
+    TextureLoader::AddedTextureInfo texture1Info = loader.loadTexture(
+        std::filesystem::path("assets/test_cube_one_channel_texture_02.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture1 = texture1Info.texture;
+
+    TextureLoader::AddedTextureInfo texture2Info = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture2 = texture2Info.texture;
+
+    TextureLoader::AddedTextureInfo texture3Info = loader.loadTexture(
+        std::filesystem::path("assets/test_cube_one_channel_texture_02.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture3 = texture3Info.texture;
+
+    REQUIRE(nullptr != texture0);
+    REQUIRE(nullptr != texture1);
+    REQUIRE(nullptr != texture2);
+    REQUIRE(nullptr != texture3);
+
+    // Temporarily 
+
+    MTL::Texture* packedTexture = loader.loadPackedTexture(
+        texture0Info.handle,
+        texture1Info.handle,
+        texture2Info.handle,
+        texture3Info.handle
+    ).texture;
+    REQUIRE(nullptr != packedTexture);
+
+    // The packed texture should have the same dimensions as texture 0.
+    CAPTURE(texture0, packedTexture);
+    REQUIRE(texture0->width() == packedTexture->width());
+
+    // The packed texture should be comprised of data from all three textures
+    
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
+TEST_CASE("adding a packed texture with only some pre-existing components should increment the use counts of its components", "[texture][loading][asset system][add][texture packing][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+    TextureLoader loader(metalDevice);
+    TextureLoader::AddedTextureInfo texture0Info = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture0 = texture0Info.texture;
+    TextureLoader::AddedTextureInfo texture1Info = loader.loadTexture(
+        std::filesystem::path("assets/test_cube_one_channel_texture_02.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture1 = texture1Info.texture;
+    TextureLoader::AddedTextureInfo texture2Info = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormat::PixelFormatR8Unorm
+    );
+    MTL::Texture* texture2 = texture2Info.texture;
+    REQUIRE(nullptr != texture0);
+    REQUIRE(nullptr != texture1);
+    REQUIRE(nullptr != texture2);
+
+    MTL::Texture* packedTexture = loader.loadPackedTexture(
+        texture0Info.handle,
+        texture1Info.handle,
+        texture2Info.handle
+    ).texture;
+    REQUIRE(nullptr != packedTexture);
+
+    // The packed texture should have the same dimensions as texture 0.
+    CAPTURE(texture0, packedTexture);
+    REQUIRE(texture0->width() == packedTexture->width());
+    
+    metalDevice->release();
+    autoReleasePool->release();
+}
 
 TEST_CASE("removing a texture should decrease the use count of the texture", "[texture][loading][asset system][remove][metal]")
 {
@@ -74,13 +235,7 @@ TEST_CASE("removing a texture should decrease the use count of the texture", "[t
     MTL::Texture* texture = loader.loadTexture(
         std::filesystem::path("assets/test_cube_texture.png"),
         MTL::PixelFormat::PixelFormatBGRA8Unorm
-    );
-
-    sizeof(TrackedTexture);
-    sizeof(MTL::Texture*);
-    sizeof(uint32_t);
-    sizeof(uint8_t);
-    constexpr size_t a = sizeof(MTL::Texture*) + sizeof(uint32_t) + sizeof(uint8_t);
+    ).texture;
 
     REQUIRE(nullptr != texture);
     REQUIRE(1 == loader.getUseCount(texture));
@@ -88,6 +243,7 @@ TEST_CASE("removing a texture should decrease the use count of the texture", "[t
     loader.unloadTexture(texture);
 
     REQUIRE(0 == loader.getUseCount(texture));
+    sizeof(TextureLoader::TrackedTexture);
 
     metalDevice->release();
     autoReleasePool->release();
@@ -134,7 +290,7 @@ TEST_CASE("unique textures should be able to be added with correct use count aft
     MTL::Texture* texture1 = loader.loadTexture(
         std::filesystem::path("assets/test_cube_texture.png"),
         MTL::PixelFormat::PixelFormatBGRA8Unorm
-    );
+    ).texture;
 
     REQUIRE(nullptr != texture1);
     REQUIRE(1 == loader.getUseCount(texture1));
@@ -146,7 +302,7 @@ TEST_CASE("unique textures should be able to be added with correct use count aft
     MTL::Texture* texture2 = loader.loadTexture(
         std::filesystem::path("assets/test_cube_texture.png"),
         MTL::PixelFormat::PixelFormatBGRA8Unorm
-    );
+    ).texture;
     
     REQUIRE(nullptr != texture2);
     REQUIRE(1 == loader.getUseCount(texture2));
@@ -166,7 +322,7 @@ TEST_CASE("textures with only one channel should be able to be loaded", "[textur
         std::filesystem::path("assets/single_channel_test_cube_texture.png"),
         MTL::PixelFormatR8Unorm,
         1
-    );
+    ).texture;
 
     REQUIRE(nullptr != texture);
     REQUIRE(1 == loader.getUseCount(texture));
