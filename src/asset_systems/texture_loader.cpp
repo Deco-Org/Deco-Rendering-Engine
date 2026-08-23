@@ -212,9 +212,6 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
                         pixels[(i * texture3Width + j) * bytesPerPixel + 3] = texture3Data[(i * texture3Width + j) * bytesPerPixelOfTextures[3]];
                     else
                         pixels[(i * texture3Width + j) * bytesPerPixel + 3] = 255u;
-
-                    if (i == 48 && j == 48)
-                        std::printf("Pixel data: %u, %u, %u, %u\n", pixels[i * texture0Width + j + 0], pixels[i * texture0Width + j + 1], pixels[i * texture0Width + j + 2], pixels[i * texture0Width + j + 3]);
                 }
             }
 
