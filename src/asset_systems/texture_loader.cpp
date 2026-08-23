@@ -130,6 +130,7 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
         if (!trackedTextures[textureHandle0].isOnRenderThread())
         {
             texture0 = trackedTextures[textureHandle0].texture;
+            trackedTextures[textureHandle0].useCount += 1;
             bytesPerPixelOfTextures[0] = getNumberOfBytesPerPixelFromPixelFormat(texture0->pixelFormat());
 
             if (textureHandle1 != INVALID_TEXTURE_HANDLE && textureHandle1 < trackedTextures.size() && trackedTextures[textureHandle1].texture != nullptr)
@@ -147,6 +148,7 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
                     texture1Height = texture1->height();
                     bytesPerPixelOfTextures[1] = getNumberOfBytesPerPixelFromPixelFormat(texture1->pixelFormat());
                 }
+                trackedTextures[textureHandle1].useCount += 1;
             }
             if (textureHandle2 != INVALID_TEXTURE_HANDLE && textureHandle2 < trackedTextures.size() && trackedTextures[textureHandle2].texture != nullptr)
             {
@@ -157,6 +159,7 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
                     texture2Height = texture2->height();
                     bytesPerPixelOfTextures[2] = getNumberOfBytesPerPixelFromPixelFormat(texture2->pixelFormat());
                 }
+                trackedTextures[textureHandle2].useCount += 1;
             }
             if (textureHandle3 != INVALID_TEXTURE_HANDLE && textureHandle3 < trackedTextures.size() && trackedTextures[textureHandle3].texture != nullptr)
             {
@@ -167,6 +170,7 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
                     texture3Height = texture3->height();
                     bytesPerPixelOfTextures[3] = getNumberOfBytesPerPixelFromPixelFormat(texture3->pixelFormat());
                 }
+                trackedTextures[textureHandle3].useCount += 1;
             }
 
             // Getting the raw data from each of the textures
@@ -276,38 +280,41 @@ TextureLoader::AddedTextureInfo TextureLoader::addTexture(uint8_t* pixels, int w
 
 void TextureLoader::unloadTexture(MTL::Texture* texture)
 {
-    if (textureToFileMap.contains(texture))
+    if (textureToHandleMap.contains(texture))
     {
-        std::string fileStr = textureToFileMap.at(texture);
-        if (fileToHandleMap.contains(fileStr))
-        {
-            const TextureHandle handle = fileToHandleMap[fileStr];
-            trackedTextures[handle].useCount -= 1;
-
-            // If there are no remaining references to the texture, unload it
-            if (trackedTextures[handle].useCount < 1)
-            {
-                trackedTextures[handle].texture->release();
-                trackedTextures[handle].texture = nullptr;
-                freeHandles.push_back(handle);
-                fileToHandleMap.erase(fileStr);
-                uniqueTexturesCount -= 1;
-            }
-        }
+        unloadTexture(textureToHandleMap[texture]);
     }
-    else if (textureToHandleMap.contains(texture))
-    {
-        const TextureHandle handle = textureToHandleMap.at(texture);
-        trackedTextures[handle].useCount -= 1;
+}
 
-        // If there are no remaining references to the texture, unload it
-        if (trackedTextures[handle].useCount < 1)
+void TextureLoader::unloadTexture(TextureHandle handle)
+{
+    trackedTextures[handle].useCount -= 1;
+    // fileToHandleMap[trackedTextures[handle].fileStr];
+    MTL::Texture* texture = trackedTextures[handle].texture;
+    if (texture && trackedTextures[handle].useCount < 1)
+    {
+        // Unloading all the components
+        if (trackedTextures[handle].component0 != INVALID_TEXTURE_HANDLE)
+            unloadTexture(trackedTextures[handle].component0);
+        if (trackedTextures[handle].component1 != INVALID_TEXTURE_HANDLE)
+            unloadTexture(trackedTextures[handle].component1);
+        if (trackedTextures[handle].component2 != INVALID_TEXTURE_HANDLE)
+            unloadTexture(trackedTextures[handle].component2);
+        if (trackedTextures[handle].component3 != INVALID_TEXTURE_HANDLE)
+            unloadTexture(trackedTextures[handle].component3);
+
+        // Unloading the texture itself
+        if (textureToFileMap.contains(texture))
         {
-            trackedTextures[handle].texture->release();
-            trackedTextures[handle].texture = nullptr;
-            freeHandles.push_back(handle);
-            uniqueTexturesCount -= 1;
+            std::string filename = textureToFileMap[texture];
+            textureToFileMap.erase(texture);
+            fileToHandleMap.erase(filename);
         }
+        textureToHandleMap.erase(texture);
+        texture->release();
+        trackedTextures[handle].texture = nullptr;
+        freeHandles.push_back(handle);
+        uniqueTexturesCount -= 1;
     }
 }
 
@@ -329,6 +336,16 @@ uint32_t TextureLoader::getUseCount(MTL::Texture* texture) const
             TextureHandle handle = textureToHandleMap.at(texture);
             useCount = trackedTextures[handle].useCount;
         }
+    }
+    return useCount;
+}
+
+uint32_t TextureLoader::getUseCount(TextureHandle handle) const
+{
+    uint32_t useCount = 0;
+    if (handle < trackedTextures.size() && trackedTextures[handle].texture)
+    {
+        useCount = trackedTextures[handle].useCount;
     }
     return useCount;
 }

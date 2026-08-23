@@ -70,6 +70,7 @@ class TextureLoader
         MTL::PixelFormat pixelFormat);
 
     void unloadTexture(MTL::Texture* texture);
+    void unloadTexture(TextureHandle handle);
     void forceUnloadTexture(MTL::Texture* texture);
 
     uint32_t getUseCount(MTL::Texture* texture) const;
