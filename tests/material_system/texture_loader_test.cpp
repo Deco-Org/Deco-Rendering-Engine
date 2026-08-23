@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <thread>
 #include "asset_systems/texture_loader.hpp"
+#include "texture_loader_test_fixture.hpp"
 #include "test_utils.hpp"
 #include <stb_image.h>
 
@@ -192,21 +193,25 @@ TEST_CASE("adding a packed texture with only some pre-existing components should
     NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
     MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
     TextureLoader loader(metalDevice);
+
     TextureLoader::AddedTextureInfo texture0Info = loader.loadTexture(
         std::filesystem::path("assets/single_channel_test_cube_texture.png"),
         MTL::PixelFormat::PixelFormatR8Unorm
     );
     MTL::Texture* texture0 = texture0Info.texture;
+
     TextureLoader::AddedTextureInfo texture1Info = loader.loadTexture(
         std::filesystem::path("assets/test_cube_one_channel_texture_02.png"),
         MTL::PixelFormat::PixelFormatR8Unorm
     );
     MTL::Texture* texture1 = texture1Info.texture;
+
     TextureLoader::AddedTextureInfo texture2Info = loader.loadTexture(
         std::filesystem::path("assets/single_channel_test_cube_texture.png"),
         MTL::PixelFormat::PixelFormatR8Unorm
     );
     MTL::Texture* texture2 = texture2Info.texture;
+
     REQUIRE(nullptr != texture0);
     REQUIRE(nullptr != texture1);
     REQUIRE(nullptr != texture2);
@@ -219,8 +224,15 @@ TEST_CASE("adding a packed texture with only some pre-existing components should
     REQUIRE(nullptr != packedTexture);
 
     // The packed texture should have the same dimensions as texture 0.
-    CAPTURE(texture0, packedTexture);
+    CAPTURE(texture0, texture1, texture2, packedTexture);
     REQUIRE(texture0->width() == packedTexture->width());
+
+    packedTextureShouldBeComprisedOfDataFromSourceTextures(
+        packedTexture,
+        texture0,
+        texture1,
+        texture2
+    );
     
     metalDevice->release();
     autoReleasePool->release();

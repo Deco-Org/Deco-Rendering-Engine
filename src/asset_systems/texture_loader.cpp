@@ -101,7 +101,7 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
 {
     // TODO: Replace this cpu side texture packing with a compute shader
     // TODO: Add support for other pixel formats
-    constexpr uint8_t bytesPerPixel = 3;
+    constexpr uint8_t bytesPerPixel = 4;
 
     AddedTextureInfo addedTexture = {
         .handle = INVALID_TEXTURE_HANDLE,
@@ -189,14 +189,32 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
             {
                 for (size_t j = 0; j < texture0Height; ++j)
                 {
+
                     if (i < texture0Width && j < texture0Height)
-                        pixels[i * texture0Width + j + 0] = texture0Data[(i * texture0Width + j) * bytesPerPixelOfTextures[0]];
-                    if (i < texture1Width && j < texture0Height)
-                        pixels[i * texture1Width + j + 0] = texture1Data[(i * texture1Width + j) * bytesPerPixelOfTextures[1]];
-                    if (i < texture2Width && j < texture0Height)
-                        pixels[i * texture2Width + j + 0] = texture2Data[(i * texture2Width + j) * bytesPerPixelOfTextures[2]];
-                    if (i < texture3Width && j < texture0Height)
-                        pixels[i * texture3Width + j + 0] = texture3Data[(i * texture3Width + j) * bytesPerPixelOfTextures[3]];
+                        pixels[(i * texture0Width + j) * bytesPerPixel + 0] = texture0Data[(i * texture0Width + j) * bytesPerPixelOfTextures[0]];
+                    else
+                        pixels[(i * texture0Width + j) * bytesPerPixel + 0] = 0;
+
+
+                    if (i < texture1Width && j < texture1Height)
+                        pixels[(i * texture1Width + j) * bytesPerPixel + 1] = texture1Data[(i * texture1Width + j) * bytesPerPixelOfTextures[1]];
+                    else
+                        pixels[(i * texture1Width + j) * bytesPerPixel + 1] = 0;
+
+
+                    if (i < texture2Width && j < texture2Height)
+                        pixels[(i * texture2Width + j) * bytesPerPixel + 2] = texture2Data[(i * texture2Width + j) * bytesPerPixelOfTextures[2]];
+                    else
+                        pixels[(i * texture2Width + j) * bytesPerPixel + 2] = 0;
+
+
+                    if (i < texture3Width && j < texture3Height)
+                        pixels[(i * texture3Width + j) * bytesPerPixel + 3] = texture3Data[(i * texture3Width + j) * bytesPerPixelOfTextures[3]];
+                    else
+                        pixels[(i * texture3Width + j) * bytesPerPixel + 3] = 255u;
+
+                    if (i == 48 && j == 48)
+                        std::printf("Pixel data: %u, %u, %u, %u\n", pixels[i * texture0Width + j + 0], pixels[i * texture0Width + j + 1], pixels[i * texture0Width + j + 2], pixels[i * texture0Width + j + 3]);
                 }
             }
 
@@ -206,7 +224,7 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
                 texture0Height,
                 desiredNumberOfChannels,
                 desiredNumberOfChannels,
-                MTL::PixelFormatRGBA8Unorm
+                MTL::PixelFormatBGRA8Unorm
             );
 
             trackedTextures[addedTexture.handle].component0 = textureHandle0;

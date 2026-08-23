@@ -236,6 +236,9 @@ TEST_CASE("a ufbx material with a texture being added through should result in a
     REQUIRE(nullptr != system.materials[handles[albedoMaterialIndices[0]]].pbrMaterial.albedoTexture);
     REQUIRE(nullptr != system.materials[handles[normalMaterialIndices[0]]].pbrMaterial.normalTexture);
     REQUIRE(nullptr != system.materials[handles[emissionMaterialIndices[0]]].pbrMaterial.emissionTexture);
+
+    MTL::Texture* albedoTexture = system.materials[handles[albedoMaterialIndices[0]]].pbrMaterial.albedoTexture;
+    REQUIRE(textureLoader.textureIsOnRenderThread(albedoTexture));
     
     std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
     system.remove((MaterialHandleList) {
@@ -536,11 +539,16 @@ TEST_CASE("updating a material by adding a texture should be reflected in the sy
     std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
     MaterialHandle materialToUpdate = consumedHandles[1];
 
-    MTL::Texture* textureToAdd = textureLoader.loadTexture("assets/test_cube_texture.png");
+    TextureLoader::AddedTextureInfo infoOfTextureToAdd = textureLoader.loadTexture("assets/test_cube_texture.png");
+    MTL::Texture* textureToAdd = infoOfTextureToAdd.texture;
     REQUIRE(system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture != textureToAdd);
 
     // When the call is made to update the material texture
-    system.updateMaterialTexture(materialToUpdate, (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::ORM, textureToAdd);
+     system.updateMaterialTexture((MaterialUpdateTextureEntry){
+        .handle = materialToUpdate,
+        .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::ORM,
+        .textureHandle = infoOfTextureToAdd.handle,
+        .materialType = MaterialType::PBR});
     // The texture updates input buffer should have one item
     REQUIRE(1 == system.textureUpdatesInputBuffer.count);
     REQUIRE(textureToAdd != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
@@ -657,10 +665,14 @@ TEST_CASE("texture updates should take precedence over material updates when a m
         }
     };
 
-    MTL::Texture* albedoTextureToAdd = textureLoader.loadTexture("assets/test_cube_four_channel_texture.png");
+    TextureLoader::AddedTextureInfo albedoTextureToAddInfo = textureLoader.loadTexture("assets/test_cube_four_channel_texture.png");
 
     system.updateMaterial(materialToUpdate, newMaterial);
-    system.updateMaterialTexture(materialToUpdate, (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Albedo, albedoTextureToAdd);
+    system.updateMaterialTexture((MaterialUpdateTextureEntry){
+        .handle = materialToUpdate,
+        .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Albedo,
+        .textureHandle = albedoTextureToAddInfo.handle,
+        .materialType = MaterialType::PBR});
     system.drainUpdatesInputBuffers();
 
     REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.albedoTexture);
@@ -704,11 +716,91 @@ TEST_CASE("updating a material by replacing a texture should be reflected in the
     std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
     MaterialHandle materialToUpdate = consumedHandles[1];
 
-    MTL::Texture* textureToAdd = textureLoader.loadTexture("assets/test_cube_four_channel_texture.png");
+    TextureLoader::AddedTextureInfo textureToAddInfo = textureLoader.loadTexture("assets/test_cube_four_channel_texture.png");
+    MTL::Texture* textureToAdd = textureToAddInfo.texture;
     REQUIRE(system.materials[materialToUpdate].pbrMaterial.albedoTexture != textureToAdd);
 
     // When the call is made to update the material texture
-    system.updateMaterialTexture(materialToUpdate, (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Albedo, textureToAdd);
+    system.updateMaterialTexture((MaterialUpdateTextureEntry){
+        .handle = materialToUpdate,
+        .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Albedo,
+        .textureHandle = textureToAddInfo.handle,
+        .materialType = MaterialType::PBR});
+    // The texture updates input buffer should have one item
+    REQUIRE(1 == system.textureUpdatesInputBuffer.count);
+    REQUIRE(textureToAdd != system.materials[materialToUpdate].pbrMaterial.albedoTexture);
+
+    // When the updates input buffer is drained
+    system.drainUpdatesInputBuffers();
+    // The texture updates input buffer should have zero items
+    REQUIRE(0 == system.textureUpdatesInputBuffer.count);
+
+    REQUIRE(textureToAdd == system.materials[materialToUpdate].pbrMaterial.albedoTexture);
+
+    // Cleaning up
+    system.drainRemovalsInputBuffer();
+    system.drainRemovalsOutputBufferAndUnloadResources();
+    aSceneIsFreed(scene);
+    metalDevice->release();
+    autoReleasePool->release();
+}
+
+TEST_CASE("only the last entry should be applied when the same material receives multiple update entries in one update", "[material][asset system][update][fbx][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader textureLoader(metalDevice);
+    MaterialSystem system(&textureLoader);
+    ufbx_scene* scene = aSceneWithATexturedCube();
+    ufbx_node* cubeNode = aNodeWithAGivenNameInAScene(scene, "Cube");
+    REQUIRE(nullptr != cubeNode);
+
+    std::vector<size_t> albedoMaterialIndices = indicesInAListWithAnAlbedoTexture(cubeNode->materials);
+    std::vector<size_t> normalMaterialIndices = indicesInAListWithANormalTexture(cubeNode->materials);
+    std::vector<size_t> emissionMaterialIndices = indicesInAListWithAnEmissionTexture(cubeNode->materials);
+    REQUIRE(0 < albedoMaterialIndices.size());
+    REQUIRE(0 < normalMaterialIndices.size());
+    REQUIRE(0 < emissionMaterialIndices.size());
+    
+    std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
+    REQUIRE(0 < handles.size());
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+    std::vector<MaterialHandle> consumedHandles = system.getItemsAndDrainAdditionsOutputBuffer();
+    MaterialHandle materialToUpdate = consumedHandles[1];
+
+    TextureLoader::AddedTextureInfo infoOfTextureToBeOverwritten = textureLoader.loadTexture("assets/test_cube_normal_texture.png");
+    TextureLoader::AddedTextureInfo infoOfTextureToAdd = textureLoader.loadTexture("assets/test_cube_four_channel_texture.png");
+    MTL::Texture* textureToAdd = infoOfTextureToAdd.texture;
+    
+    REQUIRE(system.materials[materialToUpdate].pbrMaterial.albedoTexture != textureToAdd);
+
+    // When the call is made to update the material texture
+    MaterialUpdateTextureEntry updateEntries[2] = {
+        (MaterialUpdateTextureEntry){
+            .handle = materialToUpdate,
+            .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Albedo,
+            .textureHandle = infoOfTextureToBeOverwritten.handle,
+            .materialType = MaterialType::PBR
+        },
+        (MaterialUpdateTextureEntry){
+            .handle = materialToUpdate,
+            .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Albedo,
+            .textureHandle = infoOfTextureToAdd.handle,
+            .materialType = MaterialType::PBR
+        }
+    };
+    MaterialUpdateTextureEntryList updateEntriesList = {
+        .data = updateEntries,
+        .count = 2
+    };
+    system.updateMaterialsTextures(&updateEntriesList);
+
     // The texture updates input buffer should have one item
     REQUIRE(1 == system.textureUpdatesInputBuffer.count);
     REQUIRE(textureToAdd != system.materials[materialToUpdate].pbrMaterial.albedoTexture);
@@ -747,18 +839,39 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
     REQUIRE(0 < emissionMaterialIndices.size());
     
     std::vector<MaterialHandle> handles = system.add(&cubeNode->materials, MaterialType::PBR);
+    handles.append_range(system.add(&cubeNode->materials, MaterialType::PBR));
     system.drainAdditionsInputBuffer();
     system.getItemsAndDrainAdditionsOutputBuffer();
     MaterialHandle materialToUpdate = handles[1];
     MTL::Texture* oldTexture = system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture;
+    TextureLoader::AddedTextureInfo someSingleChannelTextureInfo = textureLoader.loadTexture("assets/single_channel_test_cube_texture.png", MTL::PixelFormatR8Unorm, 1);
+    // MTL::Texture* someOtherSingleChannelTexture = textureLoader.loadTexture("assets/test_cube_one_channel_texture_02.png", MTL::PixelFormatR8Unorm, 1).texture;
+
+    // TODO: Add some sort of test for an invalid ORM channel
 
     SECTION("Adding components of an ORM texture to a material should update the material's ORM texture")
     {
-        SECTION("Adding an AO texture to a material should update the material's ORM texture") {}
+        SECTION("Adding an AO texture to a material should update the material's ORM texture")
+        {
+            system.updateMaterialTexture((MaterialUpdateTextureEntry){
+                .handle = materialToUpdate,
+                .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::AmbientOcclusion,
+                .textureHandle = someSingleChannelTextureInfo.handle,
+                .materialType = MaterialType::PBR
+            });
+
+            REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+
+            system.drainUpdatesInputBuffers();
+
+            REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+        }
     
         SECTION("Adding a roughness texture to a material should update the material's ORM texture") {}
     
         SECTION("Adding a metallic texture to a material should update the material's ORM texture") {}
+
+        SECTION("Adding all three components of an ORM texture to a material should update the material's ORM texture") {}
     }
 
     SECTION("Updating components of a material's ORM texture should update the material's ORM texture")
@@ -768,6 +881,8 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
         SECTION("Replacing the roughness texture of a material should update the material's ORM texture") {}
     
         SECTION("Replacing the metallic texture of a material should update the material's ORM texture") {}
+
+        SECTION("Replacing all three components of a material's ORM texture should update the material's ORM texture") {}
     }
 
     // Cleaning up
