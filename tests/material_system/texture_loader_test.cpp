@@ -286,8 +286,6 @@ TEST_CASE("removing a texture should decrease the use count of the texture", "[t
     autoReleasePool->release();
 }
 
-TEST_CASE("removing a packed texture should decrement the use count of its components", "[texture][loading][asset system][remove][metal]") {}
-
 TEST_CASE("textures should be able to be added using raw data", "[texture][asset system][add][metal]")
 {
     NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
