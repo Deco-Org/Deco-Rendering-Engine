@@ -6,7 +6,6 @@
 #pragma once
 #include "core_engine_types.h"
 #include "tools/synchronized_buffer.hpp"
-#include "utils/AAPLMathUtilities.h"
 #include <Metal/Metal.hpp>
 
 struct TransformationEntry

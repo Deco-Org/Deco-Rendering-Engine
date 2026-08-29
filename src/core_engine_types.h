@@ -7,6 +7,7 @@
 #include <simd/simd.h>
 #include <memory>
 #include <Metal/Metal.hpp>
+#include "utils/AAPLMathUtilities.h"
 #include <mutex>
 #include "vertex.hpp"
 

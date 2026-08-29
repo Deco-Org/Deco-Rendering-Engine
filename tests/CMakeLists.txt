@@ -12,6 +12,8 @@ add_executable(tests
     test.cpp
     transformation_system/transformation_system_test.cpp
     submesh_system/submesh_system_test.cpp
+    material_system/texture_loader_test.cpp
+    material_system/material_system_test.cpp
     tools/synchronized_buffer_test.cpp
 )
 
@@ -19,6 +21,7 @@ target_include_directories(tests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/external/ufbx
     ${CMAKE_SOURCE_DIR}/external/metal-cpp
+    ${CMAKE_SOURCE_DIR}/external/stb
     ${CMAKE_SOURCE_DIR}/tests/utils
 )
 
