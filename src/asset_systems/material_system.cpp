@@ -596,8 +596,8 @@ std::vector<MaterialHandle> MaterialSystem::drainRemovalsOutputBufferAndUnloadRe
                     textureLoader->unloadTexture(pbr->albedoTexture);
                 if (pbr->normalTexture)
                     textureLoader->unloadTexture(pbr->normalTexture);
-                if (pbr->metallicRoughnessAoTexture)
-                    textureLoader->unloadTexture(pbr->metallicRoughnessAoTexture);
+                if (pbr->AoRoughnessMetallicTexture)
+                    textureLoader->unloadTexture(pbr->AoRoughnessMetallicTexture);
                 if (pbr->emissionTexture)
                     textureLoader->unloadTexture(pbr->emissionTexture);
                 

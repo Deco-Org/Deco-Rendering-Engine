@@ -32,7 +32,7 @@ struct PBRMaterial
 {
     MTL::Texture* albedoTexture = nullptr;
     MTL::Texture* normalTexture = nullptr;
-    MTL::Texture* metallicRoughnessAoTexture = nullptr;
+    MTL::Texture* AoRoughnessMetallicTexture = nullptr;
     MTL::Texture* emissionTexture = nullptr;
 
     simd_float4 baseColorFactor = DEFAULT_COLOR_4_CHANNELS;
@@ -77,7 +77,7 @@ namespace MaterialTextureOffset
     {
         Albedo = offsetof(Material, pbrMaterial.albedoTexture),
         Normal = offsetof(Material, pbrMaterial.normalTexture),
-        ORM = offsetof(Material, pbrMaterial.metallicRoughnessAoTexture),
+        ORM = offsetof(Material, pbrMaterial.AoRoughnessMetallicTexture),
         Emission = offsetof(Material, pbrMaterial.emissionTexture),
         // Combined Textures
         // ORM (252 - 255)

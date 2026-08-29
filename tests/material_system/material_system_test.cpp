@@ -19,7 +19,7 @@ TEST_CASE("adding a PBR material should increase the number of materials by one"
         .pbrMaterial = (PBRMaterial){
             .albedoTexture = nullptr,
             .normalTexture = nullptr,
-            .metallicRoughnessAoTexture = nullptr,
+            .AoRoughnessMetallicTexture = nullptr,
             .emissionTexture = nullptr,
             .baseColorFactor = simd_float4{1.0f, 1.0f, 1.0f, 1.0f},
         },
@@ -123,7 +123,7 @@ TEST_CASE("adding n materials should increase the number of materials by n", "[m
         .pbrMaterial = (PBRMaterial){
             .albedoTexture = nullptr,
             .normalTexture = nullptr,
-            .metallicRoughnessAoTexture = nullptr,
+            .AoRoughnessMetallicTexture = nullptr,
             .emissionTexture = nullptr,
             .baseColorFactor = simd_float4{1.0f, 1.0f, 1.0f, 1.0f},
         },
@@ -470,7 +470,7 @@ TEST_CASE("updating a material should update the material within the system", "[
         .pbrMaterial = {
             .albedoTexture = nullptr,
             .normalTexture = nullptr,
-            .metallicRoughnessAoTexture = nullptr,
+            .AoRoughnessMetallicTexture = nullptr,
             .emissionTexture = nullptr,
 
             .baseColorFactor = updatedBaseColor,
@@ -495,7 +495,7 @@ TEST_CASE("updating a material should update the material within the system", "[
     REQUIRE(simdFloat4Equal(updatedBaseColor, system.materials[materialToUpdate].pbrMaterial.baseColorFactor));
     REQUIRE(nullptr == system.materials[materialToUpdate].pbrMaterial.albedoTexture);
     REQUIRE(nullptr == system.materials[materialToUpdate].pbrMaterial.normalTexture);
-    REQUIRE(nullptr == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+    REQUIRE(nullptr == system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
     REQUIRE(nullptr == system.materials[materialToUpdate].pbrMaterial.emissionTexture);
 
     REQUIRE(0 != system.texturesToUnloadBuffer.count);
@@ -541,7 +541,7 @@ TEST_CASE("updating a material by adding a texture should be reflected in the sy
 
     TextureLoader::AddedTextureInfo infoOfTextureToAdd = textureLoader.loadTexture("assets/test_cube_texture.png");
     MTL::Texture* textureToAdd = infoOfTextureToAdd.texture;
-    REQUIRE(system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture != textureToAdd);
+    REQUIRE(system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture != textureToAdd);
 
     // When the call is made to update the material texture
      system.updateMaterialTexture((MaterialUpdateTextureEntry){
@@ -551,14 +551,14 @@ TEST_CASE("updating a material by adding a texture should be reflected in the sy
         .materialType = MaterialType::PBR});
     // The texture updates input buffer should have one item
     REQUIRE(1 == system.textureUpdatesInputBuffer.count);
-    REQUIRE(textureToAdd != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+    REQUIRE(textureToAdd != system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
 
     // When the updates input buffer is drained
     system.drainUpdatesInputBuffers();
     // The texture updates input buffer should have zero items
     REQUIRE(0 == system.textureUpdatesInputBuffer.count);
 
-    REQUIRE(textureToAdd == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+    REQUIRE(textureToAdd == system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
 
     // Cleaning up
     system.drainRemovalsInputBuffer();
@@ -654,7 +654,7 @@ TEST_CASE("texture updates should take precedence over material updates when a m
         .pbrMaterial = {
             .albedoTexture = textureInNewMaterial,
             .normalTexture = nullptr,
-            .metallicRoughnessAoTexture = nullptr,
+            .AoRoughnessMetallicTexture = nullptr,
             .emissionTexture = nullptr,
 
             .baseColorFactor = updatedBaseColor,
@@ -843,7 +843,7 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
     system.drainAdditionsInputBuffer();
     system.getItemsAndDrainAdditionsOutputBuffer();
     MaterialHandle materialToUpdate = handles[1];
-    MTL::Texture* oldTexture = system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture;
+    MTL::Texture* oldTexture = system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture;
     TextureLoader::AddedTextureInfo someSingleChannelTextureInfo = textureLoader.loadTexture("assets/single_channel_test_cube_texture.png", MTL::PixelFormatR8Unorm, 1);
     TextureLoader::AddedTextureInfo someOtherSingleChannelTextureInfo = textureLoader.loadTexture("assets/test_cube_one_channel_texture_02.png", MTL::PixelFormatR8Unorm, 1);
 
@@ -860,11 +860,11 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
             //     .materialType = MaterialType::PBR
             // });
 
-            // REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+            // REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
 
             // system.drainUpdatesInputBuffers();
 
-            // REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+            // REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
         }
     
         SECTION("Adding a roughness texture to a material should update the material's ORM texture") {}
@@ -898,11 +898,11 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
 
             system.updateMaterialsTextures(&entryList);
 
-            REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+            REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
 
             system.drainUpdatesInputBuffers();
-            REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
-            REQUIRE(nullptr != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+            REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
+            REQUIRE(nullptr != system.materials[materialToUpdate].pbrMaterial.AoRoughnessMetallicTexture);
 
             delete[] entryList.data;
 
