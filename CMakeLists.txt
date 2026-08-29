@@ -13,6 +13,10 @@ add_library(rendering_engine STATIC
     src/texture/texture.cpp
     src/ufbx_implementation.cpp
     src/mesh/mesh.cpp
+    src/asset_systems/texture_loader.cpp
+    src/asset_systems/material_system.cpp
+    src/asset_systems/submesh_system.cpp
+    src/core_systems/transformation_system.cpp
 )
 
 target_include_directories(rendering_engine

@@ -1,0 +1,147 @@
+/**
+ * @file material_system.hpp
+ * @brief
+ */
+
+#pragma once
+#include <Metal/Metal.hpp>
+#include "core_engine_types.h"
+#include "tools/synchronized_buffer.hpp"
+#include "texture_loader.hpp"
+#include "materials.hpp"
+#define UFBX_REAL_IS_FLOAT 1
+#include "ufbx.h"
+
+struct MaterialEntry
+{
+    MaterialType type;
+    union
+    {
+        AnonymousMaterial material;
+        PBRMaterial pbrMaterial;
+        ToonMaterial toonMaterial;
+    };
+};
+
+struct MaterialRenderThreadInputBufferEntry
+{
+    MaterialHandle handle = INVALID_MATERIAL;
+    Material material = {};
+};
+
+struct MaterialRenderThreadUpdateTextureBufferEntry
+{
+    MaterialHandle handle = INVALID_MATERIAL;
+    const MaterialTextureOffset::TextureOffset textureOffset = 0;
+    MTL::Texture* texture = nullptr;
+    MaterialType materialType = MaterialType::Unknown;
+};
+
+struct MaterialUpdateTextureEntry
+{
+    MaterialHandle handle = INVALID_MATERIAL;
+    const MaterialTextureOffset::TextureOffset textureOffset = 0;
+    TextureLoader::TextureHandle textureHandle = TextureLoader::INVALID_TEXTURE_HANDLE;
+    MaterialType materialType = MaterialType::Unknown;
+};
+
+DECO_ENGINE_LIST_TYPE(MaterialHandleList, MaterialHandle);
+DECO_ENGINE_LIST_TYPE(MaterialEntryList, MaterialEntry);
+DECO_ENGINE_LIST_TYPE(MaterialRenderThreadUpdateTextureBufferEntryList, const MaterialRenderThreadUpdateTextureBufferEntry);
+DECO_ENGINE_LIST_TYPE(MaterialUpdateTextureEntryList, const MaterialUpdateTextureEntry);
+
+class MaterialSystem
+{
+    public:
+    MaterialSystem(TextureLoader* loader);
+
+    std::vector<MaterialHandle> add(MaterialEntryList materials);
+
+    std::vector<MaterialHandle> add(ufbx_material_list* materials, MaterialType type = MaterialType::PBR);
+
+    void remove(MaterialHandleList materials);
+
+    void updateMaterial(MaterialHandle handle, MaterialEntry& material);
+
+    void updateMaterialTexture(
+        MaterialHandle handle, 
+        const MaterialTextureOffset::TextureOffset textureOffset, 
+        TextureLoader::TextureHandle textureHandle,
+        MaterialType materialType);
+
+    void updateMaterialTexture(const MaterialUpdateTextureEntry& entry);
+    void updateMaterialsTextures(MaterialUpdateTextureEntryList* entries);
+
+    /**
+     * 
+     * @warning This should only be called on the render thread.
+     */
+    void drainAdditionsInputBuffer();
+
+    /**
+     * 
+     * @note This is used to communicate with the render thread.
+     */
+    std::vector<MaterialHandle> getItemsAndDrainAdditionsOutputBuffer();
+
+    /**
+     * 
+     * @warning This should only be called on the render thread.
+     */
+    void drainRemovalsInputBuffer();
+
+    /**
+     * Unloads unused materials
+     * @note This is used to communicate with the render thread.
+     */
+    std::vector<MaterialHandle> drainRemovalsOutputBufferAndUnloadResources();
+
+    /**
+     * 
+     * @note Individual texture updates take precedence over material updates.
+     * @warning This should only be called on the render thread.
+     */
+    void drainUpdatesInputBuffers();
+
+    /**
+     * Unloads the texturesToUnloadBuffer
+     * @note This is used to communicate with the render thread.
+     */
+    void unloadUnusedReplacedTextures();
+
+    std::vector<Material> materials;
+    
+    SystemInputBuffer<MaterialRenderThreadInputBufferEntry, MaterialHandle> additionsInputBuffer;
+    SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
+    SynchronizedBuffer<MaterialHandle> removalsInputBuffer;
+    SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> removalsOutputBuffer;
+    SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> updatesInputBuffer;
+    SynchronizedBuffer<MaterialRenderThreadUpdateTextureBufferEntry> textureUpdatesInputBuffer;
+    SynchronizedBuffer<MaterialHandle> textureRequestInputBufer;
+
+    // Filled by the render thread, drained by the loading thread.
+    SynchronizedBuffer<MTL::Texture*> texturesToUnloadBuffer;
+
+    std::vector<MaterialHandle> freeHandles;
+    MaterialHandle largestHandle = INVALID_MATERIAL;
+    
+    private:
+    Material* loadMaterial(ufbx_material* material, MaterialType type);
+    float getScalarValueFromUfbxMaterialMap(ufbx_material_map& materialMap);
+    simd_float3 getThreeChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
+    simd_float4 getFourChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
+    MaterialHandle* getNextNHandles(size_t n);
+    void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
+
+    /**
+     * @warning This should only be called on the render thread.
+     */
+    std::vector<MTL::Texture*> drainMaterialUpdatesInputBufferAndGetTexturesToUnload();
+    /**
+     * @warning This should only be called on the render thread.
+     */
+    std::vector<MTL::Texture*> drainTextureUpdatesInputBufferAndGetTexturesToUnload();
+
+    TextureLoader* textureLoader;
+    std::filesystem::path currentlyLoadingPath;
+};
