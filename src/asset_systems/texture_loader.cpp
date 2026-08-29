@@ -101,7 +101,8 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
 {
     // TODO: Replace this cpu side texture packing with a compute shader
     // TODO: Add support for other pixel formats
-    constexpr uint8_t bytesPerPixel = 4;
+    const uint8_t bytesPerPixel = desiredNumberOfChannels * 1;
+    // constexpr uint8_t bytesPerPixel = 4;
 
     AddedTextureInfo addedTexture = {
         .handle = INVALID_TEXTURE_HANDLE,
@@ -139,7 +140,7 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
                 // The first channel should be used from texture 1
                 if (trackedTextures[textureHandle1].isOnRenderThread())
                 {
-                    // TODO: Come up with a solution for this lol
+                    // TODO: Come up with a solution for this
                 }
                 else
                 {
@@ -219,13 +220,25 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
                 }
             }
 
+            MTL::PixelFormat pixelFormat;
+            switch (desiredNumberOfChannels)
+            {
+                case 3:
+                case 4:
+                    pixelFormat = MTL::PixelFormat::PixelFormatRGBA8Unorm;
+                    break;
+
+                default:
+                    pixelFormat = MTL::PixelFormat::PixelFormatRGBA8Unorm;
+            };
+
             addedTexture = addTexture(
                 pixels,
                 texture0Width,
                 texture0Height,
                 desiredNumberOfChannels,
                 desiredNumberOfChannels,
-                MTL::PixelFormatBGRA8Unorm
+                pixelFormat
             );
 
             trackedTextures[addedTexture.handle].component0 = textureHandle0;

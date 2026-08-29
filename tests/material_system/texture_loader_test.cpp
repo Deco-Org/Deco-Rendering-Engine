@@ -429,3 +429,22 @@ TEST_CASE("textures with only one channel should be able to be loaded", "[textur
     metalDevice->release();
     autoReleasePool->release();
 }
+
+TEST_CASE("textures should be able to be accessed through their handles", "[texture][loading][asset system][access][metal]")
+{
+    NS::AutoreleasePool* autoReleasePool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* metalDevice = MTL::CreateSystemDefaultDevice();
+
+    TextureLoader loader(metalDevice);
+
+    TextureLoader::AddedTextureInfo textureInfo = loader.loadTexture(
+        std::filesystem::path("assets/single_channel_test_cube_texture.png"),
+        MTL::PixelFormatR8Unorm,
+        1
+    );
+
+    REQUIRE(textureInfo.texture == loader.getTexture(textureInfo.handle));
+
+    metalDevice->release();
+    autoReleasePool->release();
+}

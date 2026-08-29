@@ -77,6 +77,7 @@ class TextureLoader
     uint32_t getUseCount(TextureHandle handle) const;
     uint32_t getUseCount(std::filesystem::path file) const;
 
+    MTL::Texture* getTexture(TextureHandle handle) const;
     TextureHandle getHandle(MTL::Texture* texture) const;
     void markTextureAsUsedByRenderThread(MTL::Texture* texture, bool set = true);
     bool textureIsOnRenderThread(MTL::Texture* texture) const;
@@ -101,6 +102,11 @@ class TextureLoader
 };
 
 // Inlines
+
+inline MTL::Texture* TextureLoader::getTexture(TextureLoader::TextureHandle handle) const
+{
+    return trackedTextures[handle].texture;
+}
 
 inline TextureLoader::TextureHandle TextureLoader::getHandle(MTL::Texture* texture) const
 {
