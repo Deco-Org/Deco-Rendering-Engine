@@ -34,10 +34,21 @@ struct MaterialRenderThreadUpdateTextureBufferEntry
     MaterialHandle handle = INVALID_MATERIAL;
     const MaterialTextureOffset::TextureOffset textureOffset = 0;
     MTL::Texture* texture = nullptr;
+    MaterialType materialType = MaterialType::Unknown;
+};
+
+struct MaterialUpdateTextureEntry
+{
+    MaterialHandle handle = INVALID_MATERIAL;
+    const MaterialTextureOffset::TextureOffset textureOffset = 0;
+    TextureLoader::TextureHandle textureHandle = TextureLoader::INVALID_TEXTURE_HANDLE;
+    MaterialType materialType = MaterialType::Unknown;
 };
 
 DECO_ENGINE_LIST_TYPE(MaterialHandleList, MaterialHandle);
 DECO_ENGINE_LIST_TYPE(MaterialEntryList, MaterialEntry);
+DECO_ENGINE_LIST_TYPE(MaterialRenderThreadUpdateTextureBufferEntryList, const MaterialRenderThreadUpdateTextureBufferEntry);
+DECO_ENGINE_LIST_TYPE(MaterialUpdateTextureEntryList, const MaterialUpdateTextureEntry);
 
 class MaterialSystem
 {
@@ -52,7 +63,14 @@ class MaterialSystem
 
     void updateMaterial(MaterialHandle handle, MaterialEntry& material);
 
-    void updateMaterialTexture(MaterialHandle handle, const MaterialTextureOffset::TextureOffset textureOffset, MTL::Texture* texture);
+    void updateMaterialTexture(
+        MaterialHandle handle, 
+        const MaterialTextureOffset::TextureOffset textureOffset, 
+        TextureLoader::TextureHandle textureHandle,
+        MaterialType materialType);
+
+    void updateMaterialTexture(const MaterialUpdateTextureEntry& entry);
+    void updateMaterialsTextures(MaterialUpdateTextureEntryList* entries);
 
     /**
      * 
@@ -99,6 +117,7 @@ class MaterialSystem
     SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> removalsOutputBuffer;
     SynchronizedBuffer<MaterialRenderThreadInputBufferEntry> updatesInputBuffer;
     SynchronizedBuffer<MaterialRenderThreadUpdateTextureBufferEntry> textureUpdatesInputBuffer;
+    SynchronizedBuffer<MaterialHandle> textureRequestInputBufer;
 
     // Filled by the render thread, drained by the loading thread.
     SynchronizedBuffer<MTL::Texture*> texturesToUnloadBuffer;

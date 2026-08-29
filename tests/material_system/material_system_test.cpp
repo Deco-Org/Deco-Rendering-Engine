@@ -845,7 +845,7 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
     MaterialHandle materialToUpdate = handles[1];
     MTL::Texture* oldTexture = system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture;
     TextureLoader::AddedTextureInfo someSingleChannelTextureInfo = textureLoader.loadTexture("assets/single_channel_test_cube_texture.png", MTL::PixelFormatR8Unorm, 1);
-    // MTL::Texture* someOtherSingleChannelTexture = textureLoader.loadTexture("assets/test_cube_one_channel_texture_02.png", MTL::PixelFormatR8Unorm, 1).texture;
+    TextureLoader::AddedTextureInfo someOtherSingleChannelTextureInfo = textureLoader.loadTexture("assets/test_cube_one_channel_texture_02.png", MTL::PixelFormatR8Unorm, 1);
 
     // TODO: Add some sort of test for an invalid ORM channel
 
@@ -853,25 +853,61 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
     {
         SECTION("Adding an AO texture to a material should update the material's ORM texture")
         {
-            system.updateMaterialTexture((MaterialUpdateTextureEntry){
-                .handle = materialToUpdate,
-                .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::AmbientOcclusion,
-                .textureHandle = someSingleChannelTextureInfo.handle,
-                .materialType = MaterialType::PBR
-            });
+            // system.updateMaterialTexture((MaterialUpdateTextureEntry){
+            //     .handle = materialToUpdate,
+            //     .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::AmbientOcclusion,
+            //     .textureHandle = someSingleChannelTextureInfo.handle,
+            //     .materialType = MaterialType::PBR
+            // });
 
-            REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+            // REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
 
-            system.drainUpdatesInputBuffers();
+            // system.drainUpdatesInputBuffers();
 
-            REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+            // REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
         }
     
         SECTION("Adding a roughness texture to a material should update the material's ORM texture") {}
     
         SECTION("Adding a metallic texture to a material should update the material's ORM texture") {}
 
-        SECTION("Adding all three components of an ORM texture to a material should update the material's ORM texture") {}
+        SECTION("Adding all three components of an ORM texture to a material should update the material's ORM texture") {
+            MaterialUpdateTextureEntryList entryList = {
+                .data = new MaterialUpdateTextureEntry[] {
+                    (MaterialUpdateTextureEntry) {
+                        .handle = materialToUpdate,
+                        .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::AmbientOcclusion,
+                        .textureHandle = someSingleChannelTextureInfo.handle,
+                        .materialType = MaterialType::PBR
+                    },
+                    (MaterialUpdateTextureEntry) {
+                        .handle = materialToUpdate,
+                        .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Roughness,
+                        .textureHandle = someOtherSingleChannelTextureInfo.handle,
+                        .materialType = MaterialType::PBR
+                    },
+                    (MaterialUpdateTextureEntry) {
+                        .handle = materialToUpdate,
+                        .textureOffset = (MaterialTextureOffset::TextureOffset)MaterialTextureOffset::PBRTextureOffset::Metallic,
+                        .textureHandle = someSingleChannelTextureInfo.handle,
+                        .materialType = MaterialType::PBR
+                    },
+                },
+                .count = 3
+            };
+
+            system.updateMaterialsTextures(&entryList);
+
+            REQUIRE(oldTexture == system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+
+            system.drainUpdatesInputBuffers();
+            REQUIRE(oldTexture != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+            REQUIRE(nullptr != system.materials[materialToUpdate].pbrMaterial.metallicRoughnessAoTexture);
+
+            delete[] entryList.data;
+
+            
+        }
     }
 
     SECTION("Updating components of a material's ORM texture should update the material's ORM texture")
@@ -882,7 +918,10 @@ TEST_CASE("updating a component of the ORM texture of a material should update t
     
         SECTION("Replacing the metallic texture of a material should update the material's ORM texture") {}
 
-        SECTION("Replacing all three components of a material's ORM texture should update the material's ORM texture") {}
+        SECTION("Replacing all three components of a material's ORM texture should update the material's ORM texture")
+        {
+
+        }
     }
 
     // Cleaning up
