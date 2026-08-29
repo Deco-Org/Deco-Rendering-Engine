@@ -102,7 +102,6 @@ TextureLoader::AddedTextureInfo TextureLoader::loadPackedTexture(
     // TODO: Replace this cpu side texture packing with a compute shader
     // TODO: Add support for other pixel formats
     const uint8_t bytesPerPixel = desiredNumberOfChannels * 1;
-    // constexpr uint8_t bytesPerPixel = 4;
 
     AddedTextureInfo addedTexture = {
         .handle = INVALID_TEXTURE_HANDLE,

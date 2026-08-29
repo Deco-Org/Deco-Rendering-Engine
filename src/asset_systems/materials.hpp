@@ -18,6 +18,14 @@ enum class MaterialType : uint8_t
     Unknown = (uint8_t)(-1)
 };
 
+enum class ORMChannel: uint8_t
+{
+    AmbientOcclusion = 0,
+    Roughness = 1,
+    Metallic = 2,
+    Invalid = (uint8_t)(-1)
+};
+
 #define ufbxMaterialFeature(material, feature) material->features.features[offsetof(ufbx_material_features, feature)]
 
 struct PBRMaterial
