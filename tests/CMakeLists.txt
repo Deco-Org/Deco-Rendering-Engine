@@ -14,6 +14,7 @@ add_executable(tests
     submesh_system/submesh_system_test.cpp
     material_system/texture_loader_test.cpp
     material_system/material_system_test.cpp
+    metal_backend/render_pipeline_library_test.cpp
     tools/synchronized_buffer_test.cpp
 )
 

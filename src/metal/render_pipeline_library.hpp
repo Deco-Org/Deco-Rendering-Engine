@@ -1,0 +1,45 @@
+/**
+ * @file render_pipeline_library.hpp
+ * @brief
+ */
+
+#pragma once
+#include <Metal/Metal.hpp>
+
+using RenderPipelineHandle = uint8_t;
+using RenderPipelineBitmap = uint8_t;
+
+enum class RenderPipelineFlags : RenderPipelineBitmap
+{
+    PBR = 0 << 0,
+    Toon = 1 << 0,
+
+    Static = 0 << 1,
+    Skinned = 1 << 1,
+
+    Opaque = 0 << 2,
+    Translucent = 1 << 2,
+    
+    FlagCount = 3,
+    PipelineCount = 1 << FlagCount
+};
+
+class RenderPipelineLibrary
+{
+    public:
+    RenderPipelineLibrary(MTL::Device* metal_device, MTL4::Compiler* metal_compiler);
+    ~RenderPipelineLibrary();
+
+    MTL::RenderPipelineState* get(RenderPipelineHandle pipeline) const;
+    void build_formats(MTL::PixelFormat pixel_format);
+
+    private:
+    MTL::RenderPipelineState* compile_render_pipeline(MTL::PixelFormat pixel_format);
+    MTL4::RenderPipelineDescriptor* configure_render_pipeline_descriptor(MTL::PixelFormat pixel_format);
+    MTL4::LibraryFunctionDescriptor* make_vertex_shader_configuration();
+    MTL4::LibraryFunctionDescriptor* make_fragment_shader_configuration();
+
+    MTL::RenderPipelineState* pipeline_state_objects[static_cast<RenderPipelineBitmap>(RenderPipelineFlags::PipelineCount)] = {};
+    MTL4::Compiler* compiler = nullptr;
+    MTL::Device* device = nullptr;
+};
