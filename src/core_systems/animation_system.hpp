@@ -7,6 +7,7 @@
 #include "animation_types.hpp"
 #include <Metal/Metal.hpp>
 #include "core_engine_types.h"
+#include "range_allocator.hpp"
 
 struct AnimationInstance
 {
@@ -54,5 +55,6 @@ private:
     std::vector<AnimationInstance> instances;
     std::vector<AnimationInstanceHandle> free_instance_handles;
 
+    RangeAllocator skinning_allocator{Config::MAX_TOTAL_BONES};
     MTL::Buffer *skinning_buffers[Config::MAX_FRAMES_IN_FLIGHT];
 };
