@@ -16,9 +16,9 @@ struct AllocationRange
 class RangeAllocator
 {
 public:
-    explicit RangeAllocator(uint32_t capacity);
+    explicit RangeAllocator(const uint32_t capacity);
 
-    std::optional<AllocationRange> alloc(uint32_t size, uint32_t alignment = 1);
+    std::optional<AllocationRange> alloc(const uint32_t size, const uint32_t alignment = 1);
     void free(AllocationRange range);
     uint32_t capacity() const;
 

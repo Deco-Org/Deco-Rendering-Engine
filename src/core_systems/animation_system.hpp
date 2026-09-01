@@ -17,6 +17,8 @@ struct AnimationInstance
     float current_time = 0.0f;
     float playback_speed = 1.0f;
     bool is_playing = false;
+    bool loops = false;
+    AllocationRange skinning_range{ 0, 0 };
     std::vector<matrix_float4x4> joint_model_matrices;
     std::vector<matrix_float4x4> skinning_matrices;
 };
@@ -25,14 +27,16 @@ class AnimationSystem
 {
 public:
     AnimationSystem(MTL::Device *device = nullptr);
+    ~AnimationSystem();
 
     SkeletonHandle add_skeleton(SkeletonDescription description);
-    SkinBindingDescription add_skin_binding(SkinBindingDescription description);
+    SkinBindingHandle add_skin_binding(SkinBindingDescription description);
     ClipHandle add_clip(AnimationClipDescription description);
     AnimationInstanceHandle add_instance(SkeletonHandle skeleton, SkinBindingHandle skin_binding);
     void remove_instance(AnimationInstanceHandle instance);
 
     void play(AnimationInstanceHandle instance, ClipHandle clip, const bool loop = false);
+    void set_playback_speed(AnimationInstanceHandle instance, const float speed);
     void stop(AnimationInstanceHandle instance);
     
     void update(float delta_time);

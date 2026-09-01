@@ -5,12 +5,12 @@
 
 #include "range_allocator.hpp"
 
-RangeAllocator::RangeAllocator(uint32_t capacity) : total_capacity(capacity)
+RangeAllocator::RangeAllocator(const uint32_t capacity) : total_capacity(capacity)
 {
     free_blocks.push_back({ 0, capacity });
 }
 
-std::optional<AllocationRange> RangeAllocator::alloc(uint32_t size, uint32_t alignment = 1)
+std::optional<AllocationRange> RangeAllocator::alloc(const uint32_t size, const uint32_t alignment = 1)
 {
     for (auto it = free_blocks.begin(); it != free_blocks.end(); ++it)
     {
