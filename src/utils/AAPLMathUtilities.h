@@ -123,6 +123,12 @@ matrix_float4x4 AAPL_SIMD_OVERLOAD matrix4x4_translation(vector_float3 t);
 /// and translates by the vector (t.x, t.y, t.z).
 matrix_float4x4 AAPL_SIMD_OVERLOAD matrix4x4_scale_translation(vector_float3 s, vector_float3 t);
 
+/// Constructs a transformation matrix that scales by the vector (s.x, s.y, s.z),
+/// rotates by the given quarternion, and then translates by the vector (t.x, t.y, t.z).
+matrix_float4x4 AAPL_SIMD_OVERLOAD matrix4x4_trs(vector_float3 t, 
+                                                 simd_quatf r, 
+                                                 vector_float3 s);
+
 /// Starting with left-hand world coordinates, constructs a view matrix that is
 /// positioned at (eyeX, eyeY, eyeZ) and looks toward (centerX, centerY, centerZ),
 /// with the vector (upX, upY, upZ) pointing up for a left-hand coordinate system.
@@ -244,6 +250,9 @@ quaternion_float AAPL_SIMD_OVERLOAD quaternion_multiply(quaternion_float q0, qua
 
 /// Returns the quaternion that results from spherically interpolating between the two given quaternions.
 quaternion_float AAPL_SIMD_OVERLOAD quaternion_slerp(quaternion_float q0, quaternion_float q1, float t);
+
+/// Returns the quaternion that results from normalized linear interpolation between two given quaternions.
+simd_quatf AAPL_SIMD_OVERLOAD quaternion_nlerp(simd_quatf q0, simd_quatf q1, float t);
 
 /// Returns the vector that results from rotating the given vector by the given unit-norm quaternion.
 vector_float3 AAPL_SIMD_OVERLOAD quaternion_rotate_vector(quaternion_float q, vector_float3 v);

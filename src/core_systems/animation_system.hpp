@@ -42,16 +42,21 @@ public:
     void update(float delta_time);
     
     void update_skinning_buffer(uint8_t buffer_index);
-    NS::UInteger skinning_buffer_offset(AnimationInstanceHandle instance) const;
+    NS::UInteger get_skinning_buffer_offset(AnimationInstanceHandle instance) const;
 
 private:
-    static simd_quatf interpolate_rotation(simd_quatf q0, simd_quatf q1, float t);
     static void sample_track(
         const BakedJointTrack& track, 
         float time, 
         simd_float3& out_transformation,
-        simd_float3& out_rotation,
+        simd_quatf& out_rotation,
         simd_float3& out_scale);
+    static void evaluate_joint(
+        AnimationInstance& instance,
+        const AnimationClipDescription& clip,
+        const SkeletonDescription& skeleton,
+        const SkinBindingDescription& binding,
+        const uint32_t joint_index);
 
     std::vector<SkeletonDescription> skeletons;
     std::vector<SkinBindingDescription> skin_bindings;

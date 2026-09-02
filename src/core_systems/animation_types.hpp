@@ -37,7 +37,7 @@ struct BakedKeyframe
 {
     float time;
     simd_float3 translation;
-    simd_quatd rotation;
+    simd_quatf rotation;
     simd_float3 scale;
 };
 
