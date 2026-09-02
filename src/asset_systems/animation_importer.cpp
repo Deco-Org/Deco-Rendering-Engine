@@ -138,11 +138,73 @@ SkinBindingDescription AnimationImporter::import_skin_binding(
     }
 }
 
+static BakedKeyframe import_baked_keyframe(const ufbx_baked_node& baked_node, size_t key_index)
+{
+    BakedKeyframe key;
+
+    key.time = static_cast<float>(baked_node.translation_keys[key_index].time);
+
+    ufbx_vec3 translation = baked_node.translation_keys[key_index].value;
+    ufbx_quat rotation = baked_node.rotation_keys[key_index].value;
+    ufbx_vec3 scale = baked_node.scale_keys[key_index].value;
+
+    key.translation =
+        simd_make_float3(
+            static_cast<float>(translation.x),
+            static_cast<float>(translation.y),
+            static_cast<float>(translation.z));
+    
+    key.rotation =
+        simd_quaternion(
+            static_cast<float>(rotation.x),
+            static_cast<float>(rotation.y),
+            static_cast<float>(rotation.z),
+            static_cast<float>(rotation.w));
+
+    key.scale =
+        simd_make_float3(
+            static_cast<float>(scale.x),
+            static_cast<float>(scale.y),
+            static_cast<float>(scale.z));
+
+    return key;
+}
+
 AnimationClipDescription AnimationImporter::import_clip(
     ufbx_scene *scene,
     ufbx_anim_stack *stack,
     const std::vector<ufbx_node*>& joint_order,
     SkeletonHandle skeleton)
 {
+    ufbx_bake_opts opts = {};
+    // same as sample track comment in AnimationSystem
+    opts.resample_rate = 60.0;
+
+    ufbx_error err;
+    ufbx_baked_anim *baked_animation = ufbx_bake_anim(scene, stack->anim, &opts, &err);
+
+    if (!baked_animation) return AnimationClipDescription{};
     
+    AnimationClipDescription description;
+    description.skeleton = skeleton;
+    description.duration = static_cast<float>(baked_animation->playback_duration);
+    description.joint_tracks.resize(joint_order.size());
+
+    for (size_t i = 0; i < joint_order.size(); ++i)
+    {
+        const ufbx_baked_node& baked_node = baked_animation->nodes[joint_order[i]->typed_id];
+        // until logger, should assert key count matches rotation key and scale key count
+        size_t key_count = baked_node.translation_keys.count;
+
+        description.joint_tracks[i].keyframes.reserve(key_count);
+
+        for (size_t k = 0; k < key_count; ++k)
+        {
+            description.joint_tracks[i].keyframes.push_back(import_baked_keyframe(baked_node, k));
+        }
+    }
+
+    ufbx_free_baked_anim(baked_animation);
+
+    return description;
 }
