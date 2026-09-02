@@ -157,9 +157,9 @@ void AnimationSystem::evaluate_joint(
     else
     {
         instance.joint_model_matrices[joint_index] = 
-        simd_mul(
-            instance.joint_model_matrices[joint_parent], 
-            local_matrix);
+            simd_mul(
+                instance.joint_model_matrices[joint_parent], 
+                local_matrix);
     }
 
     instance.skinning_matrices[joint_index] = 

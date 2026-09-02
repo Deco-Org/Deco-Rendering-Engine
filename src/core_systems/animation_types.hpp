@@ -22,7 +22,7 @@ struct SkeletonDescription
 {
     std::vector<uint32_t> parent_indices;
     std::vector<simd_float3> rest_translations;
-    std::vector<simd_quatd> rest_rotations;
+    std::vector<simd_quatf> rest_rotations;
     std::vector<simd_float3> rest_scales;
     uint32_t joint_count = 0;
 };
