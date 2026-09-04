@@ -4,10 +4,11 @@
  */
 
 #include "animation_system.hpp"
+#include "utils/AAPLMathUtilities.h"
 #include <utility>
-#include <AAPLMathUtilities.h>
+#include <algorithm>
 
-AnimationSystem::AnimationSystem(MTL::Device *device = nullptr)
+AnimationSystem::AnimationSystem(MTL::Device *device)
 {
     if (device)
     {
@@ -83,7 +84,7 @@ void AnimationSystem::remove_instance(AnimationInstanceHandle instance)
     free_instance_handles.push_back(instance);
 }
 
-void AnimationSystem::play(AnimationInstanceHandle instance, ClipHandle clip, const bool loop = false)
+void AnimationSystem::play(AnimationInstanceHandle instance, ClipHandle clip, const bool loop)
 {
     auto& context = instances[instance];
     context.clip = clip;

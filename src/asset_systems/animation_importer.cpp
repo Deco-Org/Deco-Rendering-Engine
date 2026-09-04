@@ -4,6 +4,7 @@
  */
 
 #include "animation_importer.hpp"
+#include <algorithm>
 
 std::vector<ufbx_node*> AnimationImporter::topologically_sort_joints(ufbx_skin_deformer *skin)
 {
@@ -34,7 +35,7 @@ std::vector<ufbx_node*> AnimationImporter::topologically_sort_joints(ufbx_skin_d
     return joints;
 }
 
-std::vector<ufbx_node*> AnimationImporter::import_joint(
+void AnimationImporter::import_joint(
     SkeletonDescription &description,
     const std::vector<ufbx_node*>& joints,
     size_t joint_index)
@@ -136,6 +137,8 @@ SkinBindingDescription AnimationImporter::import_skin_binding(
             description.inverse_bind_matrices[i] = matrix_identity_float4x4;
         }
     }
+
+    return description;
 }
 
 static BakedKeyframe import_baked_keyframe(const ufbx_baked_node& baked_node, size_t key_index)
@@ -170,6 +173,19 @@ static BakedKeyframe import_baked_keyframe(const ufbx_baked_node& baked_node, si
     return key;
 }
 
+static const ufbx_baked_node *find_baked_node(const ufbx_baked_anim *baked_anim, const ufbx_node *joint)
+{
+    for (size_t i = 0; i < baked_anim->nodes.count; ++i)
+    {
+        if (baked_anim->nodes[i].typed_id == joint->typed_id)
+        {
+            return &baked_anim->nodes[i];
+        }
+    }
+
+    return nullptr;
+}
+
 AnimationClipDescription AnimationImporter::import_clip(
     ufbx_scene *scene,
     ufbx_anim_stack *stack,
@@ -192,15 +208,18 @@ AnimationClipDescription AnimationImporter::import_clip(
 
     for (size_t i = 0; i < joint_order.size(); ++i)
     {
-        const ufbx_baked_node& baked_node = baked_animation->nodes[joint_order[i]->typed_id];
+        const ufbx_baked_node *baked_node = find_baked_node(baked_animation, joint_order[i]);
+
+        if (!baked_node) continue;
+
         // until logger, should assert key count matches rotation key and scale key count
-        size_t key_count = baked_node.translation_keys.count;
+        size_t key_count = baked_node->translation_keys.count;
 
         description.joint_tracks[i].keyframes.reserve(key_count);
 
         for (size_t k = 0; k < key_count; ++k)
         {
-            description.joint_tracks[i].keyframes.push_back(import_baked_keyframe(baked_node, k));
+            description.joint_tracks[i].keyframes.push_back(import_baked_keyframe(*baked_node, k));
         }
     }
 

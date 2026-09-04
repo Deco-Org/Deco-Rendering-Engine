@@ -4,7 +4,7 @@
  */
 
 #pragma once
-#include "animation_types.hpp"
+#include "core_systems/animation_types.hpp"
 #include "ufbx.h"
 
 class AnimationImporter
@@ -22,9 +22,11 @@ public:
         SkeletonHandle skeleton);
 
 private:
-    static std::vector<ufbx_node*> import_joint(
+    static void import_joint(
         SkeletonDescription &description,
         const std::vector<ufbx_node*>& joints,
         size_t joint_index);
     static std::vector<ufbx_node*> topologically_sort_joints(ufbx_skin_deformer *skin);
 };
+
+// I still need tests
