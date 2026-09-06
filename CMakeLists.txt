@@ -42,7 +42,6 @@ target_include_directories(rendering_engine PRIVATE
 
 # Harness
 option(BUILD_HARNESS "Build the rendering test harness" ON)
-
 if(BUILD_HARNESS)
     add_subdirectory(harness)
 endif()

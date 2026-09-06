@@ -5,6 +5,7 @@
 
 #pragma once
 #include "core_systems/animation_types.hpp"
+#define UFBX_REAL_IS_FLOAT 1
 #include "ufbx.h"
 
 class AnimationImporter

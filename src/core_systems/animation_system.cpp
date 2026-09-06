@@ -4,7 +4,6 @@
  */
 
 #include "animation_system.hpp"
-#include "utils/AAPLMathUtilities.h"
 #include <utility>
 #include <algorithm>
 
@@ -36,19 +35,19 @@ AnimationSystem::~AnimationSystem()
 SkeletonHandle AnimationSystem::add_skeleton(SkeletonDescription description)
 {
     skeletons.push_back(std::move(description));
-    return skeletons.size() - 1;
+    return static_cast<uint32_t>(skeletons.size() - 1);
 }
 
 SkinBindingHandle AnimationSystem::add_skin_binding(SkinBindingDescription description)
 {
     skin_bindings.push_back(std::move(description));
-    return skin_bindings.size() - 1;
+    return static_cast<uint32_t>(skin_bindings.size() - 1);
 }
 
 ClipHandle AnimationSystem::add_clip(AnimationClipDescription description)
 {
     clips.push_back(std::move(description));
-    return clips.size() - 1;
+    return static_cast<uint32_t>(clips.size() - 1);
 }
 
 AnimationInstanceHandle AnimationSystem::add_instance(SkeletonHandle skeleton, SkinBindingHandle skin_binding)
@@ -74,7 +73,7 @@ AnimationInstanceHandle AnimationSystem::add_instance(SkeletonHandle skeleton, S
     }
 
     instances.push_back(std::move(instance));
-    return instances.size() - 1;
+    return static_cast<uint32_t>(instances.size() - 1);
 }
 
 void AnimationSystem::remove_instance(AnimationInstanceHandle instance)
@@ -110,19 +109,27 @@ void AnimationSystem::sample_track(
     simd_quatf& out_rotation,
     simd_float3& out_scale)
 {
-    // fixed fps for now, shoud look into dynamic if worth it
-    const float fps = 60.0f;
-    float exact_frame = time * fps;
-    int frame0 = (int)std::floor(exact_frame);
-    int frame1 = frame0 + 1;
-    float t = exact_frame - (float)frame0;
+    const std::vector<BakedKeyframe>& keys = track.keyframes;
+    
+    auto it = std::upper_bound(keys.begin(), keys.end(), time, [](float t, const BakedKeyframe& k) 
+    { 
+        return t < k.time; 
+    });
 
-    int max_frame = (int)track.keyframes.size() - 1;
-    frame0 = std::clamp(frame0, 0, max_frame);
-    frame1 = std::clamp(frame1, 0, max_frame);
+    size_t i1 = std::clamp<size_t>(it - keys.begin(), 1, keys.size() - 1);
+    const BakedKeyframe& k0 = keys[i1 - 1];
+    const BakedKeyframe& k1 = keys[i1];
 
-    const BakedKeyframe& k0 = track.keyframes[frame0];
-    const BakedKeyframe& k1 = track.keyframes[frame1];
+    float t;
+
+    if (k1.time - k0.time > 0.0f)
+    {
+        t = (time - k0.time) / (k1.time - k0.time);
+    }
+    else
+    {
+        t = 0.0f;
+    }
 
     out_translation = simd_mix(k0.translation, k1.translation, t);
     out_rotation = quaternion_nlerp(k0.rotation, k1.rotation, t);
@@ -140,12 +147,22 @@ void AnimationSystem::evaluate_joint(
     simd_quatf rotation;
     simd_float3 scale;
 
-    sample_track(
-        clip.joint_tracks[joint_index], 
-        instance.current_time, 
-        translation,
-        rotation,
-        scale);
+    if (clip.joint_tracks[joint_index].keyframes.empty())
+    {
+        translation = skeleton.rest_translations[joint_index];
+        rotation = skeleton.rest_rotations[joint_index];
+        scale = skeleton.rest_scales[joint_index];
+    }
+    else
+    {
+        sample_track(
+            clip.joint_tracks[joint_index], 
+            instance.current_time, 
+            translation,
+            rotation,
+            scale);
+    }
+
 
     matrix_float4x4 local_matrix = matrix4x4_trs(translation, rotation, scale);
 

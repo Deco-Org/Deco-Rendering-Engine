@@ -141,38 +141,6 @@ SkinBindingDescription AnimationImporter::import_skin_binding(
     return description;
 }
 
-static BakedKeyframe import_baked_keyframe(const ufbx_baked_node& baked_node, size_t key_index)
-{
-    BakedKeyframe key;
-
-    key.time = static_cast<float>(baked_node.translation_keys[key_index].time);
-
-    ufbx_vec3 translation = baked_node.translation_keys[key_index].value;
-    ufbx_quat rotation = baked_node.rotation_keys[key_index].value;
-    ufbx_vec3 scale = baked_node.scale_keys[key_index].value;
-
-    key.translation =
-        simd_make_float3(
-            static_cast<float>(translation.x),
-            static_cast<float>(translation.y),
-            static_cast<float>(translation.z));
-    
-    key.rotation =
-        simd_quaternion(
-            static_cast<float>(rotation.x),
-            static_cast<float>(rotation.y),
-            static_cast<float>(rotation.z),
-            static_cast<float>(rotation.w));
-
-    key.scale =
-        simd_make_float3(
-            static_cast<float>(scale.x),
-            static_cast<float>(scale.y),
-            static_cast<float>(scale.z));
-
-    return key;
-}
-
 static const ufbx_baked_node *find_baked_node(const ufbx_baked_anim *baked_anim, const ufbx_node *joint)
 {
     for (size_t i = 0; i < baked_anim->nodes.count; ++i)
@@ -212,14 +180,114 @@ AnimationClipDescription AnimationImporter::import_clip(
 
         if (!baked_node) continue;
 
-        // until logger, should assert key count matches rotation key and scale key count
-        size_t key_count = baked_node->translation_keys.count;
+        size_t t_key_count = baked_node->translation_keys.count;
+        size_t r_key_count = baked_node->rotation_keys.count;
+        size_t s_key_count = baked_node->scale_keys.count;
+        size_t max_key_count = std::max({ t_key_count, r_key_count, s_key_count });
 
-        description.joint_tracks[i].keyframes.reserve(key_count);
+        if (max_key_count == 0) continue;
 
-        for (size_t k = 0; k < key_count; ++k)
+        description.joint_tracks[i].keyframes.reserve(max_key_count);
+
+        for (size_t k = 0; k < max_key_count; ++k)
         {
-            description.joint_tracks[i].keyframes.push_back(import_baked_keyframe(*baked_node, k));
+            BakedKeyframe key;
+
+            if (k < t_key_count)
+            {
+                key.time = static_cast<float>(baked_node->translation_keys[k].time);
+            }
+            else if (k < r_key_count)
+            {
+                key.time = static_cast<float>(baked_node->rotation_keys[k].time);
+            }
+            else if (k < s_key_count)
+            {
+                key.time = static_cast<float>(baked_node->scale_keys[k].time);
+            }
+
+            size_t t_index;
+            size_t r_index;
+            size_t s_index;
+
+            if (t_key_count > 0)
+            {
+                t_index = std::min(k, t_key_count - 1);
+            }
+            else
+            {
+                t_index = 0;
+            }
+
+            if (r_key_count > 0)
+            {
+                r_index = std::min(k, r_key_count - 1);
+            }
+            else
+            {
+                r_index = 0;
+            }
+
+            if (s_key_count > 0)
+            {
+                s_index = std::min(k, s_key_count - 1);
+            }
+            else
+            {
+                s_index = 0;
+            }
+
+            ufbx_vec3 t;
+            ufbx_quat r;
+            ufbx_vec3 s;
+
+            if (t_key_count > 0)
+            {
+                t = baked_node->translation_keys[t_index].value;
+            }
+            else
+            {
+                t = joint_order[i]->local_transform.translation;
+            }
+
+            if (r_key_count > 0)
+            {
+                r = baked_node->rotation_keys[r_index].value;
+            }
+            else
+            {
+                r = joint_order[i]->local_transform.rotation;
+            }
+
+            if (s_key_count > 0)
+            {
+                s = baked_node->scale_keys[s_index].value;
+            }
+            else
+            {
+                s = joint_order[i]->local_transform.scale;
+            }
+
+            key.translation =
+                simd_make_float3(
+                    static_cast<float>(t.x),
+                    static_cast<float>(t.y),
+                    static_cast<float>(t.z));
+    
+            key.rotation =
+                simd_quaternion(
+                    static_cast<float>(r.x),
+                    static_cast<float>(r.y),
+                    static_cast<float>(r.z),
+                    static_cast<float>(r.w));
+
+            key.scale =
+                simd_make_float3(
+                    static_cast<float>(s.x),
+                    static_cast<float>(s.y),
+                    static_cast<float>(s.z));
+
+            description.joint_tracks[i].keyframes.push_back(key);
         }
     }
 
