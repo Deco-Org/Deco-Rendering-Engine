@@ -11,13 +11,15 @@ using RenderPipelineBitmap = uint8_t;
 
 enum class RenderPipelineFlags : RenderPipelineBitmap
 {
-    PBR = 0 << 0,
+    None = 0,
+
+    // PBR = 0 << 0,
     Toon = 1 << 0,
 
-    Static = 0 << 1,
+    // Static = 0 << 1,
     Skinned = 1 << 1,
 
-    Opaque = 0 << 2,
+    // Opaque = 0 << 2,
     Translucent = 1 << 2,
     
     FlagCount = 3,
@@ -34,12 +36,32 @@ class RenderPipelineLibrary
     void build_formats(MTL::PixelFormat pixel_format);
 
     private:
-    MTL::RenderPipelineState* compile_render_pipeline(MTL::PixelFormat pixel_format);
-    MTL4::RenderPipelineDescriptor* configure_render_pipeline_descriptor(MTL::PixelFormat pixel_format);
-    MTL4::LibraryFunctionDescriptor* make_vertex_shader_configuration();
-    MTL4::LibraryFunctionDescriptor* make_fragment_shader_configuration();
+    MTL::RenderPipelineState* compile_render_pipeline(
+        MTL::PixelFormat pixel_format, 
+        RenderPipelineBitmap pipeline_flags
+    );
+
+    MTL4::RenderPipelineDescriptor* configure_render_pipeline_descriptor(
+        MTL::PixelFormat pixel_format,
+        RenderPipelineBitmap pipeline_flags
+    );
+
+    MTL4::SpecializedFunctionDescriptor* make_vertex_shader_configuration(RenderPipelineBitmap pipeline_flags);
+    MTL4::SpecializedFunctionDescriptor* make_fragment_shader_configuration(RenderPipelineBitmap pipeline_flags);
+
+    MTL::VertexDescriptor* make_vertex_descriptor();
+
+    MTL::Library* load_shader_library();
 
     MTL::RenderPipelineState* pipeline_state_objects[static_cast<RenderPipelineBitmap>(RenderPipelineFlags::PipelineCount)] = {};
     MTL4::Compiler* compiler = nullptr;
     MTL::Device* device = nullptr;
 };
+
+// Inlines
+
+inline RenderPipelineFlags operator&(RenderPipelineFlags a, RenderPipelineFlags b) {
+    return static_cast<RenderPipelineFlags>(
+        static_cast<RenderPipelineBitmap>(a) & static_cast<RenderPipelineBitmap>(b)
+    );
+}
