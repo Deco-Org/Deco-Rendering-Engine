@@ -40,8 +40,8 @@ public:
     size_t persistent_allocations_count() const;
     size_t dynamic_allocations_count() const;
 
-    inline bool dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const;
-    inline bool persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const;
+    bool dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const;
+    bool persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const;
 
     std::atomic<uint64_t> latest_commit_value = 0;
 
@@ -53,15 +53,3 @@ private:
     MTL::ResidencySet* dynamic_set = nullptr;
     MTL4::CommandQueue* command_queue = nullptr;
 };
-
-// Inlines
-
-bool ResidencyManager::dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const
-{
-    return dynamic_set->containsAllocation(resource_allocation);
-}
-
-bool ResidencyManager::persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const
-{
-    return persistent_set->containsAllocation(resource_allocation);
-}
