@@ -43,6 +43,9 @@ public:
     bool dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const;
     bool persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const;
 
+    /**
+     * The value of the latest commit. Any assets with a larger commit value have not yet been committed, and are therefore not safe to draw.
+     */
     std::atomic<uint64_t> latest_commit_value = 0;
 
     static const NS::String* persistent_set_label;
