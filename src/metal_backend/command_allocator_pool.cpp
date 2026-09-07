@@ -29,7 +29,6 @@ void CommandAllocatorPool::begin_frame()
     if (frame_count >= Config::MAX_FRAMES_IN_FLIGHT)
     {
         uint64_t wait_value = frame_count - Config::MAX_FRAMES_IN_FLIGHT;
-        printf("wait value is %u\n", wait_value);
         bool before_timeout = frame_event->waitUntilSignaledValue(frame_count, FRAME_TIMEOUT_TIME_IN_MILLISECONDS);
     }
 
