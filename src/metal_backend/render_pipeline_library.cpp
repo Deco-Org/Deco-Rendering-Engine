@@ -16,16 +16,25 @@ RenderPipelineLibrary::RenderPipelineLibrary(MTL::Device* metal_device, MTL4::Co
 {
     device = metal_device;
     compiler = metal_compiler;
+    count = 0;
 }
 
 RenderPipelineLibrary::~RenderPipelineLibrary()
 {
-
+    for (uint8_t i = 0; i < static_cast<uint8_t>(count); ++i)
+    {
+        if (pipeline_state_objects[i] != nullptr)
+        {
+            pipeline_state_objects[i]->release();
+            pipeline_state_objects[i] = nullptr;
+        }
+    }
+    count = 0;
 }
 
 MTL::RenderPipelineState* RenderPipelineLibrary::get(RenderPipelineHandle pipeline) const
 {
-    
+    return pipeline_state_objects[pipeline];
 }
 
 void RenderPipelineLibrary::build_formats(MTL::PixelFormat pixel_format)
@@ -34,6 +43,7 @@ void RenderPipelineLibrary::build_formats(MTL::PixelFormat pixel_format)
     {
         MTL::RenderPipelineState* pipeline_state = compile_render_pipeline(pixel_format, i);
         pipeline_state_objects[i] = pipeline_state;
+        count += 1;
     }
 }
 
@@ -82,7 +92,6 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_vertex_shader_c
     bool is_translucent = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Translucent) != RenderPipelineFlags::None;
 
     MTL4::LibraryFunctionDescriptor* base_function_descriptor = MTL4::LibraryFunctionDescriptor::alloc()->init();
-    // MTL::Library* library = device->newLibrary(NS::String::string("default.metallib", NS::UTF8StringEncoding), nullptr);
     const MTL::Library* library = ShaderLoader::load_shader_library(device);
 
     base_function_descriptor->setLibrary(library);

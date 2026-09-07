@@ -35,6 +35,8 @@ class RenderPipelineLibrary
     MTL::RenderPipelineState* get(RenderPipelineHandle pipeline) const;
     void build_formats(MTL::PixelFormat pixel_format);
 
+    inline static uint8_t count = 0;
+
     private:
     MTL::RenderPipelineState* compile_render_pipeline(
         MTL::PixelFormat pixel_format, 

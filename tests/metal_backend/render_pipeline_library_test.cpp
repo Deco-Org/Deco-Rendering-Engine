@@ -24,3 +24,33 @@ TEST_CASE("all pipelines build without errors", "[pipeline][render][metal]")
     compiler->release();
     autorelease_pool->release();
 }
+
+TEST_CASE("pipeline state objects should be cleaned up on deletion", "[pipeline][render][memory][metal]")
+{
+    NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* device = MTL::CreateSystemDefaultDevice();
+    MTL4::CompilerDescriptor* compiler_descriptor = MTL4::CompilerDescriptor::alloc()->init();
+    NS::Error* compiler_creation_error = nullptr;
+    MTL4::Compiler* compiler = device->newCompiler(compiler_descriptor, &compiler_creation_error);
+    REQUIRE(nullptr == compiler_creation_error);
+    compiler_descriptor->release();
+    REQUIRE(compiler);
+
+    RenderPipelineLibrary* library = new RenderPipelineLibrary(device, compiler);
+    library->build_formats(MTL::PixelFormatBGRA8Unorm);
+
+    for (int i = 0; i < (int)RenderPipelineFlags::FlagCount; ++i)
+    {
+        REQUIRE(nullptr != library->get((RenderPipelineHandle)i));
+    }
+
+    REQUIRE(0 != RenderPipelineLibrary::count);
+
+    delete library;
+    library = nullptr;
+
+    REQUIRE(0 == RenderPipelineLibrary::count);
+
+    compiler->release();
+    autorelease_pool->release();
+}
