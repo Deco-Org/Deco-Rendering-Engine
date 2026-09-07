@@ -17,6 +17,7 @@ add_library(rendering_engine STATIC
     src/asset_systems/material_system.cpp
     src/asset_systems/submesh_system.cpp
     src/core_systems/transformation_system.cpp
+    src/metal_backend/command_allocator_pool.cpp
     src/metal_backend/residency_manager.cpp
     src/metal_backend/render_pipeline_library.cpp
     src/metal_backend/shader_loader.cpp
