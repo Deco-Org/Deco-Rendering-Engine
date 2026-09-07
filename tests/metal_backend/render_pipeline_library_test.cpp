@@ -23,6 +23,7 @@ TEST_CASE("all pipelines build without errors", "[pipeline][render][metal]")
 
     compiler->release();
     autorelease_pool->release();
+    device->release();
 }
 
 TEST_CASE("pipeline state objects should be cleaned up on deletion", "[pipeline][render][memory][metal]")
@@ -53,4 +54,5 @@ TEST_CASE("pipeline state objects should be cleaned up on deletion", "[pipeline]
 
     compiler->release();
     autorelease_pool->release();
+    device->release();
 }
