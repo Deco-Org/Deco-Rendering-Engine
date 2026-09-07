@@ -27,7 +27,7 @@ public:
      */
     void release_command_buffer();
     
-    MTL4::CommandBuffer* get_command_buffer();
+    MTL4::CommandBuffer* get_command_buffer() const;
     uint64_t get_frame_count() const;
 
     static constexpr size_t FRAME_TIMEOUT_TIME_IN_MILLISECONDS = 1000UZ;

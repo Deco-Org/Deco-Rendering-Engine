@@ -51,7 +51,7 @@ void CommandAllocatorPool::release_command_buffer()
     command_buffer = nullptr;
 }
 
-MTL4::CommandBuffer* CommandAllocatorPool::get_command_buffer()
+MTL4::CommandBuffer* CommandAllocatorPool::get_command_buffer() const
 {
     return command_buffer;
 }
