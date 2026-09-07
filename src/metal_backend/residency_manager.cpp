@@ -49,53 +49,29 @@ ResidencyManager::ResidencyManager(MTL::Device* metal_device, MTL4::CommandQueue
 
 ResidencyManager::~ResidencyManager()
 {
+    command_queue->removeResidencySet(persistent_set);
+    command_queue->removeResidencySet(dynamic_set);
+    
     persistent_set->endResidency();
     dynamic_set->endResidency();
+
+    persistent_set->release();
+    dynamic_set->release();
 }
 
-void ResidencyManager::add_persistent(MTL::Buffer* buffer)
+void ResidencyManager::add_persistent(MTL::Allocation* resource_allocation)
 {
-    persistent_set->addAllocation(buffer);
+    persistent_set->addAllocation(resource_allocation);
 }
 
-void ResidencyManager::add_persistent(MTL::Texture* texture)
+void ResidencyManager::add_dynamic(MTL::Allocation* resource_allocation)
 {
-    persistent_set->addAllocation(texture);
+    dynamic_set->addAllocation(resource_allocation);
 }
 
-void ResidencyManager::add_persistent(MTL::Heap* heap)
+void ResidencyManager::remove_dynamic(MTL::Allocation* resource_allocation)
 {
-    persistent_set->addAllocation(heap);
-}
-
-void ResidencyManager::add_dynamic(MTL::Buffer* buffer)
-{
-    dynamic_set->addAllocation(buffer);
-}
-
-void ResidencyManager::add_dynamic(MTL::Texture* texture)
-{
-    dynamic_set->addAllocation(texture);
-}
-
-void ResidencyManager::add_dynamic(MTL::Heap* heap)
-{
-    dynamic_set->addAllocation(heap);
-}
-
-void ResidencyManager::remove_dynamic(MTL::Buffer* buffer)
-{
-    dynamic_set->removeAllocation(buffer);
-}
-
-void ResidencyManager::remove_dynamic(MTL::Texture* texture)
-{
-    dynamic_set->removeAllocation(texture);
-}
-
-void ResidencyManager::remove_dynamic(MTL::Heap* heap)
-{
-    dynamic_set->removeAllocation(heap);
+    dynamic_set->removeAllocation(resource_allocation);
 }
 
 void ResidencyManager::commit()
@@ -103,4 +79,14 @@ void ResidencyManager::commit()
     persistent_set->commit();
     dynamic_set->commit();
     latest_commit_value += 1;
+}
+
+size_t ResidencyManager::persistent_allocations_count() const
+{
+    return static_cast<size_t>(persistent_set->allocationCount());
+}
+
+size_t ResidencyManager::dynamic_allocations_count() const
+{
+    return static_cast<size_t>(dynamic_set->allocationCount());
 }
