@@ -51,8 +51,8 @@ public:
     static const NS::String* PERSISTENT_SET_LABEL;
     static const NS::String* DYNAMIC_SET_LABEL;
 
-    static constexpr size_t INITIAL_PERSISTENT_SET_CAPACITY = 16;
-    static constexpr size_t INITIAL_DYNAMIC_SET_CAPACITY = 512;
+    static constexpr size_t INITIAL_PERSISTENT_SET_CAPACITY = 16UZ;
+    static constexpr size_t INITIAL_DYNAMIC_SET_CAPACITY = 512UZ;
 
 private:
     MTL::ResidencySet* persistent_set = nullptr;
