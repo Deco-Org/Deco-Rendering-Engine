@@ -24,19 +24,29 @@ CommandAllocatorPool::~CommandAllocatorPool()
         release_command_buffer();
 }
 
+bool CommandAllocatorPool::default_waiting_function(CommandAllocatorPool* instance, uint64_t wait_value, uint64_t wait_time_in_milliseconds)
+{
+    return instance->frame_event->waitUntilSignaledValue(instance->frame_count, FRAME_TIMEOUT_TIME_IN_MILLISECONDS);
+}
+
+void CommandAllocatorPool::default_frame_completion_callback_function(CommandAllocatorPool* instance)
+{
+    uint64_t frame_index = instance->frame_count % Config::MAX_FRAMES_IN_FLIGHT;
+    instance->allocators[frame_index]->reset();
+    instance->command_buffer->beginCommandBuffer(instance->allocators[frame_index]);
+
+    instance->frame_count += 1;
+}
+
 void CommandAllocatorPool::begin_frame()
 {
     if (frame_count >= Config::MAX_FRAMES_IN_FLIGHT)
     {
         uint64_t wait_value = frame_count - Config::MAX_FRAMES_IN_FLIGHT;
-        bool before_timeout = frame_event->waitUntilSignaledValue(frame_count, FRAME_TIMEOUT_TIME_IN_MILLISECONDS);
+        default_waiting_function(this, wait_value, FRAME_TIMEOUT_TIME_IN_MILLISECONDS);
     }
 
-    uint64_t frame_index = frame_count % Config::MAX_FRAMES_IN_FLIGHT;
-    allocators[frame_index]->reset();
-    command_buffer->beginCommandBuffer(allocators[frame_index]);
-
-    frame_count += 1;
+    default_frame_completion_callback_function(this);
 }
 
 void CommandAllocatorPool::signal_frame_complete(MTL4::CommandQueue* command_queue)
