@@ -90,3 +90,13 @@ size_t ResidencyManager::dynamic_allocations_count() const
 {
     return static_cast<size_t>(dynamic_set->allocationCount());
 }
+
+bool ResidencyManager::dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const
+{
+    return dynamic_set->containsAllocation(resource_allocation);
+}
+
+bool ResidencyManager::persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const
+{
+    return persistent_set->containsAllocation(resource_allocation);
+}
