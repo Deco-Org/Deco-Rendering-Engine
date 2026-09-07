@@ -10,6 +10,7 @@ run: build
 clean:
 	rm -rf build/
 
+# TAGS="[tag]" to filter by tag
 tests:
 	cmake -B build -G Xcode --log-level=ERROR
 	cmake --build build --target tests
