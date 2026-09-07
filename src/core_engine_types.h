@@ -25,6 +25,7 @@ inline constexpr TransformationHandle NO_TRANSFORMATION_PARENT = UINT32_MAX;
 namespace Config
 {
     inline constexpr uint8_t MAX_FRAMES_IN_FLIGHT = 3;
+    inline constexpr uint32_t MAX_TOTAL_BONES = 2048;
 };
 
 struct Transformation

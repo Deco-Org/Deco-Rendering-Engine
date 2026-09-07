@@ -173,7 +173,7 @@ void SubmeshSystem::drainAdditionsInputBuffer()
             memcpy(outputHandles.buffer, consumedHandles, n * sizeof(SubmeshHandle));
             outputHandles.count = n;
         }
-        outputHandles.largestHandle = vertexBuffers.size() - 1;
+        outputHandles.largestHandle = static_cast<uint32_t>(vertexBuffers.size() - 1);
     }
 }
 

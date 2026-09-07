@@ -134,19 +134,11 @@ void TransformationSystem::setParents(const TransformationReparentConfig* config
     }
 }
 
-inline matrix_float4x4 TransformationSystem::buildLocalMatrix(simd_float3 translation, simd_quatf rotation, simd_float3 scale)
-{
-    const matrix_float4x4 T = matrix4x4_translation(translation);
-    const matrix_float4x4 R = simd_matrix4x4(rotation);
-    const matrix_float4x4 S = matrix4x4_scale(scale);
-    return simd_mul(T, simd_mul(R, S));
-}
-
 void TransformationSystem::computeWorldMatrices()
 {
     for (uint32_t i = 0; i < positions.size(); ++i)
     {
-        matrix_float4x4 local = buildLocalMatrix(positions[i], rotations[i], scales[i]);
+        matrix_float4x4 local = matrix4x4_trs(positions[i], rotations[i], scales[i]);
         const TransformationHandle parentHandle = parentHandles[i];
         if (parentHandle == NO_TRANSFORMATION_PARENT)
         {

@@ -1,4 +1,4 @@
-.PHONY: build run clean
+.PHONY: build run clean tests
 
 build:
 	cmake -B build -G Xcode
@@ -10,7 +10,8 @@ run: build
 clean:
 	rm -rf build/
 
-test:
+# TAGS="[tag]" to filter by tag
+tests:
 	cmake -B build -G Xcode --log-level=ERROR
 	cmake --build build --target tests
 	./build/tests/Debug/tests $(if $(TAGS), "$(TAGS)")
