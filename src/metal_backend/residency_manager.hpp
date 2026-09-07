@@ -3,6 +3,8 @@
  * @brief
  */
 
+#pragma once
+
 #include <Metal/Metal.hpp>
 #include <atomic>
 
