@@ -14,7 +14,7 @@ TEST_CASE("all pipelines build without errors", "[pipeline][render][metal]")
     REQUIRE(compiler);
 
     RenderPipelineLibrary library(device, compiler);
-    library.build_formats(MTL::PixelFormatBGRA8Unorm);
+    library.build_states(MTL::PixelFormatBGRA8Unorm);
 
     for (int i = 0; i < (int)RenderPipelineFlags::FlagCount; ++i)
     {
@@ -36,20 +36,20 @@ TEST_CASE("pipeline state objects should be cleaned up on deletion", "[pipeline]
     compiler_descriptor->release();
     REQUIRE(compiler);
 
-    RenderPipelineLibrary* library = new RenderPipelineLibrary(device, compiler);
-    library->build_formats(MTL::PixelFormatBGRA8Unorm);
+    RenderPipelineLibrary library(device, compiler);
+    library.build_states(MTL::PixelFormatBGRA8Unorm);
 
     for (int i = 0; i < (int)RenderPipelineFlags::FlagCount; ++i)
     {
-        REQUIRE(nullptr != library->get((RenderPipelineHandle)i));
+        REQUIRE(nullptr != library.get((RenderPipelineHandle)i));
     }
 
-    REQUIRE(0 != RenderPipelineLibrary::count);
+    library.destroy_states();
 
-    delete library;
-    library = nullptr;
-
-    REQUIRE(0 == RenderPipelineLibrary::count);
+    for (int i = 0; i < (int)RenderPipelineFlags::FlagCount; ++i)
+    {
+        REQUIRE(nullptr == library.get((RenderPipelineHandle)i));
+    }
 
     compiler->release();
     autorelease_pool->release();

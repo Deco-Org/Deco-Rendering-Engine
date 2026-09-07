@@ -16,20 +16,11 @@ RenderPipelineLibrary::RenderPipelineLibrary(MTL::Device* metal_device, MTL4::Co
 {
     device = metal_device;
     compiler = metal_compiler;
-    count = 0;
 }
 
 RenderPipelineLibrary::~RenderPipelineLibrary()
 {
-    for (uint8_t i = 0; i < static_cast<uint8_t>(count); ++i)
-    {
-        if (pipeline_state_objects[i] != nullptr)
-        {
-            pipeline_state_objects[i]->release();
-            pipeline_state_objects[i] = nullptr;
-        }
-    }
-    count = 0;
+    destroy_states();
 }
 
 MTL::RenderPipelineState* RenderPipelineLibrary::get(RenderPipelineHandle pipeline) const
@@ -37,13 +28,24 @@ MTL::RenderPipelineState* RenderPipelineLibrary::get(RenderPipelineHandle pipeli
     return pipeline_state_objects[pipeline];
 }
 
-void RenderPipelineLibrary::build_formats(MTL::PixelFormat pixel_format)
+void RenderPipelineLibrary::build_states(MTL::PixelFormat pixel_format)
 {
     for (RenderPipelineHandle i = 0; i < static_cast<RenderPipelineBitmap>(RenderPipelineFlags::PipelineCount); ++i)
     {
         MTL::RenderPipelineState* pipeline_state = compile_render_pipeline(pixel_format, i);
         pipeline_state_objects[i] = pipeline_state;
-        count += 1;
+    }
+}
+
+void RenderPipelineLibrary::destroy_states()
+{
+    for (uint8_t i = 0; i < static_cast<uint8_t>(RenderPipelineFlags::PipelineCount); ++i)
+    {
+        if (pipeline_state_objects[i] != nullptr)
+        {
+            pipeline_state_objects[i]->release();
+            pipeline_state_objects[i] = nullptr;
+        }
     }
 }
 
