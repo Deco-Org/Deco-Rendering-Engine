@@ -15,6 +15,7 @@ add_executable(tests
     material_system/texture_loader_test.cpp
     material_system/material_system_test.cpp
     metal_backend/render_pipeline_library_test.cpp
+    metal_backend/shader_loader_test.cpp
     tools/synchronized_buffer_test.cpp
 )
 

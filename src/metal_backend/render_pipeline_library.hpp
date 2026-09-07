@@ -51,8 +51,6 @@ class RenderPipelineLibrary
 
     MTL::VertexDescriptor* make_vertex_descriptor();
 
-    MTL::Library* load_shader_library();
-
     MTL::RenderPipelineState* pipeline_state_objects[static_cast<RenderPipelineBitmap>(RenderPipelineFlags::PipelineCount)] = {};
     MTL4::Compiler* compiler = nullptr;
     MTL::Device* device = nullptr;

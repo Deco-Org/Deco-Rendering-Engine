@@ -6,6 +6,7 @@
 #include "render_pipeline_library.hpp"
 #include "default_metallib.h"
 #include "vertex.hpp"
+#include "shader_loader.hpp"
 #include <dispatch/dispatch.h>
 
 static const NS::String* vertex_pbr_shader_name = MTLSTR("vertex_pbr_shader");
@@ -82,7 +83,7 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_vertex_shader_c
 
     MTL4::LibraryFunctionDescriptor* base_function_descriptor = MTL4::LibraryFunctionDescriptor::alloc()->init();
     // MTL::Library* library = device->newLibrary(NS::String::string("default.metallib", NS::UTF8StringEncoding), nullptr);
-    MTL::Library* library = load_shader_library();
+    const MTL::Library* library = ShaderLoader::load_shader_library(device);
 
     base_function_descriptor->setLibrary(library);
     base_function_descriptor->setName(vertex_pbr_shader_name);
@@ -107,9 +108,9 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_fragment_shader
     bool is_translucent = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Translucent) != RenderPipelineFlags::None;
 
     MTL4::LibraryFunctionDescriptor* base_function_descriptor = MTL4::LibraryFunctionDescriptor::alloc()->init();
-    base_function_descriptor->setLibrary(load_shader_library());
+    const MTL::Library* library = ShaderLoader::load_shader_library(device);
+    base_function_descriptor->setLibrary(library);
     base_function_descriptor->setName(fragment_pbr_shader_name);
-
     MTL::FunctionConstantValues* constant_values = MTL::FunctionConstantValues::alloc()->init();
     constant_values->setConstantValue(&is_skinned,      MTL::DataTypeBool, NS::UInteger(0)); // Index 0
     constant_values->setConstantValue(&is_translucent,  MTL::DataTypeBool, NS::UInteger(1)); // Index 1
@@ -151,21 +152,4 @@ MTL::VertexDescriptor* RenderPipelineLibrary::make_vertex_descriptor()
     vertex_descriptor->layouts()->object(0)->setStride(sizeof(Vertex));
 
     return vertex_descriptor;
-}
-
-MTL::Library* RenderPipelineLibrary::load_shader_library()
-{
-    dispatch_data_t data = dispatch_data_create(
-        default_metallib,
-        default_metallib_len,
-        dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), 
-        DISPATCH_DATA_DESTRUCTOR_DEFAULT
-    );
-    MTL::Library* library = device->newLibrary(data, nullptr);
-
-    dispatch_release(data);
-
-    assert(nullptr != library);
-
-    return library;
 }
