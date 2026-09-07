@@ -155,7 +155,50 @@ TEST_CASE("dynamic items should be able to be added and removed from the residen
     device->release();
 }
 
+TEST_CASE("resource manager should accurately track whether a resource is in a persistent residency set", "[residency manager][residency][persistent residency][add][metal]")
+{
+    NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* device = MTL::CreateSystemDefaultDevice();
+    MTL4::CommandQueue* command_queue = device->newMTL4CommandQueue();
+    ResidencyManager* residency_manager = new ResidencyManager(device, command_queue);
 
+    MTL::Buffer* some_buffer = device->newBuffer(128, MTL::ResourceStorageModeShared);
+    REQUIRE(false == residency_manager->persistent_set_contains_allocation(some_buffer));
+    
+    residency_manager->add_persistent(some_buffer);
+    REQUIRE(residency_manager->persistent_set_contains_allocation(some_buffer));
+
+    delete residency_manager;
+    residency_manager = nullptr;
+
+    command_queue->release();
+    autorelease_pool->release();
+    device->release();
+}
+
+TEST_CASE("resource manager should accurately track whether a resource is in a dynamic residency set", "[residency manager][residency][dynamic residency][add][remove][metal]")
+{
+    NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* device = MTL::CreateSystemDefaultDevice();
+    MTL4::CommandQueue* command_queue = device->newMTL4CommandQueue();
+    ResidencyManager* residency_manager = new ResidencyManager(device, command_queue);
+
+    MTL::Buffer* some_buffer = device->newBuffer(128, MTL::ResourceStorageModeShared);
+    REQUIRE(false == residency_manager->dyanmic_set_contains_allocation(some_buffer));
+    
+    residency_manager->add_dynamic(some_buffer);
+    REQUIRE(residency_manager->dyanmic_set_contains_allocation(some_buffer));
+
+    residency_manager->remove_dynamic(some_buffer);
+    REQUIRE(false == residency_manager->dyanmic_set_contains_allocation(some_buffer));
+
+    delete residency_manager;
+    residency_manager = nullptr;
+
+    command_queue->release();
+    autorelease_pool->release();
+    device->release();
+}
 
 TEST_CASE("commiting resources through the residency manager should increment the latest commit value", "[residency manager][residency][add][metal]")
 {
