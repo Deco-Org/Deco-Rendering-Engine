@@ -33,3 +33,18 @@ TEST_CASE("the command allocator pool should create a command buffer on init", "
     autorelease_pool->release();
     device->release();
 }
+
+TEST_CASE("the frame count should be zero on init", "[command allocator pool][metal]")
+{
+    NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
+    MTL::Device* device = MTL::CreateSystemDefaultDevice();
+    MTL4::CommandQueue* command_queue = device->newMTL4CommandQueue();
+    CommandAllocatorPool* command_allocator_pool = new CommandAllocatorPool(device);
+
+    REQUIRE(0 == command_allocator_pool->get_frame_count());
+
+    delete command_allocator_pool;
+    command_queue->release();
+    autorelease_pool->release();
+    device->release();
+}

@@ -25,3 +25,8 @@ void CommandAllocatorPool::release_command_buffer()
     command_buffer->release();
     command_buffer = nullptr;
 }
+
+uint64_t CommandAllocatorPool::get_frame_count() const
+{
+    return frame_count;
+}
