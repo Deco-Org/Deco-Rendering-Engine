@@ -12,19 +12,33 @@ public:
     ResidencyManager(MTL::Device* metal_device, MTL4::CommandQueue* queue);
     ~ResidencyManager();
 
-    void add_persistent(MTL::Buffer* buffer);
-    void add_persistent(MTL::Texture* texture);
-    void add_persistent(MTL::Heap* heap);
+    /**
+     * Adds a resource to the persistent residency set.
+     * 
+     * The persistent residency set is a set of resource allocations that are persistent across the lifetime of the program. The persistent residency set should be populated on startup. Items added to the persistent residency set cannot be removed.
+     * 
+     * @param resource_allocation
+     */
+    void add_persistent(MTL::Allocation* resource_allocation);
 
-    void add_dynamic(MTL::Buffer* buffer);
-    void add_dynamic(MTL::Texture* texture);
-    void add_dynamic(MTL::Heap* heap);
+    /**
+     * Adds a resource to the dynamic residency set.
+     * 
+     * @param resource_allocation
+     */
+    void add_dynamic(MTL::Allocation* resource_allocation);
 
-    void remove_dynamic(MTL::Buffer* buffer);
-    void remove_dynamic(MTL::Texture* texture);
-    void remove_dynamic(MTL::Heap* heap);
+    /**
+     * Removes a resource from the dynamic residency set
+     * 
+     * @param resource_allocation
+     */
+    void remove_dynamic(MTL::Allocation* resource_allocation);
 
     void commit();
+
+    size_t persistent_allocations_count() const;
+    size_t dynamic_allocations_count() const;
 
     std::atomic<uint64_t> latest_commit_value = 0;
 
