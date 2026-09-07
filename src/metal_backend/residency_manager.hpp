@@ -48,8 +48,11 @@ public:
      */
     std::atomic<uint64_t> latest_commit_value = 0;
 
-    static const NS::String* persistent_set_label;
-    static const NS::String* dynamic_set_label;
+    static const NS::String* PERSISTENT_SET_LABEL;
+    static const NS::String* DYNAMIC_SET_LABEL;
+
+    static constexpr size_t INITIAL_PERSISTENT_SET_CAPACITY = 16;
+    static constexpr size_t INITIAL_DYNAMIC_SET_CAPACITY = 512;
 
 private:
     MTL::ResidencySet* persistent_set = nullptr;
