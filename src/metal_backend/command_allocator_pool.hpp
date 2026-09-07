@@ -17,6 +17,12 @@ public:
     MTL4::CommandBuffer* get_command_buffer();
     void begin_frame(MTL4::CommandQueue* queue);
 
+    /**
+     * Releases the command buffer.
+     * This method is automatically called on deconstruction.
+     */
+    void release_command_buffer();
+
     uint64_t get_frame_count() const;
 
 private:
