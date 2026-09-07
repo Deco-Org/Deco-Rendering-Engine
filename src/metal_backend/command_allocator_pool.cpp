@@ -5,12 +5,23 @@
 
 #include "command_allocator_pool.hpp"
 
-CommandAllocatorPool::CommandAllocatorPool(MTL::Device* device)
+CommandAllocatorPool::CommandAllocatorPool(MTL::Device* metal_device)
 {
-
+    command_buffer = metal_device->newCommandBuffer();
 }
 
 CommandAllocatorPool::~CommandAllocatorPool()
 {
-    
+    release_command_buffer();
+}
+
+MTL4::CommandBuffer* CommandAllocatorPool::get_command_buffer()
+{
+    return command_buffer;
+}
+
+void CommandAllocatorPool::release_command_buffer()
+{
+    command_buffer->release();
+    command_buffer = nullptr;
 }
