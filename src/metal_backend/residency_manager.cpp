@@ -5,8 +5,8 @@
 
 #include "residency_manager.hpp"
 
-const NS::String* ResidencyManager::persistent_set_label = NS::String::string("Persistent residency set", NS::UTF8StringEncoding);
-const NS::String* ResidencyManager::dynamic_set_label = NS::String::string("Dynamic residency set", NS::UTF8StringEncoding);
+const NS::String* ResidencyManager::PERSISTENT_SET_LABEL = NS::String::string("Persistent residency set", NS::UTF8StringEncoding);
+const NS::String* ResidencyManager::DYNAMIC_SET_LABEL = NS::String::string("Dynamic residency set", NS::UTF8StringEncoding);
 
 ResidencyManager::ResidencyManager(MTL::Device* metal_device, MTL4::CommandQueue* queue)
 {
@@ -16,8 +16,8 @@ ResidencyManager::ResidencyManager(MTL::Device* metal_device, MTL4::CommandQueue
 
     // Persistent set
     MTL::ResidencySetDescriptor* persistent_set_descriptor = MTL::ResidencySetDescriptor::alloc()->init();
-    persistent_set_descriptor->setLabel(persistent_set_label);
-    persistent_set_descriptor->setInitialCapacity(16);
+    persistent_set_descriptor->setLabel(PERSISTENT_SET_LABEL);
+    persistent_set_descriptor->setInitialCapacity(INITIAL_PERSISTENT_SET_CAPACITY);
 
     NS::Error* error = nullptr;
     persistent_set = metal_device->newResidencySet(persistent_set_descriptor, &error);
@@ -29,8 +29,8 @@ ResidencyManager::ResidencyManager(MTL::Device* metal_device, MTL4::CommandQueue
     }
 
     MTL::ResidencySetDescriptor* dynamic_set_descriptor = MTL::ResidencySetDescriptor::alloc()->init();
-    dynamic_set_descriptor->setLabel(dynamic_set_label);
-    dynamic_set_descriptor->setInitialCapacity(512);
+    dynamic_set_descriptor->setLabel(DYNAMIC_SET_LABEL);
+    dynamic_set_descriptor->setInitialCapacity(INITIAL_DYNAMIC_SET_CAPACITY);
 
     error = nullptr;
     dynamic_set = metal_device->newResidencySet(dynamic_set_descriptor, &error);
