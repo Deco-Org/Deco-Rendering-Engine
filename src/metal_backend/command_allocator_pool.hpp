@@ -25,4 +25,4 @@ private:
     MTL4::CommandBuffer* command_buffer = nullptr;
     MTL::SharedEvent* frame_event = nullptr;
     uint64_t frame_count = 0;
-}
+};
