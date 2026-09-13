@@ -70,8 +70,8 @@ private:
     void create_vertex_argument_table(MaterialType material_type);
     void create_fragment_argument_table(MaterialType material_type);
 
-    MTL4::ArgumentTable* vertex_argument_table;
-    MTL4::ArgumentTable* fragment_argument_table;
+    MTL4::ArgumentTable* vertex_argument_table = nullptr;
+    MTL4::ArgumentTable* fragment_argument_table = nullptr;
 
-    MTL::Device* device;
+    MTL::Device* device = nullptr;
 };
