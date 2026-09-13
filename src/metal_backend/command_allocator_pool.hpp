@@ -25,6 +25,7 @@ public:
         if (frame_count >= Config::MAX_FRAMES_IN_FLIGHT)
             waiting_function(this, frame_count - Config::MAX_FRAMES_IN_FLIGHT, FRAME_TIMEOUT_TIME_IN_MILLISECONDS);
         callback(this);
+        frame_count += 1;
     }
 
     /**
@@ -41,7 +42,7 @@ public:
     MTL4::CommandBuffer* get_command_buffer() const;
     uint64_t get_frame_count() const;
 
-    static constexpr size_t FRAME_TIMEOUT_TIME_IN_MILLISECONDS = 1000UZ;
+    static constexpr size_t FRAME_TIMEOUT_TIME_IN_MILLISECONDS = 10000UZ;
 
 private:
 
