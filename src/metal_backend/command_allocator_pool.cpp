@@ -34,8 +34,6 @@ void CommandAllocatorPool::default_frame_completion_callback_function(CommandAll
     uint64_t frame_index = instance->frame_count % Config::MAX_FRAMES_IN_FLIGHT;
     instance->allocators[frame_index]->reset();
     instance->command_buffer->beginCommandBuffer(instance->allocators[frame_index]);
-
-    instance->frame_count += 1;
 }
 
 void CommandAllocatorPool::begin_frame()
@@ -47,6 +45,7 @@ void CommandAllocatorPool::begin_frame()
     }
 
     default_frame_completion_callback_function(this);
+    frame_count += 1;
 }
 
 void CommandAllocatorPool::signal_frame_complete(MTL4::CommandQueue* command_queue)
