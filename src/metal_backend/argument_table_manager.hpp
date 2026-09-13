@@ -7,7 +7,7 @@
 #include <Metal/Metal.hpp>
 #include "core_engine_types.h"
 #include "algorithm"
-#include "materials.hpp"
+#include "asset_systems/materials.hpp"
 
 using RenderingArgumentSlot = uint8_t;
 
@@ -62,11 +62,13 @@ class ArgumentTableManager
 {
 public:
     ArgumentTableManager(MTL::Device* metal_device);
-    ArgumentTableManager(MTL::Device* metal_device, MTL4::ArgumentTable* vertex_arg_table, MTL4::ArgumentTable* fragment_arg_table);
+    ~ArgumentTableManager();
 
     void bind_buffer(MTL::Buffer* buffer, RenderingArgumentSlot argument_slot, ShaderType shader_type);
     void bind_texture(MTL::Texture* texture, RenderingArgumentSlot argument_slot, ShaderType shader_type);
     void bind_sampler(MTL::SamplerState* sampler_state, RenderingArgumentSlot argument_slot, ShaderType shader_type);
+
+    void apply_tables(MTL4::RenderCommandEncoder* encoder);
 
 private:
 
