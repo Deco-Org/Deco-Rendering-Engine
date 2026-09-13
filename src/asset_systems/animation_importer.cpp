@@ -164,8 +164,8 @@ AnimationClipDescription AnimationImporter::import_clip(
     // same as sample track comment in AnimationSystem
     opts.resample_rate = 60.0;
 
-    ufbx_error err;
-    ufbx_baked_anim *baked_animation = ufbx_bake_anim(scene, stack->anim, &opts, &err);
+    ufbx_error error;
+    ufbx_baked_anim *baked_animation = ufbx_bake_anim(scene, stack->anim, &opts, &error);
 
     if (!baked_animation) return AnimationClipDescription{};
     
