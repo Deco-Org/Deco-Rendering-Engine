@@ -186,11 +186,28 @@ void AnimationSystem::evaluate_joint(
             binding.inverse_bind_matrices[joint_index]);
 }
 
+bool animation_loaded(const AnimationInstance& instance)
+{
+    return instance.skeleton != INVALID_SKELETON_HANDLE 
+        && instance.skin_binding != INVALID_SKIN_BINDING_HANDLE 
+        && instance.clip != INVALID_CLIP_HANDLE;
+}
+
+float AnimationSystem::get_current_time(const AnimationInstanceHandle instance) const
+{
+    return instances[instance].current_time;
+}
+
+bool AnimationSystem::is_playing(const AnimationInstanceHandle instance) const
+{
+    return instances[instance].is_playing;
+}
+
 void AnimationSystem::update(float delta_time)
 {
     for (AnimationInstance& instance : instances)
     {
-        if (instance.skeleton == INVALID_SKELETON_HANDLE || !instance.is_playing) continue;
+        if (!animation_loaded(instance) || !instance.is_playing) continue;
 
         const AnimationClipDescription& clip = clips[instance.clip];
         const SkeletonDescription& skeleton = skeletons[instance.skeleton];

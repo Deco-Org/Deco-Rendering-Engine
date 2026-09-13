@@ -40,6 +40,9 @@ public:
     void stop(AnimationInstanceHandle instance);
     
     void update(float delta_time);
+
+    float get_current_time(AnimationInstanceHandle instance) const;
+    bool is_playing(AnimationInstanceHandle instance) const;
     
     void update_skinning_buffer(uint8_t buffer_index);
     NS::UInteger get_skinning_buffer_offset(AnimationInstanceHandle instance) const;

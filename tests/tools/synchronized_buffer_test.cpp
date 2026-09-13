@@ -1,3 +1,8 @@
+/**
+ * @file synchronized_buffer_test.cpp
+ * @brief
+ */
+
 #include <catch2/catch_test_macros.hpp>
 #include "tools/synchronized_buffer.hpp"
 
