@@ -156,8 +156,6 @@ class TransformationSystem
     void memshiftTransformationsChunk(uint32_t startIndex, int shift, size_t size);
     void reparent(TransformationReparentConfig config);
     
-    inline matrix_float4x4 buildLocalMatrix(simd_float3 translation, simd_quatf rotation, simd_float3 scale);
-
     std::vector<TransformationHandle> freeHandles;
     TransformationHandle maxHandle = 0;
 

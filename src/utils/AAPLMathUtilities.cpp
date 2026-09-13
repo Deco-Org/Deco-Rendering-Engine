@@ -289,6 +289,12 @@ matrix_float4x4 AAPL_SIMD_OVERLOAD matrix4x4_scale_translation(vector_float3 s, 
                               0,   0,   0,   1 );
 }
 
+matrix_float4x4 AAPL_SIMD_OVERLOAD matrix4x4_trs(vector_float3 t, 
+                                                 simd_quatf r, 
+                                                 vector_float3 s) {
+    return simd_mul(matrix4x4_translation(t), simd_mul(simd_matrix4x4(r), matrix4x4_scale(s)));
+}
+
 
 matrix_float4x4 AAPL_SIMD_OVERLOAD matrix_look_at_left_hand(vector_float3 eye,
                                                             vector_float3 target,
@@ -495,7 +501,7 @@ quaternion_float AAPL_SIMD_OVERLOAD quaternion_multiply(quaternion_float q0, qua
 }
 
 quaternion_float AAPL_SIMD_OVERLOAD quaternion_slerp(quaternion_float q0, quaternion_float q1, float t) {
-    quaternion_float q;
+    quaternion_float q_final;
 
     float cosHalfTheta = vector_dot(q0, q1);
     if (fabs(cosHalfTheta) >= 1.f) ///q0=q1 or q0=q1
@@ -507,14 +513,26 @@ quaternion_float AAPL_SIMD_OVERLOAD quaternion_slerp(quaternion_float q0, quater
     float sinHalfTheta = sqrtf(1.f - cosHalfTheta * cosHalfTheta);
     if (fabs(sinHalfTheta) < 0.001f)
     {    // q0 & q1 180 degrees not defined
-        return q0*0.5f + q1*0.5f;
+        return q0 * 0.5f + q1 * 0.5f;
     }
     float srcWeight = sin((1 - t) * halfTheta) / sinHalfTheta;
     float dstWeight = sin(t * halfTheta) / sinHalfTheta;
 
-    q = srcWeight*q0 + dstWeight*q1;
+    q_final = srcWeight * q0 + dstWeight * q1;
 
-    return q;
+    return q_final;
+}
+
+simd_quatf AAPL_SIMD_OVERLOAD quaternion_nlerp(simd_quatf q0, simd_quatf q1, float t) {
+    if (simd_dot(q0.vector, q1.vector) < 0.0f)
+    {
+        q1.vector = -q1.vector;
+    }
+
+    simd_quatf q_final;
+    q_final.vector = simd_normalize(simd_mix(q0.vector, q1.vector, t));
+
+    return q_final;
 }
 
 vector_float3 AAPL_SIMD_OVERLOAD quaternion_rotate_vector(quaternion_float q, vector_float3 v) {

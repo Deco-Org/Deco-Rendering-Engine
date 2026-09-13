@@ -10,10 +10,13 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(tests 
     test.cpp
+    animation_system/animation_system_test.cpp
     transformation_system/transformation_system_test.cpp
+    animation_importer/animation_importer_test.cpp
     submesh_system/submesh_system_test.cpp
     material_system/texture_loader_test.cpp
     material_system/material_system_test.cpp
+    tools/range_allocator_test.cpp
     tools/synchronized_buffer_test.cpp
 )
 

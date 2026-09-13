@@ -15,6 +15,7 @@ build/
 *.o
 *.a
 .DS_STORE
+.vscode
 
 # CLion
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
