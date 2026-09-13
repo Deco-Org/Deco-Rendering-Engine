@@ -34,10 +34,6 @@ namespace ArgumentSlots
             Material = 0,
             NUMBER_OF_PBR_FRAGMENT_BUFFERS,
 
-            MAXIMUM_NUMBER_OF_PBR_BUFFERS = std::max(NUMBER_OF_PBR_VERTEX_BUFFERS, NUMBER_OF_PBR_FRAGMENT_BUFFERS),
-            MAXIMUM_NUMBER_OF_PBR_TEXTURES = NUMBER_OF_PBR_FRAGMENT_TEXTURES,
-            MAXIMUM_NUMBER_OF_PBR_SAMPLERS = NUMBER_OF_PBR_FRAGMENT_SAMPLERS,
-
             Invalid = static_cast<RenderingArgumentSlot>(-1)
         };
     }
