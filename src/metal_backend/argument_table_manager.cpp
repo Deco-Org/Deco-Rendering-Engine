@@ -78,7 +78,7 @@ void ArgumentTableManager::create_vertex_argument_table(MaterialType material_ty
     switch (material_type)
     {
         case MaterialType::PBR:
-            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_VERTEX_BUFFERS));
+            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_VERTEX_BUFFERS));
             break;
 
         default:
@@ -107,9 +107,9 @@ void ArgumentTableManager::create_fragment_argument_table(MaterialType material_
     {
         case MaterialType::PBR:
         {
-            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_BUFFERS));
-            argument_table_descriptor->setMaxSamplerStateBindCount(static_cast<NS::UInteger>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_SAMPLERS));
-            argument_table_descriptor->setMaxTextureBindCount(static_cast<NS::UInteger>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_TEXTURES));
+            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_BUFFERS));
+            argument_table_descriptor->setMaxSamplerStateBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_SAMPLERS));
+            argument_table_descriptor->setMaxTextureBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_TEXTURES));
             break;
         }
 
