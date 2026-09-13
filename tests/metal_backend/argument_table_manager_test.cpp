@@ -5,7 +5,7 @@
 TEST_CASE("binding resources should not cause validation errors", "[argument table][metal]")
 {
     // This test is basically just a giant ("things shouldn't crash" test)
-    
+
     NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
     MTL::Device* device = MTL::CreateSystemDefaultDevice();
     MTL4::CommandBuffer* command_buffer = device->newCommandBuffer();
@@ -36,10 +36,10 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
 
     MTL4::RenderPassDescriptor* render_pass_descriptor = MTL4::RenderPassDescriptor::alloc()->init();
 
-    INFO("Setting render target width");
     render_pass_descriptor->setRenderTargetWidth(1024);
     render_pass_descriptor->setRenderTargetHeight(1024);
     render_pass_descriptor->setDefaultRasterSampleCount(4);
+    INFO("Render pass descriptor width, height, and sample count successfully set");
 
     MTL::RenderPassColorAttachmentDescriptor* color_attachment = render_pass_descriptor->colorAttachments()->object(0);
     MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = render_pass_descriptor->depthAttachment();
@@ -64,12 +64,14 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
     resolve_texture_descriptor->release();
 
     color_attachment->setResolveTexture(resolve_texture);
+    INFO("Resolve texture successfully set");
 
     MTL4::CommandAllocator* command_allocator = device->newCommandAllocator();
     command_buffer->beginCommandBuffer(command_allocator);
 
-    MTL4::RenderCommandEncoder* render_command_encoder = command_buffer->renderCommandEncoder(render_pass_descriptor); // Crash happens here
+    MTL4::RenderCommandEncoder* render_command_encoder = command_buffer->renderCommandEncoder(render_pass_descriptor);
     render_pass_descriptor->release();
+    INFO("Render command encoder successfully created");
 
     ArgumentTableManager* argument_table_manager = new ArgumentTableManager(device);
 
