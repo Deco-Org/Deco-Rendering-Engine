@@ -78,44 +78,36 @@ TEST_CASE("the frame count should increment upon the occurrence of the frame eve
     device->release();
 }
 
-TEST_CASE("the frame count should not increment until the number of frames in flight is less than the maximum", "[command allocator pool][frame][metal]")
+TEST_CASE("the command command allocator pool should wait when the frame count is greater than or equal to the maximum number of frames in flight", "[command allocator pool][frame]")
 {
-    NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
-    MTL::Device* device = MTL::CreateSystemDefaultDevice();
-    MTL4::CommandQueue* command_queue = device->newMTL4CommandQueue();
-    CommandAllocatorPool* command_allocator_pool = new CommandAllocatorPool(device);
-    MTL4::CommandBuffer* command_buffer = command_allocator_pool->get_command_buffer();
+    CommandAllocatorPool* command_allocator_pool = new CommandAllocatorPool(nullptr);
 
-    auto waiting_lambda = [](CommandAllocatorPool* instance, uint64_t wait_value, uint64_t wait_time_in_millseconds)
+    bool wait_was_called = false;
+    uint64_t value_waited_for = 0;
+
+    auto mock_waiting_lambda = [&](CommandAllocatorPool* instance, uint64_t wait_value, uint64_t wait_time_in_milliseconds)
     {
-        REQUIRE(Config::MAX_FRAMES_IN_FLIGHT == instance->get_frame_count());
-        CommandAllocatorPool::default_waiting_function(instance, wait_value, wait_time_in_millseconds);
+        value_waited_for = wait_value;
+        wait_was_called = true;
     };
 
-    auto callback_lambda = [](CommandAllocatorPool* instance)
+    auto mock_callback_lambda = [](CommandAllocatorPool* instance) {};
+
+    for (uint8_t i = 0; i < Config::MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        REQUIRE(Config::MAX_FRAMES_IN_FLIGHT == instance->get_frame_count());
-        CommandAllocatorPool::default_frame_completion_callback_function(instance);
-    };
-
-    REQUIRE(0 == command_allocator_pool->get_frame_count());
-
-    // TODO: Right now, this isn't testing what I want it to test. This test should be adjusted.
-    for (uint8_t i = 1; i <= Config::MAX_FRAMES_IN_FLIGHT; ++i)
-    {
-        command_allocator_pool->begin_frame();
-        REQUIRE(i == command_allocator_pool->get_frame_count());
-
-        command_queue->commit(&command_buffer, 1);
-        command_allocator_pool->signal_frame_complete(command_queue);
+        command_allocator_pool->begin_frame(mock_waiting_lambda, mock_callback_lambda);
+        REQUIRE(!wait_was_called);
     }
 
-    command_allocator_pool->begin_frame(waiting_lambda, callback_lambda);
+    REQUIRE(Config::MAX_FRAMES_IN_FLIGHT == command_allocator_pool->get_frame_count());
+    command_allocator_pool->begin_frame(mock_waiting_lambda, mock_callback_lambda);
+    REQUIRE(wait_was_called);
+    REQUIRE(0 == value_waited_for);
 
-    REQUIRE(Config::MAX_FRAMES_IN_FLIGHT + 1 == command_allocator_pool->get_frame_count());
+    wait_was_called = false;
+    command_allocator_pool->begin_frame(mock_waiting_lambda, mock_callback_lambda);
+    REQUIRE(wait_was_called);
+    REQUIRE(1 == value_waited_for);
 
     delete command_allocator_pool;
-    command_queue->release();
-    autorelease_pool->release();
-    device->release();
 }
