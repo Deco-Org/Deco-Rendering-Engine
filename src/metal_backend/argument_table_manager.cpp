@@ -15,6 +15,12 @@ ArgumentTableManager::ArgumentTableManager(MTL::Device* metal_device)
     create_fragment_argument_table(MaterialType::PBR);
 }
 
+ArgumentTableManager::~ArgumentTableManager()
+{
+    vertex_argument_table->release();
+    fragment_argument_table->release();
+}
+
 void ArgumentTableManager::bind_buffer(MTL::Buffer* buffer, RenderingArgumentSlot argument_slot, ShaderType shader_type)
 {
     MTL4::ArgumentTable* argument_table = get_argument_table_from_shader_type(shader_type);
@@ -31,6 +37,12 @@ void ArgumentTableManager::bind_sampler(MTL::SamplerState* sampler_state, Render
 {
     MTL4::ArgumentTable* argument_table = get_argument_table_from_shader_type(shader_type);
     argument_table->setSamplerState(sampler_state->gpuResourceID(), argument_slot);
+}
+
+void ArgumentTableManager::apply_tables(MTL4::RenderCommandEncoder* encoder)
+{
+    encoder->setArgumentTable(vertex_argument_table, MTL::RenderStageVertex);
+    encoder->setArgumentTable(fragment_argument_table, MTL::RenderStageFragment);
 }
 
 constexpr MTL4::ArgumentTable* ArgumentTableManager::get_argument_table_from_shader_type(ShaderType shader_type) const
