@@ -32,7 +32,7 @@ vertex VertexOut vertex_pbr_shader(
     VertexIn in [[stage_in]],
     constant float4x4* transforms [[buffer(0)]],
     constant float4x4* skinning_matrices [[buffer(1)]],
-    constant TransformData& cameraData [[buffer(2)]],
+    constant TransformData& camera_data [[buffer(2)]],
     uint instance_id [[instance_id]])
 {
     float4 position = float4(in.position, 1.0);
@@ -50,7 +50,7 @@ vertex VertexOut vertex_pbr_shader(
 
     VertexOut out;
     out.world_position = (world_matrix * position).xyz;
-    out.position = cameraData.projection_matrix * cameraData.view_matrix * float4(out.world_position, 1.0);
+    out.position = camera_data.projection_matrix * camera_data.view_matrix * float4(out.world_position, 1.0);
     out.normal = normalize((world_matrix * float4(in.normal, 0.0)).xyz);
     out.tex_coord = in.tex_coord;
     return out;
