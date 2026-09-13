@@ -98,13 +98,13 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
     {
         argument_table_manager->bind_buffer(
             some_buffer, 
-            static_cast<RenderingArgumentSlot>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::Transforms),
+            static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::Transforms),
             ShaderType::PBRVertex
         );
 
         argument_table_manager->bind_buffer(
             some_other_buffer,
-            static_cast<RenderingArgumentSlot>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::Material),
+            static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::Material),
             ShaderType::PBRFragment
         );
     }
@@ -113,7 +113,7 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
     {
         argument_table_manager->bind_texture(
             some_texture,
-            static_cast<RenderingArgumentSlot>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::AlbedoTexture),
+            static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::AlbedoTexture),
             ShaderType::PBRFragment
         );
     }
@@ -122,7 +122,7 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
     {
         argument_table_manager->bind_sampler(
             some_sampler_state,
-            static_cast<RenderingArgumentSlot>(ArgumentSlots::RenderingSlots::PBRRenderingArgumentSlot::Sampler),
+            static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::Sampler),
             ShaderType::PBRFragment
         );
     }

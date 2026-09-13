@@ -13,30 +13,27 @@ using RenderingArgumentSlot = uint8_t;
 
 namespace ArgumentSlots
 {
-    namespace RenderingSlots
+    enum class PBRRenderingArgumentSlot : RenderingArgumentSlot
     {
-        enum class PBRRenderingArgumentSlot : RenderingArgumentSlot
-        {
-            Transforms = 0,
-            SkinningMatrices = 1,
-            CameraData = 2,
-            NUMBER_OF_PBR_VERTEX_BUFFERS,
+        Transforms = 0,
+        SkinningMatrices = 1,
+        CameraData = 2,
+        NUMBER_OF_PBR_VERTEX_BUFFERS,
 
-            AlbedoTexture = 0,
-            NormalTexture = 1,
-            OrmTexture = 2,
-            EmissionTexture = 3,
-            NUMBER_OF_PBR_FRAGMENT_TEXTURES,
+        AlbedoTexture = 0,
+        NormalTexture = 1,
+        OrmTexture = 2,
+        EmissionTexture = 3,
+        NUMBER_OF_PBR_FRAGMENT_TEXTURES,
 
-            Sampler = 0,
-            NUMBER_OF_PBR_FRAGMENT_SAMPLERS,
+        Sampler = 0,
+        NUMBER_OF_PBR_FRAGMENT_SAMPLERS,
 
-            Material = 0,
-            NUMBER_OF_PBR_FRAGMENT_BUFFERS,
+        Material = 0,
+        NUMBER_OF_PBR_FRAGMENT_BUFFERS,
 
-            Invalid = static_cast<RenderingArgumentSlot>(-1)
-        };
-    }
+        Invalid = static_cast<RenderingArgumentSlot>(-1)
+    };
 };
 
 enum class ShaderType : uint8_t
