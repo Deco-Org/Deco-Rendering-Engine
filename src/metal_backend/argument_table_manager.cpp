@@ -8,8 +8,6 @@
 ArgumentTableManager::ArgumentTableManager(MTL::Device* metal_device)
 {
     device = metal_device;
-    MTL4::ArgumentTableDescriptor* argument_table_descriptor = MTL4::ArgumentTableDescriptor::alloc()->init();
-    MTL4::ArgumentTable* argument_table = device->newArgumentTable(argument_table_descriptor, nullptr);
 
     create_vertex_argument_table(MaterialType::PBR);
     create_fragment_argument_table(MaterialType::PBR);
@@ -18,7 +16,7 @@ ArgumentTableManager::ArgumentTableManager(MTL::Device* metal_device)
 ArgumentTableManager::~ArgumentTableManager()
 {
     vertex_argument_table->release();
-    fragment_argument_table->release();
+    pbr_fragment_argument_table->release();
 }
 
 void ArgumentTableManager::bind_buffer(MTL::Buffer* buffer, RenderingArgumentSlot argument_slot, ShaderType shader_type)
@@ -39,10 +37,20 @@ void ArgumentTableManager::bind_sampler(MTL::SamplerState* sampler_state, Render
     argument_table->setSamplerState(sampler_state->gpuResourceID(), argument_slot);
 }
 
-void ArgumentTableManager::apply_tables(MTL4::RenderCommandEncoder* encoder)
+void ArgumentTableManager::apply_tables(MTL4::RenderCommandEncoder* encoder, MaterialType material_type)
 {
     encoder->setArgumentTable(vertex_argument_table, MTL::RenderStageVertex);
-    encoder->setArgumentTable(fragment_argument_table, MTL::RenderStageFragment);
+
+    switch (material_type)
+    {
+        case MaterialType::PBR:
+            encoder->setArgumentTable(pbr_fragment_argument_table, MTL::RenderStageFragment);
+            break;
+
+        case MaterialType::Toon:
+            encoder->setArgumentTable(toon_fragment_argument_table, MTL::RenderStageFragment);
+            break;
+    }
 }
 
 constexpr MTL4::ArgumentTable* ArgumentTableManager::get_argument_table_from_shader_type(ShaderType shader_type) const
@@ -56,8 +64,11 @@ constexpr MTL4::ArgumentTable* ArgumentTableManager::get_argument_table_from_sha
             break;
 
         case ShaderType::PBRFragment:
+            argument_table = pbr_fragment_argument_table;
+            break;
+
         case ShaderType::ToonFragment:
-            argument_table = fragment_argument_table;
+            argument_table = toon_fragment_argument_table;
             break;
 
         default:
@@ -78,6 +89,7 @@ void ArgumentTableManager::create_vertex_argument_table(MaterialType material_ty
     switch (material_type)
     {
         case MaterialType::PBR:
+        case MaterialType::Toon:
             argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_VERTEX_BUFFERS));
             break;
 
@@ -113,11 +125,19 @@ void ArgumentTableManager::create_fragment_argument_table(MaterialType material_
             break;
         }
 
+        case MaterialType::Toon:
+        {
+            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::ToonRenderingArgumentSlot::NUMBER_OF_TOON_FRAGMENT_BUFFERS));
+            argument_table_descriptor->setMaxSamplerStateBindCount(static_cast<NS::UInteger>(ArgumentSlots::ToonRenderingArgumentSlot::NUMBER_OF_TOON_FRAGMENT_SAMPLERS));
+            argument_table_descriptor->setMaxTextureBindCount(static_cast<NS::UInteger>(ArgumentSlots::ToonRenderingArgumentSlot::NUMBER_OF_TOON_FRAGMENT_TEXTURES));
+            break;
+        }
+
         default:
         break;
     }
 
-    fragment_argument_table = device->newArgumentTable(argument_table_descriptor, &error);
+    pbr_fragment_argument_table = device->newArgumentTable(argument_table_descriptor, &error);
 
     if (error)
     {

@@ -34,6 +34,26 @@ namespace ArgumentSlots
 
         Invalid = static_cast<RenderingArgumentSlot>(-1)
     };
+
+    enum class ToonRenderingArgumentSlot : RenderingArgumentSlot
+    {
+        Transforms = 0,
+        SkinningMatrices = 1,
+        CameraData = 2,
+        NUMBER_OF_TOON_VERTEX_BUFFERS,
+
+        AlbedoTexture = 0,
+        ShadowThresholdTexture = 1,
+        NUMBER_OF_TOON_FRAGMENT_TEXTURES,
+
+        Sampler = 0,
+        NUMBER_OF_TOON_FRAGMENT_SAMPLERS,
+
+        Material = 0,
+        NUMBER_OF_TOON_FRAGMENT_BUFFERS,
+
+        Invalid = static_cast<RenderingArgumentSlot>(-1)
+    };
 };
 
 enum class ShaderType : uint8_t
@@ -61,7 +81,7 @@ public:
     void bind_texture(MTL::Texture* texture, RenderingArgumentSlot argument_slot, ShaderType shader_type);
     void bind_sampler(MTL::SamplerState* sampler_state, RenderingArgumentSlot argument_slot, ShaderType shader_type);
 
-    void apply_tables(MTL4::RenderCommandEncoder* encoder);
+    void apply_tables(MTL4::RenderCommandEncoder* encoder, MaterialType material_type);
 
 private:
 
@@ -71,7 +91,8 @@ private:
     void create_fragment_argument_table(MaterialType material_type);
 
     MTL4::ArgumentTable* vertex_argument_table = nullptr;
-    MTL4::ArgumentTable* fragment_argument_table = nullptr;
+    MTL4::ArgumentTable* pbr_fragment_argument_table = nullptr;
+    MTL4::ArgumentTable* toon_fragment_argument_table = nullptr;
 
     MTL::Device* device = nullptr;
 };

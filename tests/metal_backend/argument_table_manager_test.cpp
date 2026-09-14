@@ -127,7 +127,7 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
         );
     }
 
-    argument_table_manager->apply_tables(render_command_encoder);
+    argument_table_manager->apply_tables(render_command_encoder, MaterialType::PBR);
 
     delete argument_table_manager;
     if (some_buffer)
