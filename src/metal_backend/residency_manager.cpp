@@ -28,6 +28,7 @@ ResidencyManager::ResidencyManager(MTL::Device* metal_device, MTL4::CommandQueue
         assert(nullptr == error);
     }
 
+    // Dynamic set
     MTL::ResidencySetDescriptor* dynamic_set_descriptor = MTL::ResidencySetDescriptor::alloc()->init();
     dynamic_set_descriptor->setLabel(DYNAMIC_SET_LABEL);
     dynamic_set_descriptor->setInitialCapacity(INITIAL_DYNAMIC_SET_CAPACITY);
@@ -41,8 +42,8 @@ ResidencyManager::ResidencyManager(MTL::Device* metal_device, MTL4::CommandQueue
         assert(nullptr == error);
     }
 
-    command_queue->addResidencySet(dynamic_set);
     command_queue->addResidencySet(persistent_set);
+    command_queue->addResidencySet(dynamic_set);
 
     latest_commit_value = 0;
 }
@@ -91,12 +92,12 @@ size_t ResidencyManager::dynamic_allocations_count() const
     return static_cast<size_t>(dynamic_set->allocationCount());
 }
 
-bool ResidencyManager::dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const
-{
-    return dynamic_set->containsAllocation(resource_allocation);
-}
-
 bool ResidencyManager::persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const
 {
     return persistent_set->containsAllocation(resource_allocation);
+}
+
+bool ResidencyManager::dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const
+{
+    return dynamic_set->containsAllocation(resource_allocation);
 }
