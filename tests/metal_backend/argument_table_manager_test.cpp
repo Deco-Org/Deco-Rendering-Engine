@@ -99,13 +99,13 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
         argument_table_manager->bind_buffer(
             some_buffer, 
             static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::Transforms),
-            ShaderType::VertexPBR
+            ShaderType::PBRVertex
         );
 
         argument_table_manager->bind_buffer(
             some_other_buffer,
             static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::Material),
-            ShaderType::FragmentPBR
+            ShaderType::PBRFragment
         );
     }
 
@@ -114,7 +114,7 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
         argument_table_manager->bind_texture(
             some_texture,
             static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::AlbedoTexture),
-            ShaderType::FragmentPBR
+            ShaderType::PBRFragment
         );
     }
 
@@ -123,7 +123,7 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
         argument_table_manager->bind_sampler(
             some_sampler_state,
             static_cast<RenderingArgumentSlot>(ArgumentSlots::PBRRenderingArgumentSlot::Sampler),
-            ShaderType::FragmentPBR
+            ShaderType::PBRFragment
         );
     }
 

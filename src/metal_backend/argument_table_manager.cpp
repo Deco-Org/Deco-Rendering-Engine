@@ -9,9 +9,9 @@ ArgumentTableManager::ArgumentTableManager(MTL::Device* metal_device)
 {
     device = metal_device;
 
-    create_argument_table(ShaderType::VertexPBR);
-    create_argument_table(ShaderType::FragmentPBR);
-    create_argument_table(ShaderType::FragmentToon);
+    create_argument_table(ShaderType::PBRVertex);
+    create_argument_table(ShaderType::PBRFragment);
+    create_argument_table(ShaderType::ToonFragment);
 }
 
 ArgumentTableManager::~ArgumentTableManager()
@@ -63,11 +63,11 @@ constexpr MTL4::ArgumentTable* ArgumentTableManager::get_argument_table_from_sha
             argument_table = vertex_argument_table;
             break;
 
-        case ShaderType::FragmentPBR:
+        case ShaderType::PBRFragment:
             argument_table = pbr_fragment_argument_table;
             break;
 
-        case ShaderType::FragmentToon:
+        case ShaderType::ToonFragment:
             argument_table = toon_fragment_argument_table;
             break;
 
@@ -89,7 +89,7 @@ void ArgumentTableManager::create_argument_table(ShaderType shader_type)
 
     switch (shader_type)
     {
-        case ShaderType::FragmentPBR:
+        case ShaderType::PBRFragment:
         {
             argument_table = &pbr_fragment_argument_table;
 
@@ -99,7 +99,7 @@ void ArgumentTableManager::create_argument_table(ShaderType shader_type)
             break;
         }
 
-        case ShaderType::FragmentToon:
+        case ShaderType::ToonFragment:
         {
             argument_table = &toon_fragment_argument_table;
 
