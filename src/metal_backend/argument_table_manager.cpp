@@ -121,6 +121,7 @@ void ArgumentTableManager::create_argument_table(ShaderType shader_type)
             argument_table = nullptr;
     }
 
+    // TODO: Add compile time flag checking, and skip this if in prod
     if (argument_table == nullptr)
     {
         printf("Error: No argument table found for shader type %u\n", shader_type);
