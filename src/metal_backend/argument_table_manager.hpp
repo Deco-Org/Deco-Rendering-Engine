@@ -58,15 +58,18 @@ namespace ArgumentSlots
 
 enum class ShaderType : uint8_t
 {
-    MINIMUM_POSSIBLE_PBR_SHADER_TYPE_VALUE,
-    PBRVertex = MINIMUM_POSSIBLE_PBR_SHADER_TYPE_VALUE,
-    PBRFragment,
-    MAXIMUM_POSSIBLE_PBR_SHADER_TYPE_VALUE,
+    VertexShader = 1 << 7,
+    // FragmentShader is 0 << 7
+    ComputeShader = 1 << 6,
 
-    MINIMUM_POSSIBLE_TOON_SHADER_TYPE_VALUE,
-    ToonVertex = MINIMUM_POSSIBLE_TOON_SHADER_TYPE_VALUE,
-    ToonFragment,
-    MAXIMUM_POSSIBLE_TOON_SHADER_TYPE_VALUE,
+    PBR = 0,
+    Toon,
+
+    VertexPBR = VertexShader | PBR,
+    VertexToon = VertexShader | Toon,
+
+    FragmentPBR = PBR,
+    FragmentToon = Toon,
 
     Invalid = static_cast<uint8_t>(-1),
 };
@@ -87,8 +90,7 @@ private:
 
     constexpr MTL4::ArgumentTable* get_argument_table_from_shader_type(ShaderType shader_type) const;
 
-    void create_vertex_argument_table(MaterialType material_type);
-    void create_fragment_argument_table(MaterialType material_type);
+    void create_argument_table(ShaderType shader_type);
 
     MTL4::ArgumentTable* vertex_argument_table = nullptr;
     MTL4::ArgumentTable* pbr_fragment_argument_table = nullptr;
@@ -96,3 +98,16 @@ private:
 
     MTL::Device* device = nullptr;
 };
+
+
+inline uint8_t operator&(ShaderType a, ShaderType b) {
+    return static_cast<uint8_t>(
+        static_cast<uint8_t>(a) & static_cast<uint8_t>(b)
+    );
+}
+
+inline uint8_t operator|(ShaderType a, ShaderType b) {
+    return static_cast<uint8_t>(
+        static_cast<uint8_t>(a) & static_cast<uint8_t>(b)
+    );
+}
