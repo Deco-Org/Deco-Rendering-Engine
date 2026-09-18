@@ -118,12 +118,17 @@ void ArgumentTableManager::create_argument_table(ShaderType shader_type)
         }
 
         default:
-        break;
+            argument_table = nullptr;
     }
 
-    if (*argument_table != nullptr)
+    if (argument_table == nullptr)
     {
-        printf("Error: Argument table already exists");
+        printf("Error: No argument table found for shader type %u\n", shader_type);
+        assert(nullptr != argument_table);
+    }
+    else if (*argument_table != nullptr)
+    {
+        printf("Error: Argument table already exists for shader type %u\n", shader_type);
         assert(nullptr == *argument_table);
     }
 
