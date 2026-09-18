@@ -184,13 +184,13 @@ TEST_CASE("resource manager should accurately track whether a resource is in a d
     ResidencyManager* residency_manager = new ResidencyManager(device, command_queue);
 
     MTL::Buffer* some_buffer = device->newBuffer(128, MTL::ResourceStorageModeShared);
-    REQUIRE(false == residency_manager->dyanmic_set_contains_allocation(some_buffer));
+    REQUIRE(false == residency_manager->dynamic_set_contains_allocation(some_buffer));
     
     residency_manager->add_dynamic(some_buffer);
-    REQUIRE(residency_manager->dyanmic_set_contains_allocation(some_buffer));
+    REQUIRE(residency_manager->dynamic_set_contains_allocation(some_buffer));
 
     residency_manager->remove_dynamic(some_buffer);
-    REQUIRE(false == residency_manager->dyanmic_set_contains_allocation(some_buffer));
+    REQUIRE(false == residency_manager->dynamic_set_contains_allocation(some_buffer));
 
     delete residency_manager;
     residency_manager = nullptr;
