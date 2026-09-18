@@ -121,6 +121,12 @@ void ArgumentTableManager::create_argument_table(ShaderType shader_type)
         break;
     }
 
+    if (*argument_table != nullptr)
+    {
+        printf("Error: Argument table already exists");
+        assert(nullptr == *argument_table);
+    }
+
     *argument_table = device->newArgumentTable(argument_table_descriptor, &error);
 
     if (error)
