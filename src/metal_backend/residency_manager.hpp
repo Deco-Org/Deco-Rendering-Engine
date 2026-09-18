@@ -42,8 +42,8 @@ public:
     size_t persistent_allocations_count() const;
     size_t dynamic_allocations_count() const;
 
-    bool dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const;
     bool persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const;
+    bool dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const;
 
     /**
      * The value of the latest commit. Any assets with a larger commit value have not yet been committed, and are therefore not safe to draw.
