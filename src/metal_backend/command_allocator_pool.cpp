@@ -26,7 +26,7 @@ CommandAllocatorPool::~CommandAllocatorPool()
 
 bool CommandAllocatorPool::default_waiting_function(CommandAllocatorPool* instance, uint64_t wait_value, uint64_t wait_time_in_milliseconds)
 {
-    return instance->frame_event->waitUntilSignaledValue(instance->frame_count, FRAME_TIMEOUT_TIME_IN_MILLISECONDS);
+    return instance->frame_event->waitUntilSignaledValue(wait_value, FRAME_TIMEOUT_TIME_IN_MILLISECONDS);
 }
 
 void CommandAllocatorPool::default_frame_completion_callback_function(CommandAllocatorPool* instance)
