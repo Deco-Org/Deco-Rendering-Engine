@@ -65,11 +65,11 @@ enum class ShaderType : uint8_t
     PBR = 0,
     Toon,
 
-    VertexPBR = VertexShader | PBR,
-    VertexToon = VertexShader | Toon,
+    PBRVertex = VertexShader | PBR,
+    ToonVertex = VertexShader | Toon,
 
-    FragmentPBR = PBR,
-    FragmentToon = Toon,
+    PBRFragment = PBR,
+    ToonFragment = Toon,
 
     Invalid = static_cast<uint8_t>(-1),
 };
@@ -88,6 +88,7 @@ public:
 
 private:
 
+    consteval ShaderType get_shader_type_from_material_type(MaterialType material_type) const;
     constexpr MTL4::ArgumentTable* get_argument_table_from_shader_type(ShaderType shader_type) const;
 
     void create_argument_table(ShaderType shader_type);
