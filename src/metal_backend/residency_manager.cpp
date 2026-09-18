@@ -97,7 +97,7 @@ bool ResidencyManager::persistent_set_contains_allocation(MTL::Allocation* resou
     return persistent_set->containsAllocation(resource_allocation);
 }
 
-bool ResidencyManager::dyanmic_set_contains_allocation(MTL::Allocation* resource_allocation) const
+bool ResidencyManager::dynamic_set_contains_allocation(MTL::Allocation* resource_allocation) const
 {
     return dynamic_set->containsAllocation(resource_allocation);
 }
