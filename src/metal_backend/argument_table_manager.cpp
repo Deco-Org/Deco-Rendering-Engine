@@ -9,8 +9,9 @@ ArgumentTableManager::ArgumentTableManager(MTL::Device* metal_device)
 {
     device = metal_device;
 
-    create_vertex_argument_table(MaterialType::PBR);
-    create_fragment_argument_table(MaterialType::PBR);
+    create_argument_table(ShaderType::VertexPBR);
+    create_argument_table(ShaderType::FragmentPBR);
+    create_argument_table(ShaderType::FragmentToon);
 }
 
 ArgumentTableManager::~ArgumentTableManager()
@@ -58,16 +59,15 @@ constexpr MTL4::ArgumentTable* ArgumentTableManager::get_argument_table_from_sha
     MTL4::ArgumentTable* argument_table;
     switch (shader_type)
     {
-        case ShaderType::PBRVertex:
-        case ShaderType::ToonVertex:
+        case ShaderType::VertexShader:
             argument_table = vertex_argument_table;
             break;
 
-        case ShaderType::PBRFragment:
+        case ShaderType::FragmentPBR:
             argument_table = pbr_fragment_argument_table;
             break;
 
-        case ShaderType::ToonFragment:
+        case ShaderType::FragmentToon:
             argument_table = toon_fragment_argument_table;
             break;
 
@@ -79,57 +79,41 @@ constexpr MTL4::ArgumentTable* ArgumentTableManager::get_argument_table_from_sha
     return argument_table;
 }
 
-void ArgumentTableManager::create_vertex_argument_table(MaterialType material_type)
+void ArgumentTableManager::create_argument_table(ShaderType shader_type)
 {
     NS::Error* error = nullptr;
+    MTL4::ArgumentTable** argument_table;
 
     MTL4::ArgumentTableDescriptor* argument_table_descriptor;
     argument_table_descriptor = MTL4::ArgumentTableDescriptor::alloc()->init();
 
-    switch (material_type)
+    switch (shader_type)
     {
-        case MaterialType::PBR:
-        case MaterialType::Toon:
-            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_VERTEX_BUFFERS));
-            break;
-
-        default:
-            break;
-    }
-
-    vertex_argument_table = device->newArgumentTable(argument_table_descriptor, &error);
-
-    if (error)
-    {
-        printf("Error: %s\n", error->localizedDescription()->cString(NS::UTF8StringEncoding));
-        assert(nullptr == error);
-    }
-
-    argument_table_descriptor->release();
-}
-
-void ArgumentTableManager::create_fragment_argument_table(MaterialType material_type)
-{
-    NS::Error* error = nullptr;
-
-    MTL4::ArgumentTableDescriptor* argument_table_descriptor;
-    argument_table_descriptor = MTL4::ArgumentTableDescriptor::alloc()->init();
-
-    switch (material_type)
-    {
-        case MaterialType::PBR:
+        case ShaderType::FragmentPBR:
         {
+            argument_table = &pbr_fragment_argument_table;
+
             argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_BUFFERS));
             argument_table_descriptor->setMaxSamplerStateBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_SAMPLERS));
             argument_table_descriptor->setMaxTextureBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_FRAGMENT_TEXTURES));
             break;
         }
 
-        case MaterialType::Toon:
+        case ShaderType::FragmentToon:
         {
+            argument_table = &toon_fragment_argument_table;
+
             argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::ToonRenderingArgumentSlot::NUMBER_OF_TOON_FRAGMENT_BUFFERS));
             argument_table_descriptor->setMaxSamplerStateBindCount(static_cast<NS::UInteger>(ArgumentSlots::ToonRenderingArgumentSlot::NUMBER_OF_TOON_FRAGMENT_SAMPLERS));
             argument_table_descriptor->setMaxTextureBindCount(static_cast<NS::UInteger>(ArgumentSlots::ToonRenderingArgumentSlot::NUMBER_OF_TOON_FRAGMENT_TEXTURES));
+            break;
+        }
+
+        case ShaderType::VertexShader:
+        {
+            argument_table = &vertex_argument_table;
+
+            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_VERTEX_BUFFERS));
             break;
         }
 
@@ -137,7 +121,7 @@ void ArgumentTableManager::create_fragment_argument_table(MaterialType material_
         break;
     }
 
-    pbr_fragment_argument_table = device->newArgumentTable(argument_table_descriptor, &error);
+    *argument_table = device->newArgumentTable(argument_table_descriptor, &error);
 
     if (error)
     {
