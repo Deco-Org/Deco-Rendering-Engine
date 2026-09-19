@@ -9,7 +9,7 @@ ArgumentTableManager::ArgumentTableManager(MTL::Device* metal_device)
 {
     device = metal_device;
 
-    create_argument_table(ShaderType::PBRVertex);
+    create_argument_table(ShaderType::VertexShader);
     create_argument_table(ShaderType::PBRFragment);
     create_argument_table(ShaderType::ToonFragment);
 }
