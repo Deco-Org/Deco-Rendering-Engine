@@ -62,24 +62,39 @@ ResidencyManager::~ResidencyManager()
 
 void ResidencyManager::add_persistent(MTL::Allocation* resource_allocation)
 {
+    persistent_set_dirty = true;
     persistent_set->addAllocation(resource_allocation);
 }
 
 void ResidencyManager::add_dynamic(MTL::Allocation* resource_allocation)
 {
+    dynamic_set_dirty = true;
     dynamic_set->addAllocation(resource_allocation);
 }
 
 void ResidencyManager::remove_dynamic(MTL::Allocation* resource_allocation)
 {
+    dynamic_set_dirty = true;
     dynamic_set->removeAllocation(resource_allocation);
 }
 
 void ResidencyManager::commit()
 {
-    persistent_set->commit();
-    dynamic_set->commit();
-    latest_commit_value += 1;
+    if (persistent_set_dirty || dynamic_set_dirty)
+    {
+        if (persistent_set_dirty)
+        {
+            persistent_set_dirty = false;
+            persistent_set->commit();
+        }
+        else
+        {
+            dynamic_set_dirty = false;
+            dynamic_set->commit();
+        }
+
+        latest_commit_value += 1;
+    }
 }
 
 size_t ResidencyManager::persistent_allocations_count() const
