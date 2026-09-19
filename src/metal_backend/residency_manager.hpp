@@ -54,7 +54,17 @@ public:
      * @returns Whether or not the dynamic set contains the specified resource allocation
      */
     bool dynamic_set_contains_allocation(MTL::Allocation* resource_allocation) const;
+    
+    /**
+     * @returns Whether or not the persistent residency set has had any resources added that have yet to be committed
+     */
+    bool is_persistent_residency_set_dirty() const;
 
+    /**
+     * @returns Whether or not the dynamic residency set has had any resources added or removed that have yet to be committed
+     */
+    bool is_dynamic_residency_set_dirty() const;
+    
     /**
      * The value of the latest commit. Any assets with a larger commit value have not yet been committed, and are therefore not safe to draw.
      */

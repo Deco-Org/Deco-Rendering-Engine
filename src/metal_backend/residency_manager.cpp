@@ -101,3 +101,13 @@ bool ResidencyManager::dynamic_set_contains_allocation(MTL::Allocation* resource
 {
     return dynamic_set->containsAllocation(resource_allocation);
 }
+
+bool ResidencyManager::is_persistent_residency_set_dirty() const
+{
+    return persistent_set_dirty;
+}
+
+bool ResidencyManager::is_dynamic_residency_set_dirty() const
+{
+    return dynamic_set_dirty;
+}
