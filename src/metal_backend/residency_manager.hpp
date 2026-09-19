@@ -37,12 +37,22 @@ public:
      */
     void remove_dynamic(MTL::Allocation* resource_allocation);
 
+    /**
+     * Commits the persistent and dynamic sets
+     */
     void commit();
 
     size_t persistent_allocations_count() const;
     size_t dynamic_allocations_count() const;
 
+    /**
+     * @returns Whether or not the persistent set contains the specified resource allocation
+     */
     bool persistent_set_contains_allocation(MTL::Allocation* resource_allocation) const;
+
+    /**
+     * @returns Whether or not the dynamic set contains the specified resource allocation
+     */
     bool dynamic_set_contains_allocation(MTL::Allocation* resource_allocation) const;
 
     /**
@@ -60,4 +70,7 @@ private:
     MTL::ResidencySet* persistent_set = nullptr;
     MTL::ResidencySet* dynamic_set = nullptr;
     MTL4::CommandQueue* command_queue = nullptr;
+
+    bool persistent_set_dirty = false;
+    bool dynamic_set_dirty = false;
 };
