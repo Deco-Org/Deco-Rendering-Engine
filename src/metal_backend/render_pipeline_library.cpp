@@ -12,6 +12,15 @@
 static const NS::String* vertex_pbr_shader_name = MTLSTR("vertex_pbr_shader");
 static const NS::String* fragment_pbr_shader_name = MTLSTR("fragment_pbr_shader");
 
+namespace ConstantFunctionValueIndices
+{
+    enum class PBR
+    {
+        IsSkinned = 0,
+        IsTranslucent = 1,
+    };
+}
+
 RenderPipelineLibrary::RenderPipelineLibrary(MTL::Device* metal_device, MTL4::Compiler* metal_compiler)
 {
     device = metal_device;
@@ -79,9 +88,10 @@ MTL4::RenderPipelineDescriptor* RenderPipelineLibrary::configure_render_pipeline
     MTL4::RenderPipelineDescriptor* render_pipeline_descriptor = MTL4::RenderPipelineDescriptor::alloc()->init();
     render_pipeline_descriptor->colorAttachments()->object(0)->setPixelFormat(pixel_format);
     MTL4::SpecializedFunctionDescriptor* vertex_shader_config = make_vertex_shader_configuration(pipeline_flags);
+    MTL4::SpecializedFunctionDescriptor* fragment_shader_config = make_fragment_shader_configuration(pipeline_flags);
 
     render_pipeline_descriptor->setVertexFunctionDescriptor(vertex_shader_config);
-    render_pipeline_descriptor->setFragmentFunctionDescriptor(make_fragment_shader_configuration(pipeline_flags));
+    render_pipeline_descriptor->setFragmentFunctionDescriptor(fragment_shader_config);
 
     render_pipeline_descriptor->setVertexDescriptor(make_vertex_descriptor());
 
@@ -100,8 +110,8 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_vertex_shader_c
     base_function_descriptor->setName(vertex_pbr_shader_name);
 
     MTL::FunctionConstantValues* constant_values = MTL::FunctionConstantValues::alloc()->init();
-    constant_values->setConstantValue(&is_skinned,      MTL::DataTypeBool,  NS::UInteger(0)); // Index 0
-    constant_values->setConstantValue(&is_translucent,  MTL::DataTypeBool,  NS::UInteger(1)); // Index 1
+    constant_values->setConstantValue(&is_skinned,      MTL::DataTypeBool,  NS::UInteger(ConstantFunctionValueIndices::PBR::IsSkinned));
+    constant_values->setConstantValue(&is_translucent,  MTL::DataTypeBool,  NS::UInteger(ConstantFunctionValueIndices::PBR::IsTranslucent));
 
     MTL4::SpecializedFunctionDescriptor* specialized_function_descriptor = MTL4::SpecializedFunctionDescriptor::alloc()->init();
     specialized_function_descriptor->setFunctionDescriptor(base_function_descriptor);
@@ -115,7 +125,6 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_vertex_shader_c
 
 MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_fragment_shader_configuration(RenderPipelineBitmap pipeline_flags)
 {
-    bool is_skinned = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Skinned) != RenderPipelineFlags::None;
     bool is_translucent = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Translucent) != RenderPipelineFlags::None;
 
     MTL4::LibraryFunctionDescriptor* base_function_descriptor = MTL4::LibraryFunctionDescriptor::alloc()->init();
@@ -123,8 +132,7 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_fragment_shader
     base_function_descriptor->setLibrary(library);
     base_function_descriptor->setName(fragment_pbr_shader_name);
     MTL::FunctionConstantValues* constant_values = MTL::FunctionConstantValues::alloc()->init();
-    constant_values->setConstantValue(&is_skinned,      MTL::DataTypeBool, NS::UInteger(0)); // Index 0
-    constant_values->setConstantValue(&is_translucent,  MTL::DataTypeBool, NS::UInteger(1)); // Index 1
+    constant_values->setConstantValue(&is_translucent,  MTL::DataTypeBool, NS::UInteger(ConstantFunctionValueIndices::PBR::IsTranslucent));
 
     MTL4::SpecializedFunctionDescriptor* specialized_function_descriptor = MTL4::SpecializedFunctionDescriptor::alloc()->init();
     specialized_function_descriptor->setFunctionDescriptor(base_function_descriptor);
