@@ -19,6 +19,7 @@ add_executable(tests
     metal_backend/residency_manager_test.cpp
     metal_backend/render_pipeline_library_test.cpp
     metal_backend/shader_loader_test.cpp
+    scene_systems/scene_object_system_test.cpp
     tools/synchronized_buffer_test.cpp
 )
 

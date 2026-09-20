@@ -5,10 +5,10 @@
 
 #include <Metal/Metal.hpp>
 #include "core_engine_types.h"
-#include "submesh_system.hpp"
-#include "transformation_system.hpp"
-#include "material_system.hpp"
-#include "render_pipeline_library.hpp"
+#include "asset_systems/submesh_system.hpp"
+#include "core_systems/transformation_system.hpp"
+#include "asset_systems/material_system.hpp"
+#include "metal_backend/render_pipeline_library.hpp"
 
 #pragma once
 
@@ -24,6 +24,12 @@ struct SceneObject
     MaterialHandle material_handle;
 };
 
+struct SceneObjectRenderThreadInputBufferEntry
+{
+    SceneObject scene_object;
+    SceneObjectHandle handle;
+};
+
 struct SceneObjectSystemConfig
 {
     SubmeshSystem* submesh_system;
@@ -32,6 +38,8 @@ struct SceneObjectSystemConfig
     MaterialSystem* material_system;
 };
 
+DECO_ENGINE_LIST_TYPE(SceneObjectList, SceneObject);
+
 class SceneObjectSystem
 {
 public:
@@ -39,6 +47,7 @@ public:
     ~SceneObjectSystem();
     
     SceneObjectHandle add(SceneObject scene_object);
+    std::vector<SceneObjectHandle> add(SceneObjectList scene_objects);
     void remove(SceneObjectHandle handle);
 
     /**
@@ -70,12 +79,20 @@ public:
     size_t count() const;
 
 private:
-    SubmeshSystem* submesh_system;
-    TransformationSystem* transformation_system;
-    // AnimationSystem* animation_system;
-    MaterialSystem* material_system;
+    SceneObjectHandle* get_next_n_handles(size_t n);
+    void add_input_entries_to_additions_buffer(SceneObjectRenderThreadInputBufferEntry* entries, size_t count);
 
-    SystemInputBuffer<SceneObject, SceneObjectHandle> input_entries;
+    SubmeshSystem const* submesh_system;
+    TransformationSystem const* transformation_system;
+    // AnimationSystem const* animation_system;
+    MaterialSystem const* material_system;
+
+    std::vector<SceneObjectHandle> free_handles;
+
+    size_t number_of_objects = 0;
+    size_t largest_handle = INVALID_SCENE_OBJECT_HANDLE;
+
+    SystemInputBuffer<SceneObjectRenderThreadInputBufferEntry, SceneObjectHandle> input_entries;
     SynchronizedBuffer<SceneObjectHandle> removal_buffer;
     SystemOutputBuffer<SceneObjectHandle> output_handles;
 };
