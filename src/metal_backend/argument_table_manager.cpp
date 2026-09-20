@@ -85,8 +85,7 @@ void ArgumentTableManager::create_argument_table(ShaderType shader_type)
     NS::Error* error = nullptr;
     MTL4::ArgumentTable** argument_table;
 
-    MTL4::ArgumentTableDescriptor* argument_table_descriptor;
-    argument_table_descriptor = MTL4::ArgumentTableDescriptor::alloc()->init();
+    MTL4::ArgumentTableDescriptor* argument_table_descriptor = MTL4::ArgumentTableDescriptor::alloc()->init();
 
     switch (shader_type)
     {
