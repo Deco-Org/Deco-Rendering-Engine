@@ -327,7 +327,7 @@ void TransformationSystem::drainRenderThreadRemovalsInputBuffer()
     }
 
     // Filling the render thread removals output buffer
-    if (renderThreadRemovalsOutputBuffer.size() > 0)
+    if (renderThreadRemovalsOutputBuffer.lock_unlock_mutex_and_get_size() > 0)
     {
         size_t oldSize;
         // If there's already data in the output buffer, append

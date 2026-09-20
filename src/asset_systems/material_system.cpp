@@ -12,7 +12,7 @@ MaterialSystem::MaterialSystem(TextureLoader* loader)
 {
     textureLoader = loader;
     additionsInputBuffer.buffer = nullptr;
-    additionsInputBuffer.maxHandle = 0;
+    additionsInputBuffer.max_handle = 0;
     additionsInputBuffer.count = 0;
     additionsOutputBuffer.count = 0;
 }
@@ -427,7 +427,7 @@ void MaterialSystem::drainAdditionsInputBuffer()
             return;
         
         entries = additionsInputBuffer.buffer;
-        maxHandle = additionsInputBuffer.maxHandle;
+        maxHandle = additionsInputBuffer.max_handle;
         additionsInputBuffer.buffer = nullptr;
         additionsInputBuffer.count = 0;
     }
@@ -921,7 +921,7 @@ void MaterialSystem::addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputB
     size_t oldSize = additionsInputBuffer.count;
     if (oldSize > 0)
     {
-        additionsInputBuffer.maxHandle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
+        additionsInputBuffer.max_handle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
 
         // Allocating space for new entries
         const size_t newSize = oldSize + count;
@@ -934,7 +934,7 @@ void MaterialSystem::addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputB
     }
     else
     {
-        additionsInputBuffer.maxHandle = largestHandle;
+        additionsInputBuffer.max_handle = largestHandle;
         if (additionsInputBuffer.buffer)
             delete[] additionsInputBuffer.buffer;
         additionsInputBuffer.buffer = new MaterialRenderThreadInputBufferEntry[count];

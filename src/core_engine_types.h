@@ -34,10 +34,33 @@ struct Transformation
     simd_float3 scale;
 };
 
+template <typename T>
+concept BasicLockable = requires(T m)
+{
+    m.lock();
+    m.unlock();
+};
+
+template <typename T>
+concept HasMutexField = requires(T obj)
+{
+    { obj.mutex } -> BasicLockable;
+};
+
 template<typename T, typename H>
 class SystemInputBuffer
 {
     public:
+
+    SystemInputBuffer<T, H>()
+    {
+        max_handle = static_cast<H>(-1);
+    }
+
+    SystemInputBuffer<T, H>(H default_max_handle)
+    {
+        max_handle = default_max_handle;
+    }
 
     ~SystemInputBuffer<T, H>()
     {
@@ -46,9 +69,9 @@ class SystemInputBuffer
     }
 
     T* buffer = nullptr;
-    H maxHandle;
+    H max_handle;
     mutable std::mutex mutex;
-    size_t count;
+    size_t count = 0;
 };
 
 template<typename T>

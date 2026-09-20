@@ -13,7 +13,7 @@ SubmeshSystem::SubmeshSystem(MTL::Device* metalDevice)
     // Critical section
     inputEntries.buffer = nullptr;
     inputEntries.count = 0;
-    inputEntries.maxHandle = 0;
+    inputEntries.max_handle = 0;
 }
 
 SubmeshSystem::~SubmeshSystem()
@@ -116,7 +116,7 @@ void SubmeshSystem::drainAdditionsInputBuffer()
             return;
         
         entries = inputEntries.buffer;
-        maxHandle = inputEntries.maxHandle;
+        maxHandle = inputEntries.max_handle;
         inputEntries.buffer = nullptr;
         inputEntries.count = 0;
     }
@@ -314,7 +314,7 @@ void SubmeshSystem::addInputEntriesToAdditionsBuffer(SubmeshRenderThreadInputBuf
     size_t oldSize = inputEntries.count;
     if (oldSize > 0)
     {
-        inputEntries.maxHandle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
+        inputEntries.max_handle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
 
         // Allocating space for new entries
         const size_t newSize = oldSize + count;
@@ -327,7 +327,7 @@ void SubmeshSystem::addInputEntriesToAdditionsBuffer(SubmeshRenderThreadInputBuf
     }
     else
     {
-        inputEntries.maxHandle = largestHandle;
+        inputEntries.max_handle = largestHandle;
         if (inputEntries.buffer)
             delete[] inputEntries.buffer;
             inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[count];
