@@ -42,17 +42,17 @@ TEST_CASE("binding resources should not cause validation errors", "[argument tab
     INFO("Render pass descriptor width, height, and sample count successfully set");
 
     MTL::RenderPassColorAttachmentDescriptor* color_attachment = render_pass_descriptor->colorAttachments()->object(0);
-    MTL::RenderPassDepthAttachmentDescriptor* depthAttachment = render_pass_descriptor->depthAttachment();
+    MTL::RenderPassDepthAttachmentDescriptor* depth_attachment = render_pass_descriptor->depthAttachment();
 
     color_attachment->setTexture(msaa_render_target_texture);
     color_attachment->setLoadAction(MTL::LoadActionClear);
     color_attachment->setClearColor(MTL::ClearColor(41.0f/255.0f, 42.0f/255.0f, 48.0f/255.0f, 1.0));
     color_attachment->setStoreAction(MTL::StoreActionMultisampleResolve);
 
-    depthAttachment->setTexture(depth_texture);
-    depthAttachment->setLoadAction(MTL::LoadActionClear);
-    depthAttachment->setStoreAction(MTL::StoreActionDontCare);
-    depthAttachment->setClearDepth(1.0);
+    depth_attachment->setTexture(depth_texture);
+    depth_attachment->setLoadAction(MTL::LoadActionClear);
+    depth_attachment->setStoreAction(MTL::StoreActionDontCare);
+    depth_attachment->setClearDepth(1.0);
 
     MTL::TextureDescriptor* resolve_texture_descriptor = MTL::TextureDescriptor::alloc()->init();
     resolve_texture_descriptor->setTextureType(MTL::TextureType2D);
