@@ -47,6 +47,30 @@ concept HasMutexField = requires(T obj)
     { obj.mutex } -> BasicLockable;
 };
 
+template <typename T>
+concept HasCountField = requires(T obj)
+{
+    requires std::integral<std::remove_cvref_t<decltype(obj.count)>>;
+};
+
+template <typename T, typename Elem>
+concept HasBufferField = requires(T obj, Elem* p)
+{
+    { obj.buffer = p } -> std::same_as<Elem*&>;
+};
+
+template <typename T, typename H>
+concept HasMaxHandle = requires(T obj, H handle)
+{
+    { obj.max_handle = handle} -> std::same_as<H>;
+};
+
+template <typename T, typename Elem>
+concept DecoThreadSafeBuffer = 
+    HasMutexField<T> &&
+    HasCountField<T> &&
+    HasBufferField<T, Elem>;
+
 template<typename T, typename H>
 class SystemInputBuffer
 {
