@@ -111,7 +111,6 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_vertex_shader_c
 
     MTL::FunctionConstantValues* constant_values = MTL::FunctionConstantValues::alloc()->init();
     constant_values->setConstantValue(&is_skinned,      MTL::DataTypeBool,  NS::UInteger(ConstantFunctionValueIndices::PBR::IsSkinned));
-    constant_values->setConstantValue(&is_translucent,  MTL::DataTypeBool,  NS::UInteger(ConstantFunctionValueIndices::PBR::IsTranslucent));
 
     MTL4::SpecializedFunctionDescriptor* specialized_function_descriptor = MTL4::SpecializedFunctionDescriptor::alloc()->init();
     specialized_function_descriptor->setFunctionDescriptor(base_function_descriptor);
