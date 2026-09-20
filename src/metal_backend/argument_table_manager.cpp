@@ -113,7 +113,10 @@ void ArgumentTableManager::create_argument_table(ShaderType shader_type)
         {
             argument_table = &vertex_argument_table;
 
-            argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_VERTEX_BUFFERS));
+            if (shader_type == ShaderType::PBRVertex)
+                argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::PBRRenderingArgumentSlot::NUMBER_OF_PBR_VERTEX_BUFFERS));
+            else if (shader_type == ShaderType::ToonVertex)
+                argument_table_descriptor->setMaxBufferBindCount(static_cast<NS::UInteger>(ArgumentSlots::ToonRenderingArgumentSlot::NUMBER_OF_TOON_VERTEX_BUFFERS));
             break;
         }
 
