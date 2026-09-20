@@ -18,6 +18,7 @@ ArgumentTableManager::~ArgumentTableManager()
 {
     vertex_argument_table->release();
     pbr_fragment_argument_table->release();
+    toon_fragment_argument_table->release();
 }
 
 void ArgumentTableManager::bind_buffer(MTL::Buffer* buffer, RenderingArgumentSlot argument_slot, ShaderType shader_type)
