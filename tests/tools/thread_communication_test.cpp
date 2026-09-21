@@ -137,3 +137,23 @@ TEST_CASE("adding an item and a max handle to the additions buffer should result
         REQUIRE(some_other_data[i].handle == manager.additions_input.buffer[i + 4].handle);
     }
 }
+
+TEST_CASE("calling the method to add an item to the removals buffer should copy the specified handle to the removals buffer", "[thread communication][removals buffer][add][write]")
+{
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+    REQUIRE(0 == manager.removals_input.count);
+
+    SomeHandle some_handle_to_remove = 67;
+    SomeHandle some_other_handle_to_remove = 21;
+
+    manager.add_to_removals_buffer(&some_handle_to_remove, 1);
+
+    REQUIRE(1 == manager.removals_input.count);
+    REQUIRE(some_handle_to_remove == manager.removals_input.buffer[0]);
+
+    manager.add_to_removals_buffer(&some_other_handle_to_remove, 1);
+
+    REQUIRE(2 == manager.removals_input.count);
+    REQUIRE(some_handle_to_remove == manager.removals_input.buffer[0]);
+    REQUIRE(some_other_handle_to_remove == manager.removals_input.buffer[1]);
+}

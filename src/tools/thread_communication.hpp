@@ -84,19 +84,12 @@ namespace ThreadCommunication
         }
     }
 
-    template <typename T, typename H, typename E>
+    template <typename T, typename Handle, typename E>
     class BufferManager
     {
     public:
 
-        struct EntryWithHandle
-        {
-            T data;
-            H handle;
-        };
-
-        // template <HasItemAndHandleFields<T, H> E>
-        void add_to_additions_buffer(E* entries, size_t count, H max_handle)
+        void add_to_additions_buffer(E* entries, size_t count, Handle max_handle)
         {
             add_to_buffer(
                 additions_input,
@@ -106,8 +99,17 @@ namespace ThreadCommunication
             );
         }
 
-        SystemInputBuffer<E, H> additions_input;
-        SystemOutputBuffer<H> additions_output;
-        SynchronizedBuffer<H> removals_input;
+        void add_to_removals_buffer(Handle* handles, size_t count)
+        {
+            add_to_buffer(
+                removals_input,
+                handles,
+                count
+            );
+        }
+
+        SystemInputBuffer<E, Handle> additions_input;
+        SystemOutputBuffer<Handle> additions_output;
+        SynchronizedBuffer<Handle> removals_input;
     };
 };
