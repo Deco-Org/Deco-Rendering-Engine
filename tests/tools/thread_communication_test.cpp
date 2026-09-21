@@ -345,21 +345,29 @@ TEST_CASE("draining the additions input buffer with nullptr as a specified outpu
     manager.add_to_additions_input_buffer(some_data, 1, some_inputted_max_handle);
     REQUIRE(1 == manager.additions_input.count);
 
+    SomeHandle max_handle;
+
     SECTION("having nullptr as the count output should clear the buffer")
     {
-        SomeHandle max_handle = manager.drain_additions_input_buffer(nullptr, nullptr);
+        manager.drain_additions_input_buffer(nullptr, nullptr, &max_handle);
         REQUIRE(some_inputted_max_handle == max_handle);
+        REQUIRE(0 == manager.additions_input.count);
+    }
+
+    SECTION("having nullptr as the max handle output should clear the buffer")
+    {
+        manager.drain_additions_input_buffer(nullptr, nullptr, nullptr);
+        REQUIRE(0 == manager.additions_input.count);
     }
 
     SECTION("having a value as the count output should clear the buffer and output the count")
     {
         size_t count = 0;
-        SomeHandle max_handle = manager.drain_additions_input_buffer(nullptr, &count);
+        manager.drain_additions_input_buffer(nullptr, &count, &max_handle);
         REQUIRE(some_inputted_max_handle == max_handle);
         REQUIRE(1 == count);
+        REQUIRE(0 == manager.additions_input.count);
     }
-
-    REQUIRE(0 == manager.additions_input.count);
 }
 
 TEST_CASE("draining the additions input buffer should drain the items into a specified output", "[thread communication][additions input buffer][drain][read][write]")
@@ -382,7 +390,7 @@ TEST_CASE("draining the additions input buffer should drain the items into a spe
     size_t count;
     SomeHandle max_handle;
 
-    max_handle = manager.drain_additions_input_buffer(&entries_output, &count);
+    manager.drain_additions_input_buffer(&entries_output, &count, &max_handle);
 
     REQUIRE(nullptr != entries_output);
     REQUIRE(4 == count);

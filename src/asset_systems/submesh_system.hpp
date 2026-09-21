@@ -7,6 +7,7 @@
 #include <Metal/Metal.hpp>
 #include "core_engine_types.h"
 #include "tools/synchronized_buffer.hpp"
+#include "tools/thread_communication.hpp"
 #define UFBX_REAL_IS_FLOAT 1
 #include "ufbx.h"
 
@@ -22,9 +23,8 @@ enum class SubmeshSkinningProperty: char
     Skinned,
 };
 
-struct SubmeshRenderThreadInputBufferEntry
+struct SubmeshEntry
 {
-    SubmeshHandle handle;
     MTL::Buffer* vertexBuffer;
     MTL::Buffer* indexBuffer;
     NS::UInteger indexCount;
@@ -32,6 +32,12 @@ struct SubmeshRenderThreadInputBufferEntry
     simd_float3 boundsMax;
     SubmeshSkinningProperty skinningProperty;
     uint32_t boneCount;
+};
+
+struct SubmeshRenderThreadInputBufferEntry
+{
+    SubmeshHandle handle;
+    SubmeshEntry entry;
 };
 
 class SubmeshSystem
@@ -99,7 +105,7 @@ class SubmeshSystem
 
     SubmeshHandle largestHandle = INVALID_SUBMESH_HANDLE;
     
-    private:
+private:
     SubmeshRenderThreadInputBufferEntry generateInputEntryForSubmesh(
         ufbx_mesh* parent,
         ufbx_mesh_part* submesh,
@@ -117,9 +123,10 @@ class SubmeshSystem
             
     SubmeshHandle* getNextNHandles(size_t n);
     
-    SystemInputBuffer<SubmeshRenderThreadInputBufferEntry, SubmeshHandle> inputEntries;
-    SynchronizedBuffer<SubmeshHandle> removalBuffer;
-    SystemOutputBuffer<SubmeshHandle> outputHandles;
+    // SystemInputBuffer<SubmeshRenderThreadInputBufferEntry, SubmeshHandle> inputEntries;
+    // SynchronizedBuffer<SubmeshHandle> removalBuffer;
+    // SystemOutputBuffer<SubmeshHandle> outputHandles;
+    ThreadCommunication::BufferManager<SubmeshEntry, SubmeshHandle, SubmeshRenderThreadInputBufferEntry> buffer_manager;
     MTL::Device* device;
 };
 

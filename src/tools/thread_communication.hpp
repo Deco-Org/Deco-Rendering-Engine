@@ -186,9 +186,8 @@ namespace ThreadCommunication
 
         /**
          * @warning This should only be called on the render thread.
-         * @returns The value of the max_handle field of the buffer.
          */
-        Handle drain_additions_input_buffer(E** entries_output, size_t* count)
+        void drain_additions_input_buffer(E** entries_output, size_t* count, Handle* max_handle)
         {
             std::lock_guard lock(additions_input.mutex);
             
@@ -207,7 +206,9 @@ namespace ThreadCommunication
 
             additions_input.buffer = nullptr;
             additions_input.count = 0;
-            return additions_input.max_handle;
+
+            if (max_handle)
+                *max_handle = additions_input.max_handle;
         }
 
         /**
