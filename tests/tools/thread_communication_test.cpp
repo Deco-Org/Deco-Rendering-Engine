@@ -11,7 +11,7 @@ struct SomeEntryType
     SomeHandle handle;
 };
 
-TEST_CASE("adding an item to a custom buffer should result in the data being copied into the buffer", "[thread communication][add][write]")
+TEST_CASE("adding an item to a custom buffer should result in the data being copied into the buffer", "[thread communication][custom buffer][add][write]")
 {
     SynchronizedBuffer<SomeType> custom_buffer;
     SomeType some_data[4] = {0, 1, 2, 3};
@@ -46,7 +46,7 @@ TEST_CASE("adding an item to a custom buffer should result in the data being cop
     }
 }
 
-TEST_CASE("adding an item and a max handle to a custom buffer should result in the data and the max handle being copied into the buffer", "[thread communication][add][write]")
+TEST_CASE("adding an item and a max handle to a custom buffer should result in the data and the max handle being copied into the buffer", "[thread communication][custom buffer][add][write]")
 {
     SystemInputBuffer<SomeEntryType, SomeHandle> custom_buffer;
     SomeEntryType some_data[4] = {
@@ -176,4 +176,146 @@ TEST_CASE("calling the method to add an item to the additions output buffer shou
     REQUIRE(2 == manager.additions_output.count);
     REQUIRE(some_handle_to_be_outputted == manager.additions_output.buffer[0]);
     REQUIRE(some_other_handle_to_be_outputted == manager.additions_output.buffer[1]);
+}
+
+TEST_CASE("draining a custom buffer with nullptr as a specified output should clear the custom buffer", "[thread communication][custom buffer][drain][write]")
+{
+    SystemInputBuffer<SomeEntryType, SomeHandle> custom_buffer;
+    SomeEntryType some_data[4] = {
+        {.item = 1, .handle = 0},
+        {.item = 2, .handle = 1},
+        {.item = 3, .handle = 2},
+        {.item = 4, .handle = 3},
+    };
+
+    REQUIRE(0 == custom_buffer.count);
+
+    ThreadCommunication::add_to_buffer(
+        custom_buffer,
+        some_data,
+        4,
+        3);
+
+    REQUIRE(4 == custom_buffer.count);
+
+    SECTION("having nullptr as the count output should clear the custom buffer")
+    {
+        SomeHandle max_handle = ThreadCommunication::drain_buffer_and_get_max_handle<SomeEntryType, SomeHandle>(custom_buffer, nullptr, nullptr);
+        REQUIRE(3 == max_handle);
+        REQUIRE(0 == custom_buffer.count);
+    }
+
+    SECTION("having a value as the count output should clear the custom buffer and output the count")
+    {
+        size_t count;
+        size_t pre_drainage_count = custom_buffer.count;
+        SomeHandle max_handle = ThreadCommunication::drain_buffer_and_get_max_handle<SomeEntryType, SomeHandle>(custom_buffer, nullptr, &count);
+        REQUIRE(3 == max_handle);
+        REQUIRE(0 == custom_buffer.count);
+        REQUIRE(pre_drainage_count == count);
+    }
+}
+
+TEST_CASE("draining a custom buffer should drain the items into a specified output", "[thread communication][custom buffer][drain][read][write]")
+{
+    SystemInputBuffer<SomeEntryType, SomeHandle> custom_buffer;
+    SomeEntryType some_data[4] = {
+        {.item = 1, .handle = 0},
+        {.item = 2, .handle = 1},
+        {.item = 3, .handle = 2},
+        {.item = 4, .handle = 3},
+    };
+
+    REQUIRE(0 == custom_buffer.count);
+
+    ThreadCommunication::add_to_buffer(
+        custom_buffer,
+        some_data,
+        4,
+        3);
+
+    REQUIRE(4 == custom_buffer.count);
+
+    SomeEntryType* entries_output;
+    size_t number_of_entries;
+    SomeHandle max_handle = ThreadCommunication::drain_buffer_and_get_max_handle<SomeEntryType, SomeHandle>(custom_buffer, &entries_output, &number_of_entries);
+    
+    CHECK(3 == max_handle);
+    REQUIRE(4 == number_of_entries);
+    for (size_t i = 0; i < number_of_entries; ++i)
+    {
+        SomeEntryType* entry = entries_output + i;
+        CAPTURE(i, entry);
+        REQUIRE(some_data[i].item == entry->item);
+        REQUIRE(some_data[i].handle == entry->handle);
+    }
+    REQUIRE(0 == custom_buffer.count);
+
+    delete[] entries_output;
+}
+
+TEST_CASE("draining the additions input buffer with nullptr as a specified output should clear the additions input buffer", "[thread communication][additions input buffer][drain][write]")
+{
+    SomeEntryType some_data[4] = {
+        {.item = 9, .handle = 0},
+        {.item = 3, .handle = 1},
+        {.item = 6, .handle = 2},
+        {.item = 1, .handle = 3},
+    };
+    SomeHandle some_inputted_max_handle = 3;
+
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+    REQUIRE(0 == manager.additions_input.count);
+
+    manager.add_to_additions_input_buffer(some_data, 1, some_inputted_max_handle);
+    REQUIRE(1 == manager.additions_input.count);
+
+    SECTION("having nullptr as the count output should clear the buffer")
+    {
+        SomeHandle max_handle = manager.drain_additions_input_buffer(nullptr, nullptr);
+        REQUIRE(some_inputted_max_handle == max_handle);
+    }
+
+    SECTION("having a value as the count output should clear the buffer and output the count")
+    {
+        size_t count = 0;
+        SomeHandle max_handle = manager.drain_additions_input_buffer(nullptr, &count);
+        REQUIRE(some_inputted_max_handle == max_handle);
+        REQUIRE(1 == count);
+    }
+
+    REQUIRE(0 == manager.additions_input.count);
+}
+
+TEST_CASE("draining the additions input buffer should drain the items into a specified output", "[thread communication][additions input buffer][drain][read][write]")
+{
+    SomeEntryType some_data[4] = {
+        {.item = 9, .handle = 0},
+        {.item = 3, .handle = 1},
+        {.item = 6, .handle = 2},
+        {.item = 1, .handle = 3},
+    };
+
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+    REQUIRE(0 == manager.additions_input.count);
+
+    manager.add_to_additions_input_buffer(some_data, 4, 0);
+
+    REQUIRE(4 == manager.additions_input.count);
+
+    SomeEntryType* entries_output;
+    size_t count;
+    SomeHandle max_handle;
+
+    max_handle = manager.drain_additions_input_buffer(&entries_output, &count);
+
+    REQUIRE(nullptr != entries_output);
+    REQUIRE(4 == count);
+    for (size_t i = 0; i < 4; ++i)
+    {
+        REQUIRE(some_data[i].item == entries_output[i].item);
+        REQUIRE(some_data[i].handle == entries_output[i].handle);
+    }
+
+    delete[] entries_output;
 }

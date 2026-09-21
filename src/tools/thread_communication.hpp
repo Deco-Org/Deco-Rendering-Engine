@@ -84,6 +84,39 @@ namespace ThreadCommunication
         }
     }
 
+    template <typename T, typename H, typename B>
+        requires DecoThreadSafeBuffer<B, T>
+    H drain_buffer_and_get_max_handle(B& buffer, T** entries_output, size_t* count)
+    {
+        if (entries_output == nullptr)
+        {
+            std::lock_guard lock(buffer.mutex);
+                
+            // Critical section
+            if (count)
+                *count = buffer.count;
+
+            delete[] buffer.buffer;
+            buffer.buffer = nullptr;
+            buffer.count = 0;
+            
+            return buffer.max_handle;
+        }
+        else
+        {
+            std::lock_guard lock(buffer.mutex);
+
+            // Critical section
+            if (count)
+                *count = buffer.count;
+            
+            *entries_output = buffer.buffer;
+            buffer.buffer = nullptr;
+            buffer.count = 0;
+            return buffer.max_handle;
+        }
+    }
+
     template <typename T, typename Handle, typename E>
     class BufferManager
     {
@@ -108,6 +141,9 @@ namespace ThreadCommunication
             );
         }
 
+        /**
+         * @warning This should only be called on the render thread.
+         */
         void add_to_additions_output_buffer(Handle* handles, size_t count)
         {
             add_to_buffer(
@@ -115,6 +151,31 @@ namespace ThreadCommunication
                 handles,
                 count
             );
+        }
+
+        /**
+         * @warning This should only be called on the render thread.
+         */
+        Handle drain_additions_input_buffer(E** entries_output, size_t* count)
+        {
+            std::lock_guard lock(additions_input.mutex);
+            
+            // Critical section
+            if (entries_output == nullptr)
+            {
+                delete[] additions_input.buffer;
+                if (count)
+                    *count = additions_input.count;
+            }
+            else
+            {
+                *entries_output = additions_input.buffer;
+                *count = additions_input.count;
+            }
+
+            additions_input.buffer = nullptr;
+            additions_input.count = 0;
+            return additions_input.max_handle;
         }
 
         SystemInputBuffer<E, Handle> additions_input;
