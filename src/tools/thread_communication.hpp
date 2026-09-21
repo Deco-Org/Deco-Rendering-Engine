@@ -214,7 +214,7 @@ namespace ThreadCommunication
         /**
          * @returns The value of the max_handle field of the buffer.
          */
-        Handle drain_additions_output_buffer(Handle** handles_output, size_t* count)
+        void drain_additions_output_buffer(Handle** handles_output, size_t* count, Handle* max_handle)
         {
             std::lock_guard lock(additions_output.mutex);
             
@@ -233,7 +233,9 @@ namespace ThreadCommunication
 
             additions_output.buffer = nullptr;
             additions_output.count = 0;
-            return additions_output.max_handle;
+
+            if (max_handle)
+                *max_handle = additions_output.max_handle;
         }
 
         /**

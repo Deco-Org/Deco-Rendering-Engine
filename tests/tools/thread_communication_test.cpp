@@ -414,10 +414,17 @@ TEST_CASE("draining the additions output buffer with nullptr as a specified outp
 
     manager.add_to_additions_output_buffer(some_data, 4, some_inputted_max_handle);
     REQUIRE(4 == manager.additions_output.count);
+    
+    SECTION("having nullptr as the max handle output should clear the buffer")
+    {
+        manager.drain_additions_output_buffer(nullptr, nullptr, nullptr);
+        CHECK(0 == manager.additions_output.count);
+    }
 
     SECTION("having nullptr as the count output should clear the buffer")
     {
-        SomeHandle max_handle = manager.drain_additions_output_buffer(nullptr, nullptr);
+        SomeHandle max_handle;
+        manager.drain_additions_output_buffer(nullptr, nullptr, &max_handle);
         REQUIRE(some_inputted_max_handle == max_handle);
         CHECK(0 == manager.additions_output.count);
     }
@@ -425,7 +432,8 @@ TEST_CASE("draining the additions output buffer with nullptr as a specified outp
     SECTION("having a value as the count output should clear the buffer and output the count")
     {
         size_t count = 0;
-        SomeHandle max_handle = manager.drain_additions_output_buffer(nullptr, &count);
+        SomeHandle max_handle;
+        manager.drain_additions_output_buffer(nullptr, &count, &max_handle);
         REQUIRE(some_inputted_max_handle == max_handle);
         REQUIRE(4 == count);
         CHECK(0 == manager.additions_output.count);
@@ -450,7 +458,7 @@ TEST_CASE("draining the additions output buffer should drain the items into a sp
     size_t count;
     SomeHandle max_handle;
 
-    max_handle = manager.drain_additions_output_buffer(&entries_output, &count);
+    manager.drain_additions_output_buffer(&entries_output, &count, &max_handle);
 
     REQUIRE(nullptr != entries_output);
     REQUIRE(4 == count);
