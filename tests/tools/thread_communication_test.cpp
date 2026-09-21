@@ -146,12 +146,12 @@ TEST_CASE("calling the method to add an item to the removals buffer should copy 
     SomeHandle some_handle_to_remove = 67;
     SomeHandle some_other_handle_to_remove = 21;
 
-    manager.add_to_removals_buffer(&some_handle_to_remove, 1);
+    manager.add_to_removals_input_buffer(&some_handle_to_remove, 1);
 
     REQUIRE(1 == manager.removals_input.count);
     REQUIRE(some_handle_to_remove == manager.removals_input.buffer[0]);
 
-    manager.add_to_removals_buffer(&some_other_handle_to_remove, 1);
+    manager.add_to_removals_input_buffer(&some_other_handle_to_remove, 1);
 
     REQUIRE(2 == manager.removals_input.count);
     REQUIRE(some_handle_to_remove == manager.removals_input.buffer[0]);
@@ -182,7 +182,7 @@ TEST_CASE("calling the method to add an item to the additions output buffer shou
     REQUIRE(some_other_handle_to_be_outputted == manager.additions_output.buffer[1]);
 }
 
-TEST_CASE("draining a custom buffer with nullptr as a specified output should clear the custom buffer", "[thread communication][custom buffer][drain][write]")
+TEST_CASE("draining a custom buffer with a max handle and with nullptr as a specified output should clear the custom buffer", "[thread communication][custom buffer][drain][write]")
 {
     SystemInputBuffer<SomeEntryType, SomeHandle> custom_buffer;
     SomeEntryType some_data[4] = {
@@ -220,7 +220,7 @@ TEST_CASE("draining a custom buffer with nullptr as a specified output should cl
     }
 }
 
-TEST_CASE("draining a custom buffer should drain the items into a specified output", "[thread communication][custom buffer][drain][read][write]")
+TEST_CASE("draining a custom buffer with a max handle should drain the items into a specified output", "[thread communication][custom buffer][drain][read][write]")
 {
     SystemInputBuffer<SomeEntryType, SomeHandle> custom_buffer;
     SomeEntryType some_data[4] = {
@@ -245,6 +245,77 @@ TEST_CASE("draining a custom buffer should drain the items into a specified outp
     SomeHandle max_handle = ThreadCommunication::drain_buffer_and_get_max_handle<SomeEntryType, SomeHandle>(custom_buffer, &entries_output, &number_of_entries);
     
     CHECK(3 == max_handle);
+    REQUIRE(4 == number_of_entries);
+    for (size_t i = 0; i < number_of_entries; ++i)
+    {
+        SomeEntryType* entry = entries_output + i;
+        CAPTURE(i, entry);
+        REQUIRE(some_data[i].item == entry->item);
+        REQUIRE(some_data[i].handle == entry->handle);
+    }
+    REQUIRE(0 == custom_buffer.count);
+
+    delete[] entries_output;
+}
+
+TEST_CASE("draining a custom buffer without a max handle and with nullptr as a specified output should clear the custom buffer", "[thread communication][custom buffer][drain][write]")
+{
+    SynchronizedBuffer<SomeEntryType> custom_buffer;
+    SomeEntryType some_data[4] = {
+        {.item = 1, .handle = 0},
+        {.item = 2, .handle = 1},
+        {.item = 3, .handle = 2},
+        {.item = 4, .handle = 3},
+    };
+
+    REQUIRE(0 == custom_buffer.count);
+
+    ThreadCommunication::add_to_buffer(
+        custom_buffer,
+        some_data,
+        4);
+
+    REQUIRE(4 == custom_buffer.count);
+
+    SECTION("having nullptr as the count output should clear the custom buffer")
+    {
+        ThreadCommunication::drain_buffer<SomeEntryType>(custom_buffer, nullptr, nullptr);
+        REQUIRE(0 == custom_buffer.count);
+    }
+
+    SECTION("having a value as the count output should clear the custom buffer and output the count")
+    {
+        size_t count;
+        size_t pre_drainage_count = custom_buffer.count;
+        ThreadCommunication::drain_buffer<SomeEntryType>(custom_buffer, nullptr, &count);
+        REQUIRE(0 == custom_buffer.count);
+        REQUIRE(pre_drainage_count == count);
+    }
+}
+
+TEST_CASE("draining a custom buffer without a max handle should drain the items into a specified output", "[thread communication][custom buffer][drain][read][write]")
+{
+    SynchronizedBuffer<SomeEntryType> custom_buffer;
+    SomeEntryType some_data[4] = {
+        {.item = 1, .handle = 0},
+        {.item = 2, .handle = 1},
+        {.item = 3, .handle = 2},
+        {.item = 4, .handle = 3},
+    };
+
+    REQUIRE(0 == custom_buffer.count);
+
+    ThreadCommunication::add_to_buffer(
+        custom_buffer,
+        some_data,
+        4);
+
+    REQUIRE(4 == custom_buffer.count);
+
+    SomeEntryType* entries_output;
+    size_t number_of_entries;
+    ThreadCommunication::drain_buffer<SomeEntryType>(custom_buffer, &entries_output, &number_of_entries);
+    
     REQUIRE(4 == number_of_entries);
     for (size_t i = 0; i < number_of_entries; ++i)
     {
@@ -380,6 +451,59 @@ TEST_CASE("draining the additions output buffer should drain the items into a sp
         REQUIRE(some_data[i] == entries_output[i]);
     }
     REQUIRE(0 == manager.additions_output.count);
+    REQUIRE(some_max_handle == max_handle);
+
+    delete[] entries_output;
+}
+
+TEST_CASE("draining the removals input buffer with nullptr as a specified input should clear the removals input buffer", "[thread communication][removals input buffer][drain][write]")
+{
+    SomeHandle some_data[4] = {1, 2, 67, 4};
+
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+    REQUIRE(0 == manager.removals_input.count);
+
+    manager.add_to_removals_input_buffer(some_data, 4);
+    REQUIRE(4 == manager.removals_input.count);
+
+    SECTION("having nullptr as the count output should clear the buffer")
+    {
+        manager.drain_removals_input_buffer(nullptr, nullptr);
+        CHECK(0 == manager.removals_input.count);
+    }
+
+    SECTION("having a value as the count output should clear the buffer and output the count")
+    {
+        size_t count = 0;
+        manager.drain_removals_input_buffer(nullptr, &count);
+        REQUIRE(4 == count);
+        CHECK(0 == manager.additions_output.count);
+    }
+}
+
+TEST_CASE("draining the removals input buffer should drain the items into a specified input", "[thread communication][removals input buffer][drain][read][write]")
+{
+    SomeHandle some_data[4] = {67, 21, 32, 64};
+
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+    REQUIRE(0 == manager.removals_input.count);
+
+    manager.add_to_removals_input_buffer(some_data, 4);
+
+    REQUIRE(4 == manager.removals_input.count);
+
+    SomeHandle* entries_output;
+    size_t count;
+
+    manager.drain_removals_input_buffer(&entries_output, &count);
+
+    REQUIRE(nullptr != entries_output);
+    REQUIRE(4 == count);
+    for (size_t i = 0; i < 4; ++i)
+    {
+        REQUIRE(some_data[i] == entries_output[i]);
+    }
+    REQUIRE(0 == manager.removals_input.count);
 
     delete[] entries_output;
 }

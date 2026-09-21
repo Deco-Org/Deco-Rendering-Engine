@@ -84,6 +84,36 @@ namespace ThreadCommunication
         }
     }
 
+    template <typename T, typename B>
+        requires DecoThreadSafeBuffer<B, T>
+    void drain_buffer(B& buffer, T** entries_output, size_t* count)
+    {
+        if (entries_output == nullptr)
+        {
+            std::lock_guard lock(buffer.mutex);
+                
+            // Critical section
+            if (count)
+                *count = buffer.count;
+
+            delete[] buffer.buffer;
+            buffer.buffer = nullptr;
+            buffer.count = 0;
+        }
+        else
+        {
+            std::lock_guard lock(buffer.mutex);
+
+            // Critical section
+            if (count)
+                *count = buffer.count;
+            
+            *entries_output = buffer.buffer;
+            buffer.buffer = nullptr;
+            buffer.count = 0;
+        }
+    }
+
     template <typename T, typename H, typename B>
         requires DecoThreadSafeBuffer<B, T>
     H drain_buffer_and_get_max_handle(B& buffer, T** entries_output, size_t* count)
@@ -132,7 +162,7 @@ namespace ThreadCommunication
             );
         }
 
-        void add_to_removals_buffer(Handle* handles, size_t count)
+        void add_to_removals_input_buffer(Handle* handles, size_t count)
         {
             add_to_buffer(
                 removals_input,
@@ -156,6 +186,7 @@ namespace ThreadCommunication
 
         /**
          * @warning This should only be called on the render thread.
+         * @returns The value of the max_handle field of the buffer.
          */
         Handle drain_additions_input_buffer(E** entries_output, size_t* count)
         {
@@ -179,6 +210,9 @@ namespace ThreadCommunication
             return additions_input.max_handle;
         }
 
+        /**
+         * @returns The value of the max_handle field of the buffer.
+         */
         Handle drain_additions_output_buffer(Handle** handles_output, size_t* count)
         {
             std::lock_guard lock(additions_output.mutex);
@@ -199,6 +233,11 @@ namespace ThreadCommunication
             additions_output.buffer = nullptr;
             additions_output.count = 0;
             return additions_output.max_handle;
+        }
+
+        void drain_removals_input_buffer(Handle** handles_output, size_t* count)
+        {
+            drain_buffer(removals_input, handles_output, count);
         }
 
         SystemInputBuffer<E, Handle> additions_input;
