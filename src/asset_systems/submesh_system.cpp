@@ -173,7 +173,7 @@ void SubmeshSystem::drainAdditionsInputBuffer()
             memcpy(outputHandles.buffer, consumedHandles, n * sizeof(SubmeshHandle));
             outputHandles.count = n;
         }
-        outputHandles.largestHandle = vertexBuffers.size() - 1;
+        outputHandles.max_handle = vertexBuffers.size() - 1;
     }
 }
 
@@ -224,7 +224,7 @@ std::vector<SubmeshHandle> SubmeshSystem::getItemsAndDrainOutputBuffer()
         delete[] outputHandles.buffer;
         outputHandles.buffer = nullptr;
         outputHandles.count = 0;
-        largestHandle = outputHandles.largestHandle;
+        largestHandle = outputHandles.max_handle;
     }
     return consumedHandles;
 }

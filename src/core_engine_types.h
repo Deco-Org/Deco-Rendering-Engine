@@ -110,7 +110,7 @@ class SystemOutputBuffer
     }
 
     T* buffer = nullptr;
-    T largestHandle = 0;
+    T max_handle = 0;
     mutable std::mutex mutex;
     size_t count = 0;
 };

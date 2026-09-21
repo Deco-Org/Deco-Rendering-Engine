@@ -481,7 +481,7 @@ void MaterialSystem::drainAdditionsInputBuffer()
             memcpy(additionsOutputBuffer.buffer, consumedHandles, n * sizeof(MaterialHandle));
             additionsOutputBuffer.count = n;
         }
-        additionsOutputBuffer.largestHandle = materials.size() - 1;
+        additionsOutputBuffer.max_handle = materials.size() - 1;
     }
 }
 
@@ -498,7 +498,7 @@ std::vector<MaterialHandle> MaterialSystem::getItemsAndDrainAdditionsOutputBuffe
         delete[] additionsOutputBuffer.buffer;
         additionsOutputBuffer.buffer = nullptr;
         additionsOutputBuffer.count = 0;
-        largestHandle = additionsOutputBuffer.largestHandle;
+        largestHandle = additionsOutputBuffer.max_handle;
     }
     return consumedHandles;
 }
