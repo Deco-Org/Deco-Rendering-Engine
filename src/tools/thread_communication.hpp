@@ -144,12 +144,13 @@ namespace ThreadCommunication
         /**
          * @warning This should only be called on the render thread.
          */
-        void add_to_additions_output_buffer(Handle* handles, size_t count)
+        void add_to_additions_output_buffer(Handle* handles, size_t count, size_t max_handle)
         {
             add_to_buffer(
                 additions_output,
                 handles,
-                count
+                count,
+                max_handle
             );
         }
 
@@ -176,6 +177,28 @@ namespace ThreadCommunication
             additions_input.buffer = nullptr;
             additions_input.count = 0;
             return additions_input.max_handle;
+        }
+
+        Handle drain_additions_output_buffer(Handle** handles_output, size_t* count)
+        {
+            std::lock_guard lock(additions_output.mutex);
+            
+            // Critical section
+            if (handles_output == nullptr)
+            {
+                delete[] additions_output.buffer;
+                if (count)
+                    *count = additions_output.count;
+            }
+            else
+            {
+                *handles_output = additions_output.buffer;
+                *count = additions_output.count;
+            }
+
+            additions_output.buffer = nullptr;
+            additions_output.count = 0;
+            return additions_output.max_handle;
         }
 
         SystemInputBuffer<E, Handle> additions_input;
