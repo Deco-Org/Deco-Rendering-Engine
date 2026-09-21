@@ -116,7 +116,7 @@ TEST_CASE("adding an item and a max handle to the additions buffer should result
     ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
     REQUIRE(0 == manager.additions_input.count);
 
-    manager.add_to_additions_buffer(some_data, 4, 0);
+    manager.add_to_additions_input_buffer(some_data, 4, 0);
 
     REQUIRE(4 == manager.additions_input.count);
     for (size_t i = 0; i < 4; ++i)
@@ -125,7 +125,7 @@ TEST_CASE("adding an item and a max handle to the additions buffer should result
         REQUIRE(some_data[i].handle == manager.additions_input.buffer[i].handle);
     }
 
-    manager.add_to_additions_buffer(some_other_data, 4, 3);
+    manager.add_to_additions_input_buffer(some_other_data, 4, 3);
     for (size_t i = 0; i < 4; ++i)
     {
             REQUIRE(some_data[i].item == manager.additions_input.buffer[i].item);
@@ -156,4 +156,24 @@ TEST_CASE("calling the method to add an item to the removals buffer should copy 
     REQUIRE(2 == manager.removals_input.count);
     REQUIRE(some_handle_to_remove == manager.removals_input.buffer[0]);
     REQUIRE(some_other_handle_to_remove == manager.removals_input.buffer[1]);
+}
+
+TEST_CASE("calling the method to add an item to the additions output buffer should copy the item to the additions output buffer", "[thread communication][additions output buffer][add][write]")
+{
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+    REQUIRE(0 == manager.additions_output.count);
+
+    SomeHandle some_handle_to_be_outputted = 67;
+    SomeHandle some_other_handle_to_be_outputted = 21;
+
+    manager.add_to_additions_output_buffer(&some_handle_to_be_outputted, 1);
+
+    REQUIRE(1 == manager.additions_output.count);
+    REQUIRE(some_handle_to_be_outputted == manager.additions_output.buffer[0]);
+
+    manager.add_to_additions_output_buffer(&some_other_handle_to_be_outputted, 1);
+
+    REQUIRE(2 == manager.additions_output.count);
+    REQUIRE(some_handle_to_be_outputted == manager.additions_output.buffer[0]);
+    REQUIRE(some_other_handle_to_be_outputted == manager.additions_output.buffer[1]);
 }

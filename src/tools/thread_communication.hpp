@@ -89,7 +89,7 @@ namespace ThreadCommunication
     {
     public:
 
-        void add_to_additions_buffer(E* entries, size_t count, Handle max_handle)
+        void add_to_additions_input_buffer(E* entries, size_t count, Handle max_handle)
         {
             add_to_buffer(
                 additions_input,
@@ -103,6 +103,15 @@ namespace ThreadCommunication
         {
             add_to_buffer(
                 removals_input,
+                handles,
+                count
+            );
+        }
+
+        void add_to_additions_output_buffer(Handle* handles, size_t count)
+        {
+            add_to_buffer(
+                additions_output,
                 handles,
                 count
             );
