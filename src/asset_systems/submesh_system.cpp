@@ -149,27 +149,7 @@ void SubmeshSystem::drainRemovalBuffer()
 std::vector<SubmeshHandle> SubmeshSystem::getItemsAndDrainOutputBuffer()
 {
     std::vector<SubmeshHandle> consumed_handles;
-    // {
-    //     std::lock_guard<std::mutex> lock(outputHandles.mutex);
-        
-    //     // Critical section
-    //     size_t n = outputHandles.count;
-    //     consumedHandles.resize(n);
-    //     memcpy(consumedHandles.data(), outputHandles.buffer, n * sizeof(SubmeshHandle));
-    //     delete[] outputHandles.buffer;
-    //     outputHandles.buffer = nullptr;
-    //     outputHandles.count = 0;
-    //     largestHandle = outputHandles.max_handle;
-    // }
-
-    SubmeshHandle* consumed_handles_data;
-    size_t consumed_handles_count;
-    
-    buffer_manager.drain_additions_output_buffer(&consumed_handles_data, &consumed_handles_count);
-
-    consumed_handles.resize(consumed_handles_count);
-    memcpy(consumed_handles.data(), consumed_handles_data, consumed_handles_count * sizeof(SubmeshHandle));
-    delete[] consumed_handles_data;
+    buffer_manager.drain_additions_output_buffer_into_resizable_container(consumed_handles, largestHandle);
     return consumed_handles;
 }
 
