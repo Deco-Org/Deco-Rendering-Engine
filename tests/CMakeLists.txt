@@ -20,7 +20,7 @@ add_executable(tests
     metal_backend/render_pipeline_library_test.cpp
     metal_backend/shader_loader_test.cpp
     tools/synchronized_buffer_test.cpp
-    tools/thread_communication_buffer_manager_test.cpp
+    tools/thread_communication_test.cpp
 )
 
 target_include_directories(tests PRIVATE

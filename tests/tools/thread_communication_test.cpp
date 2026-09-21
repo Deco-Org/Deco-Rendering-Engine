@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "test_utils.hpp"
-#include "tools/thread_communication_buffer_manager.hpp"
+#include "tools/thread_communication.hpp"
 
 using SomeType = uint8_t;
 using SomeHandle = size_t;
