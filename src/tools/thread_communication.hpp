@@ -236,6 +236,23 @@ namespace ThreadCommunication
             return additions_output.max_handle;
         }
 
+        /**
+         * TODO: Add support for other containers
+         */
+        void drain_additions_output_buffer_into_resizable_container(std::vector<Handle>& container, Handle& max_handle)
+        {
+            std::lock_guard lock(additions_output.mutex);
+
+            // Critical section
+            size_t n = additions_output.count;
+            container.resize(n);
+            memcpy(container.data(), additions_output.buffer, n * sizeof(Handle));
+            delete[] additions_output.buffer;
+            additions_output.buffer = nullptr;
+            additions_output.count = 0;
+            max_handle = additions_output.max_handle;
+        }
+
         void drain_removals_input_buffer(Handle** handles_output, size_t* count)
         {
             drain_buffer(removals_input, handles_output, count);

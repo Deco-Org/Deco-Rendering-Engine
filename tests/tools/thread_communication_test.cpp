@@ -464,6 +464,32 @@ TEST_CASE("draining the additions output buffer should drain the items into a sp
     delete[] entries_output;
 }
 
+TEST_CASE("draining the additions output buffer into a resizable container should transfer the data into the container", "[thread communication][addition output buffer][drain][read][write]")
+{
+    SomeHandle some_data[4] = {67, 21, 32, 64};
+    SomeHandle input_max_handle = 3;
+    std::vector<SomeHandle> container;
+    SomeHandle output_max_handle;
+
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+
+    REQUIRE(0 == manager.additions_input.count);
+
+    manager.add_to_additions_output_buffer(some_data, 4, input_max_handle);
+    REQUIRE(4 == manager.additions_output.count);
+    REQUIRE(input_max_handle == manager.additions_output.max_handle);
+
+    manager.drain_additions_output_buffer_into_resizable_container(container, output_max_handle);
+    
+    REQUIRE(4 == container.size());
+    for (size_t i = 0; i < 4; ++i)
+    {
+        REQUIRE(some_data[i] == container[i]);
+    }
+    REQUIRE(0 == manager.additions_output.count);
+    REQUIRE(input_max_handle == output_max_handle);
+}
+
 TEST_CASE("draining the removals input buffer with nullptr as a specified input should clear the removals input buffer", "[thread communication][removals input buffer][drain][write]")
 {
     SomeHandle some_data[4] = {1, 2, 67, 4};
