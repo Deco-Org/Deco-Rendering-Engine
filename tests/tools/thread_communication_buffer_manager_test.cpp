@@ -11,7 +11,7 @@ struct SomeEntryType
     SomeHandle handle;
 };
 
-TEST_CASE("adding an item to a custom buffer should result in the data being copied into the buffer", "[thread communication buffer manager][add]")
+TEST_CASE("adding an item to a custom buffer should result in the data being copied into the buffer", "[thread communication][add][write]")
 {
     SynchronizedBuffer<SomeType> custom_buffer;
     SomeType some_data[4] = {0, 1, 2, 3};
@@ -19,7 +19,7 @@ TEST_CASE("adding an item to a custom buffer should result in the data being cop
 
     REQUIRE(0 == custom_buffer.count);
 
-    ThreadCommunicationBufferManager<SomeType, SomeHandle>::add_to_buffer(
+    ThreadCommunication::add_to_buffer(
         custom_buffer,
         some_data,
         4);
@@ -30,7 +30,7 @@ TEST_CASE("adding an item to a custom buffer should result in the data being cop
         REQUIRE(some_data[i] == custom_buffer.buffer[i]);
     }
 
-    ThreadCommunicationBufferManager<SomeType, SomeHandle>::add_to_buffer(
+    ThreadCommunication::add_to_buffer(
         custom_buffer,
         some_other_data,
         4);
@@ -46,25 +46,25 @@ TEST_CASE("adding an item to a custom buffer should result in the data being cop
     }
 }
 
-TEST_CASE("adding an item and a max handle to a custom buffer should result in the data and the max handle being copied into the buffer", "[thread communication buffer manager][add]")
+TEST_CASE("adding an item and a max handle to a custom buffer should result in the data and the max handle being copied into the buffer", "[thread communication][add][write]")
 {
     SystemInputBuffer<SomeEntryType, SomeHandle> custom_buffer;
     SomeEntryType some_data[4] = {
-        (SomeEntryType){.item = 1, .handle = 0},
-        (SomeEntryType){.item = 2, .handle = 1},
-        (SomeEntryType){.item = 3, .handle = 2},
-        (SomeEntryType){.item = 4, .handle = 3},
+        {.item = 1, .handle = 0},
+        {.item = 2, .handle = 1},
+        {.item = 3, .handle = 2},
+        {.item = 4, .handle = 3},
     };
     SomeEntryType some_other_data[4] = {
-        (SomeEntryType){.item = 5, .handle = 4},
-        (SomeEntryType){.item = 6, .handle = 5},
-        (SomeEntryType){.item = 7, .handle = 6},
-        (SomeEntryType){.item = 8, .handle = 7},
+        {.item = 5, .handle = 4},
+        {.item = 6, .handle = 5},
+        {.item = 7, .handle = 6},
+        {.item = 8, .handle = 7},
     };
 
     REQUIRE(0 == custom_buffer.count);
 
-    ThreadCommunicationBufferManager<SomeEntryType, SomeHandle>::add_to_buffer(
+    ThreadCommunication::add_to_buffer(
         custom_buffer,
         some_data,
         4,
@@ -78,7 +78,7 @@ TEST_CASE("adding an item and a max handle to a custom buffer should result in t
         REQUIRE(some_data[i].handle == custom_buffer.buffer[i].handle);
     }
 
-    ThreadCommunicationBufferManager<SomeEntryType, SomeHandle>::add_to_buffer(
+    ThreadCommunication::add_to_buffer(
         custom_buffer,
         some_other_data,
         4,
@@ -95,5 +95,45 @@ TEST_CASE("adding an item and a max handle to a custom buffer should result in t
     {
         REQUIRE(some_other_data[i].item == custom_buffer.buffer[4 + i].item);
         REQUIRE(some_other_data[i].handle == custom_buffer.buffer[4 + i].handle);
+    }
+}
+
+TEST_CASE("adding an item and a max handle to the additions buffer should result in the data and the max handle being copied into the buffer", "[thread communication][additions buffer][add][write]")
+{
+    SomeEntryType some_data[4] = {
+        {.item = 9, .handle = 0},
+        {.item = 3, .handle = 1},
+        {.item = 6, .handle = 2},
+        {.item = 1, .handle = 3},
+    };
+    SomeEntryType some_other_data[4] = {
+        {.item = 8, .handle = 4},
+        {.item = 6, .handle = 5},
+        {.item = 7, .handle = 6},
+        {.item = 8, .handle = 7},
+    };
+
+    ThreadCommunication::BufferManager<SomeType, SomeHandle, SomeEntryType> manager;
+    REQUIRE(0 == manager.additions_input.count);
+
+    manager.add_to_additions_buffer(some_data, 4, 0);
+
+    REQUIRE(4 == manager.additions_input.count);
+    for (size_t i = 0; i < 4; ++i)
+    {
+        REQUIRE(some_data[i].item == manager.additions_input.buffer[i].item);
+        REQUIRE(some_data[i].handle == manager.additions_input.buffer[i].handle);
+    }
+
+    manager.add_to_additions_buffer(some_other_data, 4, 3);
+    for (size_t i = 0; i < 4; ++i)
+    {
+            REQUIRE(some_data[i].item == manager.additions_input.buffer[i].item);
+            REQUIRE(some_data[i].handle == manager.additions_input.buffer[i].handle);
+    }
+    for (size_t i = 0; i < 4; ++i)
+    {
+        REQUIRE(some_other_data[i].item == manager.additions_input.buffer[i + 4].item);
+        REQUIRE(some_other_data[i].handle == manager.additions_input.buffer[i + 4].handle);
     }
 }

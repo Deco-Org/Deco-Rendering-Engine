@@ -6,22 +6,22 @@
 #include "core_engine_types.h"
 #include "synchronized_buffer.hpp"
 
-template <typename T, typename H>
-class ThreadCommunicationBufferManager
+template <typename E, typename Elem, typename Handle>
+concept HasItemAndHandleFields = requires(const E& e)
 {
-public:
+    { e.item } -> std::convertible_to<Elem>;
+    { e.handle } -> std::convertible_to<Handle>;
+};
 
-    struct EntryWithHandle
-    {
-        T data;
-        H handle;
-    };
+namespace ThreadCommunication
+{
 
     /**
      * @note Involves locking and unlocking the buffer's mutex
      */
-    template <DecoThreadSafeBuffer<T> B>
-    static void add_to_buffer(B& buffer, const T* data, size_t count)
+    template <typename T, typename B>
+        requires DecoThreadSafeBuffer<B, T>
+    void add_to_buffer(B& buffer, const T* data, size_t count)
     {
         std::lock_guard lock(buffer.mutex);
         
@@ -54,8 +54,9 @@ public:
      * @param count The number of items to be added to the buffer
      * @param max_handle The value to be written to the buffer's `max_handle` field.
      */
-    template <DecoThreadSafeBuffer<T> B>
-    static void add_to_buffer(B& buffer, const T* data, size_t count, H max_handle)
+    template <typename T, typename B, typename H>
+        requires DecoThreadSafeBuffer<B, T>
+    void add_to_buffer(B& buffer, const T* data, size_t count, H max_handle)
     {
         std::lock_guard lock(buffer.mutex);
         
@@ -83,7 +84,30 @@ public:
         }
     }
 
-    SystemInputBuffer<EntryWithHandle, H> additions_input;
-    SystemOutputBuffer<H> additions_output;
-    SynchronizedBuffer<H> removals_input;
+    template <typename T, typename H, typename E>
+    class BufferManager
+    {
+    public:
+
+        struct EntryWithHandle
+        {
+            T data;
+            H handle;
+        };
+
+        // template <HasItemAndHandleFields<T, H> E>
+        void add_to_additions_buffer(E* entries, size_t count, H max_handle)
+        {
+            add_to_buffer(
+                additions_input,
+                entries,
+                count,
+                max_handle
+            );
+        }
+
+        SystemInputBuffer<E, H> additions_input;
+        SystemOutputBuffer<H> additions_output;
+        SynchronizedBuffer<H> removals_input;
+    };
 };

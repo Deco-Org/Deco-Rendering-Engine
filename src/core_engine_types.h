@@ -65,11 +65,11 @@ concept HasMaxHandle = requires(T obj, H handle)
     { obj.max_handle = handle} -> std::same_as<H>;
 };
 
-template <typename T, typename Elem>
+template <typename B, typename Elem>
 concept DecoThreadSafeBuffer = 
-    HasMutexField<T> &&
-    HasCountField<T> &&
-    HasBufferField<T, Elem>;
+    HasMutexField<B> &&
+    HasCountField<B> &&
+    HasBufferField<B, Elem>;
 
 template<typename T, typename H>
 class SystemInputBuffer
