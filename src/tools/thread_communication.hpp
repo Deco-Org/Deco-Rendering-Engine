@@ -6,13 +6,6 @@
 #include "core_engine_types.h"
 #include "synchronized_buffer.hpp"
 
-template <typename E, typename Elem, typename Handle>
-concept HasItemAndHandleFields = requires(const E& e)
-{
-    { e.item } -> std::convertible_to<Elem>;
-    { e.handle } -> std::convertible_to<Handle>;
-};
-
 namespace ThreadCommunication
 {
 
