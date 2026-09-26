@@ -21,6 +21,7 @@ add_executable(tests
     metal_backend/shader_loader_test.cpp
     scene_systems/scene_object_system_test.cpp
     tools/synchronized_buffer_test.cpp
+    tools/thread_communication_test.cpp
 )
 
 target_include_directories(tests PRIVATE

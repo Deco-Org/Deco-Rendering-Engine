@@ -46,7 +46,7 @@ class SynchronizedBuffer
         delete[] buffer;
     }
 
-    T* moveData()
+    T* safely_extract_data()
     {
         std::lock_guard<std::mutex> lock(mutex);
         T* data = buffer;
@@ -55,59 +55,13 @@ class SynchronizedBuffer
         return data;
     }
 
-    void fillData(T* data, size_t n)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        count = std::max(n, count);
-        for (size_t i = 0; i < n; ++i)
-        {
-            buffer[i] = data[i];
-        }
-    }
-
-    void setSize(size_t n)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (buffer)
-        {
-            delete[] buffer;
-        }
-        count = n;
-        buffer = new T[n];
-    }
-
-    size_t size()
+    size_t safely_get_size()
     {
         std::lock_guard<std::mutex> lock(mutex);
         return count;
     }
 
-    void clear()
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (buffer)
-        {
-            memset(buffer, 0, count);
-        }
-    }
-
-    void set(size_t index, T item)
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        buffer[index] = item;
-    }
-
-    T at(size_t index) const 
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        return buffer[index];
-    }
-
-    // T& operator[](size_t index);
-    // const T& operator[](size_t index) const;
-
     mutable std::mutex mutex;
-    T* buffer;
-    size_t count;
-    private:
+    T* buffer = nullptr;
+    size_t count = 0;
 };

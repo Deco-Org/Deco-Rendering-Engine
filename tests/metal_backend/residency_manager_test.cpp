@@ -209,18 +209,19 @@ TEST_CASE("commiting resources through the residency manager should increment th
     MTL::Buffer* some_buffer = device->newBuffer(128, MTL::ResourceStorageModeShared);
     MTL::Buffer* some_other_buffer = device->newBuffer(128, MTL::ResourceStorageModeShared);
 
-    ResidencyManager residency_manager(device, command_queue);
-    REQUIRE(0 == residency_manager.latest_commit_value);
+    ResidencyManager* residency_manager = new ResidencyManager(device, command_queue);
+    REQUIRE(0 == residency_manager->latest_commit_value);
 
-    residency_manager.add_dynamic(some_buffer);
-    residency_manager.commit();
-    REQUIRE(0 < residency_manager.latest_commit_value);
-    uint64_t previous_latest_commit_value = residency_manager.latest_commit_value;
+    residency_manager->add_dynamic(some_buffer);
+    residency_manager->commit();
+    REQUIRE(0 < residency_manager->latest_commit_value);
+    uint64_t previous_latest_commit_value = residency_manager->latest_commit_value;
     
-    residency_manager.add_dynamic(some_other_buffer);
-    residency_manager.commit();
-    REQUIRE(previous_latest_commit_value < residency_manager.latest_commit_value);
+    residency_manager->add_dynamic(some_other_buffer);
+    residency_manager->commit();
+    REQUIRE(previous_latest_commit_value < residency_manager->latest_commit_value);
 
+    delete residency_manager;
     command_queue->release();
     some_buffer->release();
     some_other_buffer->release();
@@ -233,13 +234,14 @@ TEST_CASE("committing a residency set without adding or removing any resources s
     NS::AutoreleasePool* autorelease_pool = NS::AutoreleasePool::alloc()->init();
     MTL::Device* device = MTL::CreateSystemDefaultDevice();
     MTL4::CommandQueue* command_queue = device->newMTL4CommandQueue();
-    ResidencyManager residency_manager(device, command_queue);
+    ResidencyManager* residency_manager = new ResidencyManager(device, command_queue);
 
-    REQUIRE(0 == residency_manager.latest_commit_value);
+    REQUIRE(0 == residency_manager->latest_commit_value);
     
-    residency_manager.commit();
-    REQUIRE(0 == residency_manager.latest_commit_value);
+    residency_manager->commit();
+    REQUIRE(0 == residency_manager->latest_commit_value);
 
+    delete residency_manager;
     command_queue->release();
     device->release();
     autorelease_pool->release();
@@ -252,16 +254,17 @@ TEST_CASE("adding items to the persistent residency set should result in the per
     MTL4::CommandQueue* command_queue = device->newMTL4CommandQueue();
     MTL::Buffer* some_buffer = device->newBuffer(128, MTL::ResourceStorageModeShared);
 
-    ResidencyManager residency_manager(device, command_queue);
-    REQUIRE(0 == residency_manager.latest_commit_value);
-    REQUIRE(!residency_manager.is_persistent_residency_set_dirty());
+    ResidencyManager* residency_manager = new ResidencyManager(device, command_queue);
+    REQUIRE(0 == residency_manager->latest_commit_value);
+    REQUIRE(!residency_manager->is_persistent_residency_set_dirty());
 
-    residency_manager.add_persistent(some_buffer);
-    REQUIRE(residency_manager.is_persistent_residency_set_dirty());
+    residency_manager->add_persistent(some_buffer);
+    REQUIRE(residency_manager->is_persistent_residency_set_dirty());
 
-    residency_manager.commit();
-    REQUIRE(0 < residency_manager.latest_commit_value);
+    residency_manager->commit();
+    REQUIRE(0 < residency_manager->latest_commit_value);
 
+    delete residency_manager;
     some_buffer->release();
     command_queue->release();
     device->release();
@@ -275,21 +278,22 @@ TEST_CASE("adding or removing items to or from the dynamic residency set should 
     MTL4::CommandQueue* command_queue = device->newMTL4CommandQueue();
     MTL::Buffer* some_buffer = device->newBuffer(128, MTL::ResourceStorageModeShared);
 
-    ResidencyManager residency_manager(device, command_queue);
-    REQUIRE(0 == residency_manager.latest_commit_value);
-    REQUIRE(!residency_manager.is_dynamic_residency_set_dirty());
+    ResidencyManager* residency_manager = new ResidencyManager(device, command_queue);
+    REQUIRE(0 == residency_manager->latest_commit_value);
+    REQUIRE(!residency_manager->is_dynamic_residency_set_dirty());
     
-    residency_manager.add_dynamic(some_buffer);
-    REQUIRE(residency_manager.is_dynamic_residency_set_dirty());
+    residency_manager->add_dynamic(some_buffer);
+    REQUIRE(residency_manager->is_dynamic_residency_set_dirty());
     
-    residency_manager.commit();
-    REQUIRE(!residency_manager.is_dynamic_residency_set_dirty());
+    residency_manager->commit();
+    REQUIRE(!residency_manager->is_dynamic_residency_set_dirty());
     
-    residency_manager.remove_dynamic(some_buffer);
-    REQUIRE(residency_manager.is_dynamic_residency_set_dirty());
+    residency_manager->remove_dynamic(some_buffer);
+    REQUIRE(residency_manager->is_dynamic_residency_set_dirty());
     
-    residency_manager.commit();
+    residency_manager->commit();
 
+    delete residency_manager;
     some_buffer->release();
     command_queue->release();
     device->release();
