@@ -117,7 +117,7 @@ void SubmeshSystem::drainAdditionsInputBuffer()
     delete[] entries;
 
     // Filling output buffer
-    buffer_manager.add_to_additions_output_buffer(consumedHandles, n, vertexBuffers.size() - 1);
+    buffer_manager.add_to_additions_output_buffer(consumedHandles, n, max_handle);
 }
 
 void SubmeshSystem::drainRemovalBuffer()
