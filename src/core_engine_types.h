@@ -34,10 +34,57 @@ struct Transformation
     simd_float3 scale;
 };
 
+template <typename T>
+concept BasicLockable = requires(T m)
+{
+    m.lock();
+    m.unlock();
+};
+
+template <typename T>
+concept HasMutexField = requires(T obj)
+{
+    { obj.mutex } -> BasicLockable;
+};
+
+template <typename T>
+concept HasCountField = requires(T obj)
+{
+    requires std::integral<std::remove_cvref_t<decltype(obj.count)>>;
+};
+
+template <typename T, typename Elem>
+concept HasBufferField = requires(T obj, Elem* p)
+{
+    { obj.buffer = p } -> std::same_as<Elem*&>;
+};
+
+template <typename T, typename H>
+concept HasMaxHandle = requires(T obj, H handle)
+{
+    { obj.max_handle = handle} -> std::same_as<H>;
+};
+
+template <typename B, typename Elem>
+concept DecoThreadSafeBuffer = 
+    HasMutexField<B> &&
+    HasCountField<B> &&
+    HasBufferField<B, Elem>;
+
 template<typename T, typename H>
 class SystemInputBuffer
 {
     public:
+
+    SystemInputBuffer<T, H>()
+    {
+        max_handle = static_cast<H>(-1);
+    }
+
+    SystemInputBuffer<T, H>(H default_max_handle)
+    {
+        max_handle = default_max_handle;
+    }
 
     ~SystemInputBuffer<T, H>()
     {
@@ -46,9 +93,9 @@ class SystemInputBuffer
     }
 
     T* buffer = nullptr;
-    H maxHandle;
+    H max_handle;
     mutable std::mutex mutex;
-    size_t count;
+    size_t count = 0;
 };
 
 template<typename T>
@@ -63,7 +110,7 @@ class SystemOutputBuffer
     }
 
     T* buffer = nullptr;
-    T largestHandle = 0;
+    T max_handle = 0;
     mutable std::mutex mutex;
     size_t count = 0;
 };

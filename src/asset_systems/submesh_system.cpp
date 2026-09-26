@@ -9,22 +9,25 @@ SubmeshSystem::SubmeshSystem(MTL::Device* metalDevice)
 {
     device = metalDevice;
 
-    std::lock_guard<std::mutex> lock(inputEntries.mutex);
+    std::lock_guard<std::mutex> lock(buffer_manager.additions_input.mutex);
     // Critical section
-    inputEntries.buffer = nullptr;
-    inputEntries.count = 0;
-    inputEntries.maxHandle = 0;
+    buffer_manager.additions_input.buffer = nullptr;
+    buffer_manager.additions_input.count = 0;
+    buffer_manager.additions_input.max_handle = 0;
 }
 
 SubmeshSystem::~SubmeshSystem()
 {
     // Releasing all buffers
-    for (SubmeshHandle handle = 0; handle < largestHandle; ++handle)
+    if (largestHandle != INVALID_SUBMESH_HANDLE)
     {
-        if (vertexBuffers[handle])
-            vertexBuffers[handle]->release();
-        if (indexBuffers[handle])
-            indexBuffers[handle]->release();
+        for (SubmeshHandle handle = 0; handle < largestHandle; ++handle)
+        {
+            if (vertexBuffers[handle])
+                vertexBuffers[handle]->release();
+            if (indexBuffers[handle])
+                indexBuffers[handle]->release();
+        }
     }
 }
 
@@ -77,104 +80,47 @@ void SubmeshSystem::remove(SubmeshList submeshes)
     memcpy(freeHandles.data() + oldSize, submeshes.data, submeshes.count * sizeof(SubmeshHandle));
 
     // Filling removal buffer
-    {
-        std::lock_guard<std::mutex> lock(removalBuffer.mutex);
-
-        // Critical section
-        const size_t oldBufferSize = removalBuffer.count;
-        if (oldBufferSize > 0)
-        {
-            SubmeshHandle* temp = removalBuffer.buffer;
-            removalBuffer.buffer = new SubmeshHandle[oldBufferSize + submeshes.count];
-            memcpy(removalBuffer.buffer, submeshes.data, submeshes.count * sizeof(SubmeshHandle));
-            memcpy(removalBuffer.buffer + submeshes.count, temp, oldBufferSize * sizeof(SubmeshHandle));
-            removalBuffer.count = oldBufferSize + submeshes.count;
-            delete[] temp;
-        }
-        else
-        {
-            delete[] removalBuffer.buffer;
-            removalBuffer.buffer = new SubmeshHandle[submeshes.count];
-            removalBuffer.count = submeshes.count;
-            memcpy(removalBuffer.buffer, submeshes.data, submeshes.count * sizeof(SubmeshHandle));
-        }
-    }
+    buffer_manager.add_to_removals_input_buffer(submeshes.data, submeshes.count);
 }
 
 void SubmeshSystem::drainAdditionsInputBuffer()
 {
     SubmeshRenderThreadInputBufferEntry* entries;
-    SubmeshHandle maxHandle;
+    SubmeshHandle max_handle;
     size_t n;
 
-    {
-        std::lock_guard<std::mutex> lock(inputEntries.mutex);
-        
-        // Critical section
-        n = inputEntries.count;
-        if (n == 0)
-            return;
-        
-        entries = inputEntries.buffer;
-        maxHandle = inputEntries.maxHandle;
-        inputEntries.buffer = nullptr;
-        inputEntries.count = 0;
-    }
+    buffer_manager.drain_additions_input_buffer(&entries, &n, &max_handle);
 
     SubmeshHandle consumedHandles[n];
-    if (maxHandle >= vertexBuffers.size())
+    if (max_handle >= vertexBuffers.size())
     {
         // Allocating new space for the entries
-        vertexBuffers.resize(maxHandle + 1);
-        indexBuffers.resize(maxHandle + 1);
-        indexCounts.resize(maxHandle + 1);
-        boundsMin.resize(maxHandle + 1);
-        boundsMax.resize(maxHandle + 1);
-        skinningProperties.resize(maxHandle + 1);
-        boneCounts.resize(maxHandle + 1);
+        vertexBuffers.resize(max_handle + 1);
+        indexBuffers.resize(max_handle + 1);
+        indexCounts.resize(max_handle + 1);
+        boundsMin.resize(max_handle + 1);
+        boundsMax.resize(max_handle + 1);
+        skinningProperties.resize(max_handle + 1);
+        boneCounts.resize(max_handle + 1);
     }
     
     for (size_t i = 0; i < n; ++i)
     {
         SubmeshRenderThreadInputBufferEntry* entry = entries + i;
         consumedHandles[i] = entry->handle;
-        vertexBuffers[entry->handle] = entry->vertexBuffer;
-        indexBuffers[entry->handle] = entry->indexBuffer;
-        indexCounts[entry->handle] = entry->indexCount;
-        boundsMin[entry->handle] = entry->boundsMin;
-        boundsMax[entry->handle] = entry->boundsMax;
-        skinningProperties[entry->handle] = entry->skinningProperty;
-        boneCounts[entry->handle] = entry->boneCount;
+        vertexBuffers[entry->handle] = entry->entry.vertexBuffer;
+        indexBuffers[entry->handle] = entry->entry.indexBuffer;
+        indexCounts[entry->handle] = entry->entry.indexCount;
+        boundsMin[entry->handle] = entry->entry.boundsMin;
+        boundsMax[entry->handle] = entry->entry.boundsMax;
+        skinningProperties[entry->handle] = entry->entry.skinningProperty;
+        boneCounts[entry->handle] = entry->entry.boneCount;
     }
 
     delete[] entries;
 
     // Filling output buffer
-    {
-        std::lock_guard<std::mutex> lock(outputHandles.mutex);
-        
-        // Critical section
-        size_t oldSize = outputHandles.count;
-        if (oldSize > 0)
-        {
-            // If there are already items in the output buffer, more space must be allocated
-            const size_t newSize = oldSize + n;
-            SubmeshHandle* temp = outputHandles.buffer;
-            outputHandles.buffer = new SubmeshHandle[newSize];
-            memcpy(outputHandles.buffer, temp, oldSize * sizeof(SubmeshHandle));
-            memcpy(outputHandles.buffer + oldSize, consumedHandles, n * sizeof(SubmeshHandle));
-            outputHandles.count = newSize;
-            delete[] temp;
-        }
-        else
-        {
-            delete[] outputHandles.buffer;
-            outputHandles.buffer = new SubmeshHandle[n];
-            memcpy(outputHandles.buffer, consumedHandles, n * sizeof(SubmeshHandle));
-            outputHandles.count = n;
-        }
-        outputHandles.largestHandle = vertexBuffers.size() - 1;
-    }
+    buffer_manager.add_to_additions_output_buffer(consumedHandles, n, vertexBuffers.size() - 1);
 }
 
 void SubmeshSystem::drainRemovalBuffer()
@@ -182,15 +128,7 @@ void SubmeshSystem::drainRemovalBuffer()
     SubmeshHandle* handlesToRemove;
     size_t n;
 
-    {
-        std::lock_guard<std::mutex> lock(removalBuffer.mutex);
-
-        // Critical section
-        n = removalBuffer.count;
-        handlesToRemove = removalBuffer.buffer;
-        removalBuffer.buffer = nullptr;
-        removalBuffer.count = 0;
-    }
+    buffer_manager.drain_removals_input_buffer(&handlesToRemove, &n);
     
     for (size_t i = 0; i < n; ++i)
     {
@@ -213,20 +151,9 @@ void SubmeshSystem::drainRemovalBuffer()
 
 std::vector<SubmeshHandle> SubmeshSystem::getItemsAndDrainOutputBuffer()
 {
-    std::vector<SubmeshHandle> consumedHandles;
-    {
-        std::lock_guard<std::mutex> lock(outputHandles.mutex);
-        
-        // Critical section
-        size_t n = outputHandles.count;
-        consumedHandles.resize(n);
-        memcpy(consumedHandles.data(), outputHandles.buffer, n * sizeof(SubmeshHandle));
-        delete[] outputHandles.buffer;
-        outputHandles.buffer = nullptr;
-        outputHandles.count = 0;
-        largestHandle = outputHandles.largestHandle;
-    }
-    return consumedHandles;
+    std::vector<SubmeshHandle> consumed_handles;
+    buffer_manager.drain_additions_output_buffer_into_resizable_container(consumed_handles, largestHandle);
+    return consumed_handles;
 }
 
 SubmeshRenderThreadInputBufferEntry SubmeshSystem::generateInputEntryForSubmesh(
@@ -300,40 +227,19 @@ SubmeshRenderThreadInputBufferEntry SubmeshSystem::generateInputEntryForSubmesh(
         inputBufferEntry,
         vertices,
         indices);
-    inputBufferEntry.indexCount = indices.size();
-    inputBufferEntry.skinningProperty = (mesh->skin_deformers.count > 0) ? SubmeshSkinningProperty::Skinned : SubmeshSkinningProperty::Unskinned;
+    inputBufferEntry.entry.indexCount = indices.size();
+    inputBufferEntry.entry.skinningProperty = (mesh->skin_deformers.count > 0) ? SubmeshSkinningProperty::Skinned : SubmeshSkinningProperty::Unskinned;
 
     return inputBufferEntry;
 }
 
 void SubmeshSystem::addInputEntriesToAdditionsBuffer(SubmeshRenderThreadInputBufferEntry* entries, size_t count)
 {
-    std::lock_guard<std::mutex> lock(inputEntries.mutex);
-
-    // Critical section
-    size_t oldSize = inputEntries.count;
-    if (oldSize > 0)
-    {
-        inputEntries.maxHandle = largestHandle; // largestHandle is updated by both the draining of the free handles and the draining of the output buffer
-
-        // Allocating space for new entries
-        const size_t newSize = oldSize + count;
-        SubmeshRenderThreadInputBufferEntry* temp = inputEntries.buffer;
-        inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[newSize];
-        memcpy(inputEntries.buffer, temp, oldSize * sizeof(SubmeshRenderThreadInputBufferEntry));
-        memcpy(inputEntries.buffer + oldSize, entries, count * sizeof(SubmeshRenderThreadInputBufferEntry));
-        inputEntries.count = newSize;
-        delete[] temp;
-    }
-    else
-    {
-        inputEntries.maxHandle = largestHandle;
-        if (inputEntries.buffer)
-            delete[] inputEntries.buffer;
-            inputEntries.buffer = new SubmeshRenderThreadInputBufferEntry[count];
-        memcpy(inputEntries.buffer, entries, count * sizeof(SubmeshRenderThreadInputBufferEntry));
-        inputEntries.count = count;
-    }
+    buffer_manager.add_to_additions_input_buffer(
+        entries,
+        count,
+        largestHandle
+    );
 }
 
 void SubmeshSystem::createAndFillVertexAndIndexBuffers(
@@ -346,13 +252,13 @@ void SubmeshSystem::createAndFillVertexAndIndexBuffers(
 
     if (device == nullptr)
     {
-        entry.vertexBuffer = nullptr;
-        entry.indexBuffer = nullptr;
+        entry.entry.vertexBuffer = nullptr;
+        entry.entry.indexBuffer = nullptr;
     }
     else
     {
-        entry.vertexBuffer = device->newBuffer(vertices.data(), vertices.size() * sizeof(Vertex), MTL::ResourceStorageModeShared);
-        entry.indexBuffer = device->newBuffer(indices.data(), indices.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared);
+        entry.entry.vertexBuffer = device->newBuffer(vertices.data(), vertices.size() * sizeof(Vertex), MTL::ResourceStorageModeShared);
+        entry.entry.indexBuffer = device->newBuffer(indices.data(), indices.size() * sizeof(uint32_t), MTL::ResourceStorageModeShared);
     }
 }
 
