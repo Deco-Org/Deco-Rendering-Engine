@@ -19,12 +19,15 @@ SubmeshSystem::SubmeshSystem(MTL::Device* metalDevice)
 SubmeshSystem::~SubmeshSystem()
 {
     // Releasing all buffers
-    for (SubmeshHandle handle = 0; handle < largestHandle; ++handle)
+    if (largestHandle != INVALID_SUBMESH_HANDLE)
     {
-        if (vertexBuffers[handle])
-            vertexBuffers[handle]->release();
-        if (indexBuffers[handle])
-            indexBuffers[handle]->release();
+        for (SubmeshHandle handle = 0; handle < largestHandle; ++handle)
+        {
+            if (vertexBuffers[handle])
+                vertexBuffers[handle]->release();
+            if (indexBuffers[handle])
+                indexBuffers[handle]->release();
+        }
     }
 }
 
@@ -86,7 +89,9 @@ void SubmeshSystem::drainAdditionsInputBuffer()
     SubmeshHandle max_handle;
     size_t n;
 
+    // printf("Draining additions input buffer. The max handle is %u\n", max_handle);
     buffer_manager.drain_additions_input_buffer(&entries, &n, &max_handle);
+    // printf("Drained additions input buffer. The max handle is %u\n", max_handle);
 
     SubmeshHandle consumedHandles[n];
     if (max_handle >= vertexBuffers.size())
@@ -117,7 +122,7 @@ void SubmeshSystem::drainAdditionsInputBuffer()
     delete[] entries;
 
     // Filling output buffer
-    buffer_manager.add_to_additions_output_buffer(consumedHandles, n, max_handle);
+    buffer_manager.add_to_additions_output_buffer(consumedHandles, n, vertexBuffers.size() - 1);
 }
 
 void SubmeshSystem::drainRemovalBuffer()
