@@ -46,7 +46,7 @@ class SynchronizedBuffer
         delete[] buffer;
     }
 
-    T* lock_mutex_and_move_data()
+    T* safely_extract_data()
     {
         std::lock_guard<std::mutex> lock(mutex);
         T* data = buffer;
@@ -55,7 +55,7 @@ class SynchronizedBuffer
         return data;
     }
 
-    size_t lock_unlock_mutex_and_get_size()
+    size_t safely_get_size()
     {
         std::lock_guard<std::mutex> lock(mutex);
         return count;

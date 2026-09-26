@@ -23,7 +23,7 @@ TEST_CASE("Buffer data should be moved on moveData()", "[tools][buffer][move]")
     memcpy(buffer.buffer, items, sizeof(items[0]) * 4);
     // Moving the buffer data
     size_t movedDataSize = buffer.count;
-    int* movedData = buffer.lock_mutex_and_move_data();
+    int* movedData = buffer.safely_extract_data();
     REQUIRE(0 == buffer.count);
     REQUIRE(4 == movedDataSize);
     for (int i = 0; i < 4; ++i)
