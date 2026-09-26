@@ -304,8 +304,9 @@ TEST_CASE("submeshes should be able to be added to and removed from the system w
 
             for (ufbx_mesh* mesh : lampScene->meshes)
             {
-                meshes.push_back(system.add(mesh));
-                expectedNumberOfLivingHandles += 1;
+                std::vector<SubmeshHandle> added_submeshes = system.add(mesh);
+                meshes.push_back(added_submeshes);
+                expectedNumberOfLivingHandles += added_submeshes.size();
             }
 
             for (std::vector<SubmeshHandle>& submeshes : meshes)
@@ -321,18 +322,20 @@ TEST_CASE("submeshes should be able to be added to and removed from the system w
             ufbx_scene* cubeScene = aSceneWithACubeModel();
             for (ufbx_mesh* mesh : cubeScene->meshes)
             {
-                meshes.push_back(system.add(mesh));
-                expectedNumberOfLivingHandles += 1;
+                std::vector<SubmeshHandle> added_submeshes = system.add(mesh);
+                meshes.push_back(added_submeshes);
+                expectedNumberOfLivingHandles += added_submeshes.size();
             }
 
             loadingThreadDone = true;
             aSceneIsFreed(lampScene);
             aSceneIsFreed(cubeScene);
         });
-
-        REQUIRE(expectedNumberOfLivingHandles == system.indexCounts.size() - system.freeHandles.size());
-
-        allFreeHandlesShouldBeTombstones(system);
-        allTombstonesShouldBeFreeHandles(system);
     }
+
+    CAPTURE(system.indexCounts.size(), system.freeHandles.size());
+    REQUIRE(expectedNumberOfLivingHandles == system.indexCounts.size() - system.freeHandles.size());
+
+    allFreeHandlesShouldBeTombstones(system);
+    allTombstonesShouldBeFreeHandles(system);
 }
