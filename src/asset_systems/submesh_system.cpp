@@ -89,9 +89,7 @@ void SubmeshSystem::drainAdditionsInputBuffer()
     SubmeshHandle max_handle;
     size_t n;
 
-    // printf("Draining additions input buffer. The max handle is %u\n", max_handle);
     buffer_manager.drain_additions_input_buffer(&entries, &n, &max_handle);
-    // printf("Drained additions input buffer. The max handle is %u\n", max_handle);
 
     SubmeshHandle consumedHandles[n];
     if (max_handle >= vertexBuffers.size())
