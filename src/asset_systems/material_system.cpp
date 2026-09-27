@@ -27,8 +27,12 @@ std::vector<MaterialHandle> MaterialSystem::add(MaterialEntryList materials)
     // Filling in the array of input buffer entries
     for (size_t i = 0; i < materials.count; ++i)
     {
+        MaterialProperties properties = MaterialProperties::Opaque;
+        properties |= get_material_properties_from_material_type(materials.data[i].type);
+
         inputBufferEntries[i] = {
             .handle = handlesToUse[i],
+            .properties = properties,
             .material = (Material) {
                 .type = materials.data[i].type,
                 .isTombstone = false,
@@ -61,10 +65,14 @@ std::vector<MaterialHandle> MaterialSystem::add(ufbx_material_list* materials, M
     // Filling in the array of input buffer entries
     for (size_t i = 0; i < materials->count; ++i)
     {
+        MaterialProperties properties = MaterialProperties::Opaque;
+        properties |= get_material_properties_from_material_type(type);
+
         ufbx_material* material = materials->data[i];
         Material* loadedMaterial = loadMaterial(material, type);
         inputBufferEntries[i] = {
             .handle = handlesToUse[i],
+            .properties = properties,
             .material = *loadedMaterial
         };
     }
@@ -440,11 +448,12 @@ void MaterialSystem::drainAdditionsInputBuffer()
         const size_t numOfMaterialsToAdd = maxHandle - materials.size();
         for (size_t i = 0; i < numOfMaterialsToAdd + 1; ++i)
         {
-            materials.push_back((Material) {
+            materials.push_back({
                 .type = MaterialType::Unknown,
                 .isTombstone = false,
                 .pbrMaterial = {0}
             });
+            material_properties.push_back(MaterialProperties::Unknown);
         }
     }
 
@@ -453,6 +462,7 @@ void MaterialSystem::drainAdditionsInputBuffer()
         MaterialRenderThreadInputBufferEntry* entry = entries + i;
         consumedHandles[i] = entry->handle;
         materials[entry->handle] = entry->material;
+        material_properties[entry->handle] = entry->properties;
     }
 
     delete[] entries;
@@ -1080,4 +1090,17 @@ std::vector<MTL::Texture*> MaterialSystem::drainTextureUpdatesInputBufferAndGetT
 
     delete[] entries;
     return texturesToUnload;
+}
+
+constexpr MaterialProperties MaterialSystem::get_material_properties_from_material_type(MaterialType material_type)
+{
+    switch (material_type)
+    {
+        case MaterialType::PBR:
+            return MaterialProperties::PBR;
+        
+        case MaterialType::Toon:
+            return MaterialProperties::Toon;
+    };
+    return MaterialProperties::Unknown;
 }

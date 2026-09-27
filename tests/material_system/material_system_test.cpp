@@ -301,6 +301,57 @@ TEST_CASE("adding a ufbx material without a diffuse color value should result in
     autoReleasePool->release();
 }
 
+TEST_CASE("adding a material without transparency should add the material and mark it as opaque in the system", "[material][asset system][opacity][add]")
+{
+    TextureLoader textureLoader;
+    MaterialSystem system(&textureLoader);
+
+    MaterialEntry addedPBRMaterial = {
+        .type = MaterialType::PBR,
+        .pbrMaterial = (PBRMaterial){
+            .albedoTexture = nullptr,
+            .normalTexture = nullptr,
+            .AoRoughnessMetallicTexture = nullptr,
+            .emissionTexture = nullptr,
+            .baseColorFactor = simd_float4{1.0f, 1.0f, 1.0f, 1.0f},
+        },
+    };
+
+    std::vector<MaterialHandle> added_materials = system.add((MaterialEntryList) {
+        .data = &addedPBRMaterial,
+        .count = 1
+    });
+
+    system.drainAdditionsInputBuffer();
+
+    MaterialProperties expected_properties = MaterialProperties::PBR | MaterialProperties::Opaque;
+    MaterialProperties actual_properties = system.material_properties[added_materials[0]];
+    REQUIRE(expected_properties == actual_properties);
+}
+
+TEST_CASE("adding a ufbx material without transparency should add the material and mark it as opaque in the system", "[material][asset system][opacity][add][fbx]")
+{
+    TextureLoader textureLoader;
+    MaterialSystem system(&textureLoader);
+
+    ufbx_scene* scene = aSceneWithATestLampModel();
+    ufbx_material_list materialsToInsert = scene->nodes[2]->materials;
+
+    std::vector<MaterialHandle> addedMaterials = system.add(&materialsToInsert);
+    REQUIRE(0 == system.materials.size());
+
+    system.drainAdditionsInputBuffer();
+    REQUIRE(materialsToInsert.count == system.materials.size());
+    for (size_t i = 0; i < materialsToInsert.count; ++i)
+    {
+        MaterialProperties expected_properties = MaterialProperties::PBR | MaterialProperties::Opaque;
+        MaterialProperties actual_properties = system.material_properties[addedMaterials[i]];
+        REQUIRE(expected_properties == actual_properties);
+    }
+
+    aSceneIsFreed(scene);
+}
+
 TEST_CASE("removing a material from the system should free the handle", "[material][asset system][remove]")
 {
     TextureLoader textureLoader;

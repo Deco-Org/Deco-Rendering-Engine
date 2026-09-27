@@ -15,6 +15,7 @@
 struct MaterialEntry
 {
     MaterialType type;
+    MaterialOpticalProperties optical_properties = MaterialOpticalProperties::Opaque;
     union
     {
         AnonymousMaterial material;
@@ -26,6 +27,7 @@ struct MaterialEntry
 struct MaterialRenderThreadInputBufferEntry
 {
     MaterialHandle handle = INVALID_MATERIAL;
+    MaterialProperties properties = MaterialProperties::Unknown;
     Material material = {};
 };
 
@@ -110,6 +112,7 @@ class MaterialSystem
     void unloadUnusedReplacedTextures();
 
     std::vector<Material> materials;
+    std::vector<MaterialProperties> material_properties;
     
     SystemInputBuffer<MaterialRenderThreadInputBufferEntry, MaterialHandle> additionsInputBuffer;
     SystemOutputBuffer<MaterialHandle> additionsOutputBuffer;
@@ -132,6 +135,7 @@ class MaterialSystem
     simd_float4 getFourChannelColorFromUfbxMaterialMap(ufbx_material_map& materialMap);
     MaterialHandle* getNextNHandles(size_t n);
     void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
+    static constexpr MaterialProperties get_material_properties_from_material_type(MaterialType material_type);
 
     /**
      * @warning This should only be called on the render thread.
