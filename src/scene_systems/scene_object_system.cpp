@@ -48,12 +48,26 @@ std::vector<SceneObjectHandle> SceneObjectSystem::add(SceneObjectList scene_obje
         if (handles[i] > largest_handle)
             largest_handle = handles[i];
     }
-    
+
     delete[] handles_to_use;
-
     
+    number_of_requested_objects += scene_objects.count;
+    buffer_manager.add_to_additions_input_buffer(input_buffer_entries, scene_objects.count, largest_handle);
+    return handles;
+}
 
+void SceneObjectSystem::remove(SceneObjectHandle handle)
+{
+    remove({
+        .data = &handle,
+        .count = 1
+    });
+}
 
+void SceneObjectSystem::remove(SceneObjectHandleList handles)
+{
+    number_of_requested_objects -= handles.count;
+    buffer_manager.add_to_removals_input_buffer(handles.data, handles.count);
 }
 
 void SceneObjectSystem::drain_additions_input_buffer()
@@ -62,20 +76,7 @@ void SceneObjectSystem::drain_additions_input_buffer()
     SceneObjectHandle max_handle;
     size_t n;
 
-    {
-        std::lock_guard<std::mutex> lock(input_entries.mutex);
-
-        // Critical section
-        n = input_entries.count;
-        if (n == 0)
-            return;
-
-        entries = input_entries.buffer;
-        max_handle = input_entries.maxHandle;
-        input_entries.buffer = nullptr;
-        input_entries.count = 0;
-        input_entries.maxHandle = INVALID_SCENE_OBJECT_HANDLE;
-    }
+    buffer_manager.drain_additions_input_buffer(&entries, &n, &max_handle);
 
     SceneObjectHandle consumed_handles[n];
     if (max_handle >= submesh_handles.size())
@@ -98,32 +99,43 @@ void SceneObjectSystem::drain_additions_input_buffer()
     }
 
     delete[] entries;
+    number_of_objects += n;
 
     // Filling the output buffer
-    {
-        std::lock_guard<std::mutex> lock(output_handles.mutex);
+    buffer_manager.add_to_additions_output_buffer(consumed_handles, n, max_handle);
+}
 
-        // Critical section
-        size_t old_size = output_handles.count;
-        if (old_size > 0)
-        {
-            const size_t new_size = old_size + n;
-            SceneObjectHandle* temp = output_handles.buffer;
-            output_handles.buffer = new SceneObjectHandle[new_size];
-            memcpy(output_handles.buffer, temp, old_size * sizeof(SceneObjectHandle));
-            memcpy(output_handles.buffer + old_size, consumed_handles, n * sizeof(SceneObjectHandle));
-            output_handles.count = new_size;
-            delete[] temp;
-        }
-        else
-        {
-            delete[] output_handles.buffer;
-            output_handles.buffer = new SubmeshHandle[n];
-            memcpy(output_handles.buffer, consumed_handles, n * sizeof(SceneObjectHandle));
-            output_handles.count = n;
-        }
-        output_handles.largestHandle = submesh_handles.size();
+void SceneObjectSystem::drain_removals_input_buffer()
+{
+    SceneObjectHandle* handles_data;
+    size_t number_of_objects_to_remove;
+    buffer_manager.drain_removals_input_buffer(&handles_data, &number_of_objects_to_remove);
+
+    for (size_t i = 0; i < number_of_objects_to_remove; ++i)
+    {
+        SceneObjectHandle handle = handles_data[i];
+        submesh_handles[handle] = INVALID_SUBMESH_HANDLE;
+        transformation_handles[handle] = TRANSFORMATION_HANDLE_INVALID;
+        // animation_instance_handles[handle] = INVALID_ANIMATION_INSTANCE_HANDLE;
+        material_handles[handle] = INVALID_MATERIAL;
     }
+
+    number_of_objects -= number_of_objects_to_remove;
+}
+
+std::vector<SceneObjectHandle> SceneObjectSystem::get_items_and_drain_output_buffer()
+{
+    std::vector<SceneObjectHandle> handles;
+    SceneObjectHandle* handles_data;
+    size_t number_of_handles;
+    SceneObjectHandle previous_largest_handle = largest_handle;
+    buffer_manager.drain_additions_output_buffer(&handles_data, &number_of_handles, &largest_handle);
+
+    handles.resize(number_of_handles);
+    memcpy(handles.data(), handles_data, number_of_handles * sizeof(SceneObjectHandle));
+    delete[] handles_data;
+
+    return handles;
 }
 
 size_t SceneObjectSystem::count() const
@@ -157,5 +169,3 @@ SceneObjectHandle* SceneObjectSystem::get_next_n_handles(size_t n)
     }
     return handles;
 }
-
-void SceneObjectSystem::add_input_entries_to_additions_buffer(SceneObjectRenderThreadInputBufferEntry* entries, size_t count) {};

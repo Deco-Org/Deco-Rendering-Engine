@@ -3,6 +3,7 @@
  * @brief
  */
 
+#pragma once
 #include "core_engine_types.h"
 #include "synchronized_buffer.hpp"
 
