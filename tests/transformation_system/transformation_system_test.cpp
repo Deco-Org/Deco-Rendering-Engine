@@ -1,0 +1,723 @@
+/**
+ * @file transformation_system_test.cpp
+ * @brief Unit tests for the transformation system
+ */
+
+#include <catch2/catch_test_macros.hpp>
+#include "core_systems/transformation_system.hpp"
+#include "transformation_system_fixture.hpp"
+#include "test_utils.hpp"
+#include <thread>
+
+TEST_CASE("reserving n transformation handles should return an array of n handles", "[transformation][handle]")
+{
+    TransformationSystem system;
+    std::vector<TransformationHandle> handles = system.reserveHandles(4);
+    REQUIRE(4 == handles.size());
+}
+
+TEST_CASE("adding a transformation increases size", "[transformation][add]")
+{
+    TransformationSystem system;
+
+    numberOfTransformationsShouldBe(system, 0);
+    std::vector<TransformationHandle> handles = system.reserveHandles(1);
+    Transformation transformation = {
+        .position = originPosition,
+        .rotation = zeroQuaternion,
+        .scale = defaultScale
+    };
+    TransformationHandle parent = NO_TRANSFORMATION_PARENT;
+    system.add(&transformation, &parent, handles.data(), 1);
+
+    numberOfTransformationsShouldBe(system, 0);
+    system.drainRenderThreadAdditionsInputBuffer();
+    numberOfTransformationsShouldBe(system, 1);
+}
+
+TEST_CASE("adding multiple transformations increases size", "[transformation][add]")
+{
+    TransformationSystem system;
+
+    numberOfTransformationsShouldBe(system, 0);
+    std::vector<Transformation> transformations = nTransformations(3);
+    std::vector<TransformationHandle> handles = system.reserveHandles(3);
+    std::vector<TransformationHandle> parents(handles.size(), NO_TRANSFORMATION_PARENT);
+
+    numberOfTransformationsShouldBe(system, 0);
+    system.add(transformations.data(), parents.data(), handles.data(), 3);
+
+    numberOfTransformationsShouldBe(system, 0);
+    system.drainRenderThreadAdditionsInputBuffer();
+    numberOfTransformationsShouldBe(system, 3);
+
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("added transformation stores correct position", "[transformation][add]")
+{
+    TransformationSystem system;
+
+    TransformationHandle handle = system.add(
+        (Transformation){
+            .position = somePosition,
+            .rotation = zeroQuaternion,
+            .scale = defaultScale},
+        NO_TRANSFORMATION_PARENT);
+
+    system.drainRenderThreadAdditionsInputBuffer();
+    REQUIRE(simdFloat3Equal(somePosition, system.positions[system.handleToIndex[handle]]));
+}
+
+TEST_CASE("added transformation stores correct rotation", "[transformation][add]")
+{
+    TransformationSystem system;
+
+    TransformationHandle handle = system.add(
+        (Transformation){
+            .position = originPosition,
+            .rotation = someRotation,
+            .scale = defaultScale},
+        NO_TRANSFORMATION_PARENT);
+
+    system.drainRenderThreadAdditionsInputBuffer();
+    REQUIRE(simdQuatfEqual(someRotation, system.rotations[system.handleToIndex[handle]]));
+}
+
+TEST_CASE("added transformation stores correct scale", "[transformation][add]")
+{
+    TransformationSystem system;
+
+    TransformationHandle handle = system.add(
+        (Transformation){
+            .position = originPosition,
+            .rotation = zeroQuaternion,
+            .scale = someScale},
+        NO_TRANSFORMATION_PARENT);
+
+    system.drainRenderThreadAdditionsInputBuffer();
+    REQUIRE(simdFloat3Equal(someScale, system.scales[system.handleToIndex[handle]]));
+}
+
+TEST_CASE("added transformation stores correct parent", "[transformation][add]")
+{
+    TransformationSystem system;
+
+    TransformationHandle parent = system.add(
+        (Transformation){
+            .position = originPosition,
+            .rotation = zeroQuaternion,
+            .scale = someScale},
+        NO_TRANSFORMATION_PARENT);
+
+    system.drainRenderThreadAdditionsInputBuffer();
+
+    TransformationHandle handle = system.add(
+        (Transformation){
+            .position = originPosition,
+            .rotation = zeroQuaternion,
+            .scale = someScale},
+        parent);
+
+    system.drainRenderThreadAdditionsInputBuffer();
+
+    REQUIRE(parent == system.parentHandles[system.handleToIndex[handle]]);
+}
+
+TEST_CASE("adding transformations in bulk stores correct parents", "[transformation][add]")
+{
+    TransformationSystem system;
+    std::vector<Transformation> transformations = nTransformations(2);
+    std::vector<TransformationHandle> handles = system.reserveHandles(2);
+    std::vector<TransformationHandle> parents = {NO_TRANSFORMATION_PARENT, handles[0]};
+
+    system.add(transformations.data(), parents.data(), handles.data(), 2);
+    system.drainRenderThreadAdditionsInputBuffer();
+    numberOfTransformationsShouldBe(system, 2);
+    REQUIRE(handles[0] == system.parentHandles[system.handleToIndex[handles[1]]]);
+}
+
+TEST_CASE("added transformations are put into render thread output buffer", "[transformation][add]")
+{
+    // Given there is an empty system
+    TransformationSystem system;
+    
+    // When n transformation handles are reserved
+    // and n transformations are added with the reserved handles
+    // And the render additions input buffer is drained
+    uint32_t n = 3;
+    std::vector<TransformationHandle> handles = system.reserveHandles(n);
+    std::vector<TransformationHandle> parents(n, NO_TRANSFORMATION_PARENT);
+    system.add(nTransformations(n).data(), parents.data(), handles.data(), n);
+    system.drainRenderThreadAdditionsInputBuffer();
+
+    // The render additions output buffer should have n items
+    std::vector<TransformationHandle> consumedHandles = system.drainAndGetConsumedTransformationHandles();
+    REQUIRE(n == consumedHandles.size());
+    // The render additions output buffer should contain the handles of the added transformation
+    for (uint32_t i = 0; i < consumedHandles.size(); ++i)
+    {
+        REQUIRE(handles[i] == consumedHandles[i]);
+    }
+}
+
+TEST_CASE("removing a transformation decreases size", "[transformation][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
+    numberOfTransformationsShouldBe(system, 3);
+
+    TransformationHandle handleToRemove = system.indexToHandle[1];
+    simd_float3 position = system.positions[system.handleToIndex[0]];
+    system.remove(&handleToRemove, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    REQUIRE(simdFloat3Equal(position, system.positions[system.handleToIndex[0]]));
+    numberOfTransformationsShouldBe(system, 2);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("removing multiple transformations decreases size", "[transformation][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(10);
+    numberOfTransformationsShouldBe(system, 10);
+
+    TransformationHandle handlesToRemove[3] = {
+        system.indexToHandle[0],
+        system.indexToHandle[5],
+        system.indexToHandle[8]
+    };
+
+    system.remove(handlesToRemove, 3);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    numberOfTransformationsShouldBe(system, 7);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("removing a transformation remaps handles to new indices", "[transformation][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
+
+    TransformationHandle handleOfRemovedItem = system.indexToHandle[0];
+    system.remove(&handleOfRemovedItem, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("removed transformations will have handles recycled", "[transformation][add][remove]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
+
+    TransformationHandle handleOfRemovedItem = 1;
+    system.remove(&handleOfRemovedItem, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
+    system.updateFreeHandles();
+
+    std::vector<TransformationHandle> handles = system.reserveHandles(1);
+    Transformation addedTransformation = {
+        .position = somePosition,
+        .rotation = someRotation,
+        .scale = someScale
+    };
+    TransformationHandle parents = { NO_TRANSFORMATION_PARENT };
+    system.add(
+        &addedTransformation,
+        &parents,
+        handles.data(),
+        1
+    );
+
+    system.drainRenderThreadAdditionsInputBuffer();
+
+    REQUIRE((TransformationHandle){1} == handles[0]);
+
+    TransformationHandle handle2 = someTransformationHandleForAddedTransformation(system);
+    system.drainRenderThreadAdditionsInputBuffer();
+    system.updateFreeHandles();
+
+    REQUIRE((TransformationHandle){3} == handle2);
+}
+
+TEST_CASE("removing a transformation should preserve order", "[transformation][remove]")
+{
+    // Given that there is a transformation system with 12 handles such that each transformation come directly after it's parent,
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    TransformationReparentConfig reparentConfigs[12];
+    reparentConfigs[0] = {
+        .child = system.indexToHandle[0],
+        .parent = NO_TRANSFORMATION_PARENT
+    };
+    for (uint32_t index = 1; index < system.indexToHandle.size(); ++index)
+    {
+        const TransformationHandle handle = system.indexToHandle[index];
+        const TransformationHandle parent = system.indexToHandle[index - 1];
+        reparentConfigs[index] = {
+            .child = handle,
+            .parent = parent
+        };
+    }
+    system.setParents(reparentConfigs, 12);
+    system.drainRenderThreadReparentInputBuffer();
+    
+    // When a transformation is removed
+    TransformationHandle transformationToRemove = system.indexToHandle[5];
+    TransformationHandle childOfRemovedTransformation = system.indexToHandle[6];
+    REQUIRE(system.parentHandles[system.handleToIndex[childOfRemovedTransformation]] == transformationToRemove);
+    system.setParent(childOfRemovedTransformation, NO_TRANSFORMATION_PARENT);
+    system.drainRenderThreadReparentInputBuffer();
+    system.remove(&transformationToRemove, 1);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    // Order should be preserved
+    for (uint32_t index = 1; index < system.indexToHandle.size(); ++index)
+    {
+        const TransformationHandle handle = system.indexToHandle[index];
+        const TransformationHandle expectedParent = system.indexToHandle[index - 1];
+        if (handle != childOfRemovedTransformation)
+        {
+            REQUIRE(system.handleToIndex[system.parentHandles[index]] < index);
+            REQUIRE(expectedParent == system.parentHandles[index]);
+        }
+    }
+}
+
+TEST_CASE("reparented transformations will remain after new parent when new parent comes prior to transformation", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    TransformationHandle parentHandle = 3;
+    TransformationHandle childHandle = 5;
+    uint32_t oldChildIndex = system.handleToIndex[childHandle];
+    
+    system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    
+    REQUIRE(parentIndex < newChildIndex);
+    REQUIRE(oldChildIndex == newChildIndex);
+}
+
+TEST_CASE("reparented transformations will be moved to be prior to new parent when new parent comes after transformation", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    TransformationHandle parentHandle = 5;
+    TransformationHandle childHandle = 3;
+    
+    system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    
+    REQUIRE(parentIndex < newChildIndex);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("children of reparented transformation will remain subsequent to reparented transform", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    TransformationHandle parentHandle = 7;
+    TransformationHandle childHandle = 3;
+    TransformationHandle grandchildHandle = 5;
+    system.setParent(grandchildHandle, childHandle);
+    system.drainRenderThreadReparentInputBuffer();
+    REQUIRE(childHandle == system.parentHandles[grandchildHandle]);
+    
+    system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    uint32_t newGrandchildIndex = system.handleToIndex[grandchildHandle];
+    
+    REQUIRE(parentIndex < newChildIndex);
+    REQUIRE(newChildIndex < newGrandchildIndex);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("grandparents of reparented transformation should be before their children", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    TransformationHandle grandparentHandle = 5;
+    TransformationHandle parentHandle = 9;
+    TransformationHandle childHandle = 3;
+    TransformationHandle grandchildHandle = 7;
+    uint32_t oldGrandparentIndex = system.handleToIndex[grandparentHandle];
+    uint32_t oldParentIndex = system.handleToIndex[parentHandle];
+
+    system.setParent(parentHandle, grandparentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+    REQUIRE(oldGrandparentIndex < oldParentIndex);
+    REQUIRE(grandparentHandle == system.parentHandles[parentHandle]);
+    
+    system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+    uint32_t grandparentIndex = system.handleToIndex[grandparentHandle];
+    uint32_t parentIndex = system.handleToIndex[parentHandle];
+    uint32_t newChildIndex = system.handleToIndex[childHandle];
+    uint32_t newGrandchildIndex = system.handleToIndex[grandchildHandle];
+    
+    REQUIRE(grandparentIndex < parentIndex);
+    REQUIRE(parentIndex < newChildIndex);
+    REQUIRE(newChildIndex < newGrandchildIndex);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("handles and indices should match up when a transformation is made an orphan", "[transformation][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    TransformationHandle parentHandle = 3;
+    TransformationHandle childHandle = 5;
+    
+    system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+    
+    system.setParent(childHandle, NO_TRANSFORMATION_PARENT);
+    system.drainRenderThreadReparentInputBuffer();
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("should be able to remove transformation after reparent operation", "[transformation][remove][reparent]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(12);
+    
+    TransformationHandle parentHandle = 10;
+    TransformationHandle childHandle = 3;
+    system.setParent(childHandle, parentHandle);
+    system.drainRenderThreadReparentInputBuffer();
+
+    system.remove(childHandle);
+    system.drainRenderThreadRemovalsInputBuffer();
+
+    allParentsShouldComeBeforeChildren(system);
+    handlesAndIndicesShouldMatchUp(system);
+    REQUIRE(thereAreNoRepeatingHandles);
+}
+
+TEST_CASE("should correctly compute world matrices for unparented transformations", "[transformation][computation]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
+    simd_float4x4 expectedMatrix1 = simd_mul(
+        simd_mul(matrix4x4_translation(system.positions[0]),
+                 simd_matrix4x4(system.rotations[0])),
+        matrix4x4_scale(system.scales[0]));
+    simd_float4x4 expectedMatrix2 = simd_mul(
+        simd_mul(matrix4x4_translation(system.positions[1]),
+                 simd_matrix4x4(system.rotations[1])),
+        matrix4x4_scale(system.scales[1]));
+    simd_float4x4 expectedMatrix3 = simd_mul(
+        simd_mul(matrix4x4_translation(system.positions[2]),
+                 simd_matrix4x4(system.rotations[2])),
+        matrix4x4_scale(system.scales[2]));
+
+    system.computeWorldMatrices();
+    
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix1, system.worldMatrices[0]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix2, system.worldMatrices[1]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
+}
+
+TEST_CASE("should correctly compute world transforms for parent and child transformations", "[transformation][computation]")
+{
+    // Given there is a transformation system with a grandparent, a parent, and a child
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(3);
+    TransformationReparentConfig reparents[2] = {
+        {.parent = system.indexToHandle[0],
+         .child = system.indexToHandle[1]},
+        {.parent = system.indexToHandle[1],
+         .child = system.indexToHandle[2]}};
+    system.setParents(reparents, 2);
+    system.drainRenderThreadReparentInputBuffer();
+
+    // When world matrices are computed,
+    system.computeWorldMatrices();
+
+    // The grandparent's world matrix should be equal to it's P * R * S
+    simd_float4x4 expectedMatrix1 = simd_mul(
+        simd_mul(
+            matrix4x4_translation(system.positions[0]),
+            simd_matrix4x4(system.rotations[0])),
+        matrix4x4_scale(system.scales[0]));
+
+    // The parent's world matrix should be equal to it's parent's world matrix, multiplied by it's own P * R * S
+    simd_float4x4 expectedMatrix2 = simd_mul(
+        expectedMatrix1,
+        simd_mul(
+            simd_mul(
+                matrix4x4_translation(system.positions[1]),
+                simd_matrix4x4(system.rotations[1])),
+            matrix4x4_scale(system.scales[1])));
+
+    // The child's world matrix should be equal to it's parent's world matrix, multiplied by it's own P * R * S
+    simd_float4x4 expectedMatrix3 = simd_mul(
+        expectedMatrix2,
+        simd_mul(
+            simd_mul(
+                matrix4x4_translation(system.positions[2]),
+                simd_matrix4x4(system.rotations[2])),
+            matrix4x4_scale(system.scales[2])));
+
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix1, system.worldMatrices[0]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix2, system.worldMatrices[1]));
+    REQUIRE(simdMatrix4x4Equal(expectedMatrix3, system.worldMatrices[2]));
+}
+
+TEST_CASE("loading thread can successfully add transformations to the system while the render thread loops", "[transformation][add][computation][threading]")
+{
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(4);
+    TransformationReparentConfig reparents[2] = {
+        {.parent = system.indexToHandle[0],
+         .child = system.indexToHandle[1]},
+        {.parent = system.indexToHandle[1],
+         .child = system.indexToHandle[2]}};
+    system.setParents(reparents, 2);
+    system.drainRenderThreadReparentInputBuffer();
+
+    std::vector<std::vector<Transformation>> batches;
+    for (uint8_t i = 0; i < 5; ++i)
+    {
+        std::vector<Transformation> transformations = nTransformations(10);
+        batches.push_back(transformations);
+    }
+
+    {
+        std::jthread otherThread(
+            someBatchesOfTransformationsAreAdded,
+            std::ref(system),
+            batches
+        );
+
+        std::jthread renderThread(
+            worldMatricesAreComputedNTimes,
+            std::ref(system),
+            100
+        );
+    }
+}
+
+TEST_CASE("loading thread can successfully remove transformations from the system while the render thread loops", "[transformation][remove][computation][threading]")
+{
+    uint32_t n = 1000;
+    TransformationSystem system = makeTransformationSystemWithNUnparentedTransformations(n);
+
+    std::vector<std::vector<TransformationHandle>> batches = {};
+    for (uint8_t i = 0; i < 10; ++i)
+    {
+        batches.push_back(std::vector<TransformationHandle>{});
+        for (uint8_t j = 0; j < 10; ++j)
+        {
+            batches[i].push_back((TransformationHandle)(j * 10));
+        }
+    }
+
+    {
+        std::jthread otherThread(
+            someBatchesOfTransformationsAreRemoved,
+            std::ref(system),
+            batches
+        );
+
+        std::jthread renderThread(
+            worldMatricesAreComputedNTimes,
+            std::ref(system),
+            100
+        );
+    }
+    REQUIRE(system.positions.size() < n);
+    handlesAndIndicesShouldMatchUp(system);
+}
+
+TEST_CASE("loading thread can successfully reparent transformations while the render thread loops", "[transformation][reparent][computation][threading]")
+{
+    // Given there is a system with n items, some of which are parented to others
+    uint32_t n = 128;
+    TransformationSystem system = makeTransformationSystemWithNTransformations(n);
+
+    // And that there are 8 batches with 8 reparent configs each
+    std::vector<std::vector<TransformationReparentConfig>> batches;
+    for (uint32_t i = 0; i < (n / 16); ++i)
+    {
+        std::vector<TransformationReparentConfig> batch(n / 16);
+        for (uint32_t j = 0; j < (n / 16); ++j)
+        {
+            const TransformationHandle child = n / 64 * (i * (n / 16) + j) % n;
+            TransformationHandle parent = ((i * (n / 16) + j) - (67 + i)) % n;
+            if (parent >= child || (j % i < 1))
+            {
+                parent = NO_TRANSFORMATION_PARENT;
+            }
+
+            batch[j] = ((TransformationReparentConfig){
+                .child = child,
+                .parent = parent});
+        }
+        batches.push_back(batch);
+    }
+
+    // When the each batch is sent to the render thread and the render thread processes each batch,
+    {
+        std::jthread otherThread(
+            someBatchesOfTransformationsAreReparented,
+            std::ref(system),
+            batches
+        );
+
+        std::jthread renderThread(
+            worldMatricesAreComputedNTimes,
+            std::ref(system),
+            n * 4
+        );
+    }
+
+    handlesAndIndicesShouldMatchUp(system);
+    allParentsShouldComeBeforeChildren(system);
+}
+
+TEST_CASE("loading thread can successfully add, remove, and reparent transformations while the render thread loops", "[transformation][add][remove][reparent][computation][threading]")
+{
+    // Given there is system with zero transformations
+    TransformationSystem system;
+    std::vector<TransformationHandle> liveHandles;
+    std::atomic<bool> otherThreadDone;
+    std::mutex ackMutex;
+    std::condition_variable ackCv;
+    bool removalComplete = false;
+    bool reparentingComplete = false;
+    std::unordered_map<TransformationHandle, int> parentToNumberOfChildrenMap;
+    std::unordered_map<TransformationHandle, TransformationHandle> childrenToParentMap;
+    std::mt19937_64 randomEngine(32);
+    unsigned int numUniqueParents = 0;
+    unsigned int maxUniqueParents = 12;
+
+    OperationQueue ops;
+
+    // When the loading thread adds transformations
+    ops.push([&system, &liveHandles]() {
+        someTransformationsAreAddedAndTheRenderThreadSuccessfullyAddsThem(
+            system,
+            liveHandles,
+            100
+        );
+    });
+
+    // Reparents transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &ackMutex, &ackCv, &reparentingComplete, &randomEngine, &numUniqueParents, &maxUniqueParents]() {
+        someTransformationsAreReparentedAndTheRenderThreadSuccessfullyReparentsThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            12,
+            ackMutex,
+            ackCv,
+            reparentingComplete,
+            randomEngine,
+            numUniqueParents,
+            maxUniqueParents
+        );
+    });
+
+    // Removes transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &numUniqueParents, &ackMutex, &ackCv, &removalComplete]() {
+        someTransformationsAreRemovedAndTheRenderThreadSuccessfullyRemovesThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            numUniqueParents,
+            25,
+            ackMutex,
+            ackCv,
+            removalComplete
+        );
+    });
+
+    // Reparents transformations
+        ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &ackMutex, &ackCv, &reparentingComplete, &randomEngine, &numUniqueParents, &maxUniqueParents]() {
+        someTransformationsAreReparentedAndTheRenderThreadSuccessfullyReparentsThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            12,
+            ackMutex,
+            ackCv,
+            reparentingComplete,
+            randomEngine,
+            numUniqueParents,
+            maxUniqueParents
+        );
+    });
+
+    // Removes transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &numUniqueParents, &ackMutex, &ackCv, &removalComplete]() {
+        someTransformationsAreRemovedAndTheRenderThreadSuccessfullyRemovesThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            numUniqueParents,
+            12,
+            ackMutex,
+            ackCv,
+            removalComplete
+        );
+    });
+
+    // Adds transformations
+    ops.push([&system, &liveHandles]() {
+        someTransformationsAreAddedAndTheRenderThreadSuccessfullyAddsThem(
+            system,
+            liveHandles,
+            37
+        );
+    });
+
+    // Reparents transformations
+    ops.push([&system, &liveHandles, &parentToNumberOfChildrenMap, &childrenToParentMap, &ackMutex, &ackCv, &reparentingComplete, &randomEngine, &numUniqueParents, &maxUniqueParents]() {
+        someTransformationsAreReparentedAndTheRenderThreadSuccessfullyReparentsThem(
+            system,
+            liveHandles,
+            parentToNumberOfChildrenMap,
+            childrenToParentMap,
+            25,
+            ackMutex,
+            ackCv,
+            reparentingComplete,
+            randomEngine,
+            numUniqueParents,
+            maxUniqueParents
+        );
+    });
+
+    // and adds transformations
+    ops.push([&system, &liveHandles]() {
+        someTransformationsAreAddedAndTheRenderThreadSuccessfullyAddsThem(
+            system,
+            liveHandles,
+            25
+        );
+    });
+
+    {
+        std::jthread otherThread([&ops, &otherThreadDone]() {
+            runOperations(ops);
+            otherThreadDone = true;
+        });
+
+        std::jthread renderThread([&]() {
+            worldMatricesAreComputedUntilDone(
+                system,
+                otherThreadDone,
+                ackMutex,
+                ackCv,
+                removalComplete,
+                reparentingComplete
+            );
+        }
+        );
+    }
+
+    allParentsShouldComeBeforeChildren(system);
+    handlesAndIndicesShouldMatchUp(system);
+    REQUIRE(thereAreNoRepeatingHandles(system));
+}

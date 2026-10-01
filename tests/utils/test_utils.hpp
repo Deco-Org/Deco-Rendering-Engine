@@ -1,0 +1,36 @@
+#pragma once
+#include <simd/simd.h>
+
+inline bool floatsNearEqual(float a, float b, float abs_epsilon = 0.0001f, float rel_epsilon = 0.0001f) {
+    const float diff = std::fabs(a - b);
+    if (diff <= abs_epsilon) {
+        return true;
+    }
+
+    const float largest = std::max(std::fabs(a), std::fabs(b));
+    return diff <= largest * rel_epsilon;
+}
+
+inline bool simdFloat3Equal(simd_float3 a, simd_float3 b, float epsilon = 0.0001f) {
+    return std::abs(a[0] - b[0]) < epsilon &&
+           std::abs(a[1] - b[1]) < epsilon &&
+           std::abs(a[2] - b[2]) < epsilon;
+}
+
+inline bool simdFloat4Equal(simd_float4 a, simd_float4 b, float abs_epsilon = 0.0001f, float rel_epsilon = 0.0001f) {
+    return floatsNearEqual(a[0], b[0], abs_epsilon, rel_epsilon) &&
+            floatsNearEqual(a[1], b[1], abs_epsilon, rel_epsilon) &&
+            floatsNearEqual(a[2], b[2], abs_epsilon, rel_epsilon) &&
+            floatsNearEqual(a[3], b[3], abs_epsilon, rel_epsilon);
+}
+
+inline bool simdQuatfEqual(simd_quatf a, simd_quatf b, float epsilon = 0.0001f) {
+    return std::abs(a.vector[0] - b.vector[0]) < epsilon &&
+           std::abs(a.vector[1] - b.vector[1]) < epsilon &&
+           std::abs(a.vector[2] - b.vector[2]) < epsilon &&
+           std::abs(a.vector[3] - b.vector[3]) < epsilon;
+}
+
+inline bool simdMatrix4x4Equal(matrix_float4x4 a, matrix_float4x4 b, float epsilon = 0.0001f) {
+    return simd_almost_equal_elements(a, b, epsilon);
+}
