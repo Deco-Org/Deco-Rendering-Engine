@@ -60,6 +60,8 @@ class MaterialSystem
     std::vector<MaterialHandle> add(MaterialEntryList materials);
 
     std::vector<MaterialHandle> add(ufbx_material_list* materials, MaterialType type = MaterialType::PBR);
+    
+    std::vector<MaterialHandle> add(ufbx_material_list* materials, MaterialProperties material_properties);
 
     void remove(MaterialHandleList materials);
 
@@ -136,6 +138,7 @@ class MaterialSystem
     MaterialHandle* getNextNHandles(size_t n);
     void addInputEntriesToAdditionsBuffer(MaterialRenderThreadInputBufferEntry* entries, size_t count);
     static constexpr MaterialProperties get_material_properties_from_material_type(MaterialType material_type);
+    static constexpr MaterialProperties get_material_properties_from_material_optical_properties(MaterialOpticalProperties optical_properties);
 
     /**
      * @warning This should only be called on the render thread.

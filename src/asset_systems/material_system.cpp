@@ -27,7 +27,7 @@ std::vector<MaterialHandle> MaterialSystem::add(MaterialEntryList materials)
     // Filling in the array of input buffer entries
     for (size_t i = 0; i < materials.count; ++i)
     {
-        MaterialProperties properties = MaterialProperties::Opaque;
+        MaterialProperties properties = get_material_properties_from_material_optical_properties(materials.data[i].optical_properties);
         properties |= get_material_properties_from_material_type(materials.data[i].type);
 
         inputBufferEntries[i] = {
@@ -88,6 +88,51 @@ std::vector<MaterialHandle> MaterialSystem::add(ufbx_material_list* materials, M
     delete[] handlesToUse;
 
     addInputEntriesToAdditionsBuffer(inputBufferEntries, materials->count);
+    return handles;
+}
+
+std::vector<MaterialHandle> MaterialSystem::add(ufbx_material_list* materials, MaterialProperties material_properties)
+{
+    std::vector<MaterialHandle> handles;
+
+    MaterialRenderThreadInputBufferEntry input_buffer_entries[materials->count];
+    MaterialHandle* handles_to_use = getNextNHandles(materials->count);
+
+    for (size_t i = 0; i < materials->count; ++i)
+    {
+        ufbx_material* material = materials->data[i];
+        MaterialType material_type = MaterialType::Unknown;
+
+        if (MaterialProperties::PBR == (material_properties & MaterialProperties::PBR))
+        {
+            material_type = MaterialType::PBR;
+        }
+        else
+        {
+            material_type = MaterialType::Toon;
+        }
+
+        Material* loaded_material = loadMaterial(material, material_type);
+
+        input_buffer_entries[i] = {
+            .handle = handles_to_use[i],
+            .properties = material_properties,
+            .material = *loaded_material,
+        };
+    }
+
+    handles.resize(materials->count);
+    for (size_t i = 0; i < materials->count; ++i)
+    {
+        handles[i] = handles_to_use[i];
+        if (handles[i] > largestHandle)
+        {
+            largestHandle = handles[i];
+        }
+    }
+    delete[] handles_to_use;
+
+    addInputEntriesToAdditionsBuffer(input_buffer_entries, materials->count);
     return handles;
 }
 
@@ -1101,6 +1146,22 @@ constexpr MaterialProperties MaterialSystem::get_material_properties_from_materi
         
         case MaterialType::Toon:
             return MaterialProperties::Toon;
+    };
+    return MaterialProperties::Unknown;
+}
+
+constexpr MaterialProperties MaterialSystem::get_material_properties_from_material_optical_properties(MaterialOpticalProperties optical_properties)
+{
+    switch (optical_properties)
+    {
+        case MaterialOpticalProperties::Opaque:
+            return MaterialProperties::Opaque;
+
+        case MaterialOpticalProperties::Transparent:
+            return MaterialProperties::Transparent;
+
+        case MaterialOpticalProperties::Unknown:
+            return MaterialProperties::UnknownOpticalProperties;
     };
     return MaterialProperties::Unknown;
 }
