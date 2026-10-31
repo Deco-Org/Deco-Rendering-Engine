@@ -160,20 +160,24 @@ uint64_t SceneObjectSystem::get_static_sort_key_parts(SceneObjectHandle scene_ob
         RenderPipelineFlags flags = calculate_pipeline_flags(submesh_handle, material_properties);
     
         static_sort_key |= static_cast<uint64_t>(material_properties) << SortKeyBitMappings::Shifts::Transparency;
+        uint64_t reduced_material_handle = static_cast<uint64_t>(material_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::MaterialHandle)) - 1);
+        uint64_t reduced_submesh_handle = static_cast<uint64_t>(submesh_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::SubmeshHandle)) - 1);
         
         if (MaterialProperties::Transparent == (MaterialProperties::Transparent & material_properties))
         {
-            static_sort_key |= static_cast<uint64_t>(flags) << static_cast<uint64_t>(SortKeyBitMappings::Shifts::TransparentShifts::PipelineFlags);
+            static_sort_key |= (
+                static_cast<uint64_t>(flags) << static_cast<uint64_t>(SortKeyBitMappings::Shifts::TransparentShifts::PipelineFlags) |
+                reduced_material_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::TransparentShifts::MaterialHandle) |
+                reduced_submesh_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::TransparentShifts::SubmeshHandle)
+            );
         }
         else
         {
-            static_sort_key |= static_cast<uint64_t>(flags) << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::PipelineFlags);
-
-            uint64_t reduced_material_handle = static_cast<uint64_t>(material_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::MaterialHandle)) - 1);
-            static_sort_key |= reduced_material_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::MaterialHandle);
-
-            uint64_t reduced_submesh_handle = static_cast<uint64_t>(submesh_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::SubmeshHandle)) - 1);
-            static_sort_key |= reduced_submesh_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::SubmeshHandle);
+            static_sort_key |= (
+                static_cast<uint64_t>(flags) << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::PipelineFlags) |
+                reduced_material_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::MaterialHandle) |
+                reduced_submesh_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::SubmeshHandle)
+            );
         }
     }
     return static_sort_key;

@@ -74,7 +74,18 @@ namespace SortKeyBitMappings
         {
             return a << static_cast<uint64_t>(shift);
         }
+
         constexpr uint64_t operator>>(uint64_t a, SortKeyBitMappings::Shifts::OpaqueShifts shift)
+        {
+            return a >> static_cast<uint64_t>(shift);
+        }
+
+        constexpr uint64_t operator<<(uint64_t a, SortKeyBitMappings::Shifts::TransparentShifts shift)
+        {
+            return a << static_cast<uint64_t>(shift);
+        }
+        
+        constexpr uint64_t operator>>(uint64_t a, SortKeyBitMappings::Shifts::TransparentShifts shift)
         {
             return a >> static_cast<uint64_t>(shift);
         }

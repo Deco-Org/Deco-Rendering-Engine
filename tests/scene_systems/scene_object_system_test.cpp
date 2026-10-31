@@ -90,13 +90,13 @@ TEST_CASE("added scene objects should have correct static sort key parts", "[sce
     SECTION("sort key parts should generate correctly for opaque scene objects")
     {
         std::vector<MaterialHandle> material_handles = material_system->add(&scene->materials, MaterialProperties::Opaque);
-        REQUIRE(0 < material_handles.size());
+        REQUIRE(1 < material_handles.size());
         material_system->drainAdditionsInputBuffer();
         material_system->getItemsAndDrainAdditionsOutputBuffer();
         
         SceneObject scene_object = {
             .submesh_handle = INVALID_SUBMESH_HANDLE,
-            .material_handle = material_handles[0],
+            .material_handle = material_handles[1],
             .transformation_handle = TRANSFORMATION_HANDLE_INVALID,
         };
 
@@ -111,13 +111,19 @@ TEST_CASE("added scene objects should have correct static sort key parts", "[sce
         CAPTURE(sort_key);
         SECTION("sort key ordering and parts should reflect material opacity")
         {
-            MaterialProperties actual_properties = static_cast<MaterialProperties>(sort_key << SortKeyBitMappings::Shifts::Transparency);
+            MaterialProperties actual_properties = static_cast<MaterialProperties>(get_final_n_bits(
+                static_cast<uint64_t>(sort_key << SortKeyBitMappings::Shifts::Transparency),
+                SortKeyBitMappings::Widths::Transparency
+            ));
             REQUIRE(MaterialProperties::Opaque == actual_properties);
         }
     
         SECTION("sort key should reflect pipeline flags")
         {
-            RenderPipelineFlags pipeline_flags = static_cast<RenderPipelineFlags>(sort_key << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::PipelineFlags));
+            RenderPipelineFlags pipeline_flags = static_cast<RenderPipelineFlags>(get_final_n_bits(
+                sort_key << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::PipelineFlags),
+                SortKeyBitMappings::Widths::PipelineFlags
+            ));
             REQUIRE(RenderPipelineFlags::None == pipeline_flags);
         }
     
@@ -156,7 +162,69 @@ TEST_CASE("added scene objects should have correct static sort key parts", "[sce
 
     SECTION("sort key parts should generate correctly for scene objects supporting transparency")
     {
+        std::vector<MaterialHandle> material_handles = material_system->add(&scene->materials, MaterialProperties::Transparent);
+        REQUIRE(1 < material_handles.size());
+        material_system->drainAdditionsInputBuffer();
+        material_system->getItemsAndDrainAdditionsOutputBuffer();
+        
+        SceneObject scene_object = {
+            .submesh_handle = INVALID_SUBMESH_HANDLE,
+            .material_handle = material_handles[1],
+            .transformation_handle = TRANSFORMATION_HANDLE_INVALID,
+        };
 
+        std::vector<SceneObjectHandle> scene_object_handles = scene_object_system.add({
+            .data = &scene_object,
+            .count = 1,
+        });
+        REQUIRE(0 == scene_object_system.count());
+        scene_object_system.drain_additions_input_buffer();
+        CAPTURE(scene_object_handles);
+        const uint64_t sort_key = scene_object_system.static_sort_key_parts[scene_object_handles[0]];
+        CAPTURE(sort_key);
+        SECTION("sort key ordering and parts should reflect material opacity")
+        {
+            MaterialProperties actual_properties = static_cast<MaterialProperties>(sort_key << SortKeyBitMappings::Shifts::Transparency);
+            REQUIRE(MaterialProperties::Transparent == actual_properties);
+        }
+    
+        SECTION("sort key should reflect pipeline flags")
+        {
+            RenderPipelineFlags pipeline_flags = static_cast<RenderPipelineFlags>(sort_key << static_cast<uint64_t>(SortKeyBitMappings::Shifts::TransparentShifts::PipelineFlags));
+            REQUIRE(RenderPipelineFlags::None == pipeline_flags);
+        }
+    
+        SECTION("sort key should reflect material handle")
+        {
+            uint64_t expected = get_final_n_bits(scene_object.material_handle, SortKeyBitMappings::Widths::MaterialHandle);
+            uint64_t actual = get_final_n_bits(
+                sort_key >> SortKeyBitMappings::Shifts::TransparentShifts::MaterialHandle,
+                SortKeyBitMappings::Widths::MaterialHandle
+            );
+            REQUIRE(expected == actual);
+        }
+    
+        SECTION("sort key should reflect submesh handle")
+        {
+            uint64_t expected = get_final_n_bits(scene_object.submesh_handle, SortKeyBitMappings::Widths::SubmeshHandle);
+            uint64_t actual = get_final_n_bits(
+                sort_key >> SortKeyBitMappings::Shifts::TransparentShifts::SubmeshHandle,
+                SortKeyBitMappings::Widths::SubmeshHandle
+            );
+            REQUIRE(expected == actual);
+        }
+
+        scene_object_system.remove({
+            .data = scene_object_handles.data(),
+            .count = scene_object_handles.size()
+        });
+        scene_object_system.drain_removals_input_buffer();
+        material_system->remove({
+            .data = material_handles.data(),
+            .count = material_handles.size()
+        });
+        material_system->drainRemovalsInputBuffer();
+        material_system->drainRemovalsOutputBufferAndUnloadResources();
     }
 
     delete material_system;
