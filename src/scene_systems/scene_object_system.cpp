@@ -146,8 +146,8 @@ std::vector<SceneObjectHandle> SceneObjectSystem::get_items_and_drain_output_buf
 uint64_t SceneObjectSystem::get_static_sort_key_parts(SceneObjectHandle handle)
 {
     MaterialHandle material_handle = material_handles[handle];
-    // material_system->material_properties[material_handle] 
-    return 0;
+    SubmeshHandle submesh_handle = submesh_handles[handle];
+    return get_static_sort_key_parts(handle, submesh_handle, material_handle);
 }
 
 uint64_t SceneObjectSystem::get_static_sort_key_parts(SceneObjectHandle scene_object_handle, SubmeshHandle submesh_handle, MaterialHandle material_handle)
@@ -155,14 +155,12 @@ uint64_t SceneObjectSystem::get_static_sort_key_parts(SceneObjectHandle scene_ob
     uint64_t static_sort_key = static_cast<uint64_t>(-1);
     if (material_system)
     {
-        static_sort_key = 0;
         MaterialProperties material_properties = material_system->material_properties[material_handle];
         RenderPipelineFlags flags = calculate_pipeline_flags(submesh_handle, material_properties);
     
-        static_sort_key |= static_cast<uint64_t>(material_properties) << SortKeyBitMappings::Shifts::Transparency;
+        static_sort_key = static_cast<uint64_t>(material_properties) << SortKeyBitMappings::Shifts::Transparency;
         uint64_t reduced_material_handle = static_cast<uint64_t>(material_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::MaterialHandle)) - 1);
         uint64_t reduced_submesh_handle = static_cast<uint64_t>(submesh_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::SubmeshHandle)) - 1);
-        
         if (MaterialProperties::Transparent == (MaterialProperties::Transparent & material_properties))
         {
             static_sort_key |= (

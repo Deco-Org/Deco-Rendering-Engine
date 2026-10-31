@@ -81,8 +81,8 @@ TEST_CASE("added scene objects should have correct static sort key parts", "[sce
     MaterialSystem* material_system = new MaterialSystem(texture_loader);
     SceneObjectSystemConfig system_config_with_working_material_system = {
         .submesh_system = nullptr,
-        .material_system = material_system,
         .transformation_system = nullptr,
+        .material_system = material_system,
     };
     SceneObjectSystem scene_object_system(system_config_with_working_material_system);
     ufbx_scene* scene = a_scene_with_a_test_lamp_model();
@@ -96,19 +96,26 @@ TEST_CASE("added scene objects should have correct static sort key parts", "[sce
         
         SceneObject scene_object = {
             .submesh_handle = INVALID_SUBMESH_HANDLE,
-            .material_handle = material_handles[1],
             .transformation_handle = TRANSFORMATION_HANDLE_INVALID,
+            .material_handle = material_handles[1],
         };
 
         std::vector<SceneObjectHandle> scene_object_handles = scene_object_system.add({
             .data = &scene_object,
             .count = 1,
         });
+        
         REQUIRE(0 == scene_object_system.count());
         scene_object_system.drain_additions_input_buffer();
+        scene_object_system.get_items_and_drain_output_buffer();
+
+        CAPTURE(scene_object_system.material_handles);
         CAPTURE(scene_object_handles);
+
         const uint64_t sort_key = scene_object_system.static_sort_key_parts[scene_object_handles[0]];
+        REQUIRE(sort_key == scene_object_system.get_static_sort_key_parts(scene_object_handles[0]));
         CAPTURE(sort_key);
+
         SECTION("sort key ordering and parts should reflect material opacity")
         {
             MaterialProperties actual_properties = static_cast<MaterialProperties>(get_final_n_bits(
@@ -179,6 +186,7 @@ TEST_CASE("added scene objects should have correct static sort key parts", "[sce
         });
         REQUIRE(0 == scene_object_system.count());
         scene_object_system.drain_additions_input_buffer();
+        scene_object_system.get_items_and_drain_output_buffer();
         CAPTURE(scene_object_handles);
         const uint64_t sort_key = scene_object_system.static_sort_key_parts[scene_object_handles[0]];
         CAPTURE(sort_key);
