@@ -26,6 +26,18 @@ enum class RenderPipelineFlags : RenderPipelineBitmap
     PipelineCount = 1 << FlagCount
 };
 
+constexpr RenderPipelineFlags operator|(RenderPipelineFlags a, RenderPipelineFlags b)
+{
+    using underlying = std::underlying_type_t<RenderPipelineFlags>;
+    return static_cast<RenderPipelineFlags>(static_cast<underlying>(a) | static_cast<underlying>(b));
+}
+
+constexpr RenderPipelineFlags operator|=(RenderPipelineFlags& left, RenderPipelineFlags right)
+{
+    left = left | right;
+    return left;
+}
+
 class RenderPipelineLibrary
 {
     public:
