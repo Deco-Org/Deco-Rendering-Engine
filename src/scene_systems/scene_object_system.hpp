@@ -39,6 +39,49 @@ struct SceneObjectSystemConfig
     MaterialSystem* material_system;
 };
 
+
+namespace SortKeyBitMappings
+{
+    enum class Widths : uint8_t
+    {
+        Transparency = 2,
+        PipelineFlags = 3,
+        MaterialHandle = 16,
+        SubmeshHandle = 22,
+        Reserved = 21,
+    };
+
+    namespace Shifts
+    {
+        constexpr uint8_t Transparency = static_cast<uint8_t>(0);
+
+        enum class OpaqueShifts : uint8_t
+        {
+            PipelineFlags = static_cast<uint8_t>(Widths::Transparency) + Transparency,
+            MaterialHandle = static_cast<uint8_t>(Widths::PipelineFlags) + PipelineFlags,
+            SubmeshHandle = static_cast<uint8_t>(Widths::MaterialHandle) + MaterialHandle,
+            Reserved = static_cast<uint8_t>(Widths::SubmeshHandle) + SubmeshHandle,
+        };
+        enum class TransparentShifts : uint8_t
+        {
+            Reserved = static_cast<uint8_t>(Widths::Transparency) + Transparency,
+            PipelineFlags = static_cast<uint8_t>(Widths::Reserved) + Reserved,
+            MaterialHandle = static_cast<uint8_t>(Widths::PipelineFlags) + PipelineFlags,
+            SubmeshHandle = static_cast<uint8_t>(Widths::MaterialHandle) + MaterialHandle,
+        };
+
+        constexpr uint64_t operator<<(uint64_t a, SortKeyBitMappings::Shifts::OpaqueShifts shift)
+        {
+            return a << static_cast<uint64_t>(shift);
+        }
+        constexpr uint64_t operator>>(uint64_t a, SortKeyBitMappings::Shifts::OpaqueShifts shift)
+        {
+            return a >> static_cast<uint64_t>(shift);
+        }
+    };
+};
+
+
 DECO_ENGINE_LIST_TYPE(SceneObjectList, SceneObject);
 DECO_ENGINE_LIST_TYPE(SceneObjectHandleList, SceneObjectHandle);
 
@@ -63,13 +106,13 @@ public:
     std::vector<SceneObjectHandle> add(SceneObjectList scene_objects);
 
     /**
-     * Request an object's removal from the system.
+     * Schedule an object's removal from the system.
      * @param handle The handle of the object to be removed.
      */
     void remove(SceneObjectHandle handle);
 
     /**
-     * Request the removal of multiple objects from the system.
+     * Schedule the removal of multiple objects from the system.
      * @param handles The handles of the objects to be removed.
      */
     void remove(SceneObjectHandleList handles);
@@ -92,6 +135,19 @@ public:
      * @note This is used to communicate with the render thread.
      */
     std::vector<SceneObjectHandle> get_items_and_drain_output_buffer();
+
+    /**
+     * @warning Should only be called on the render thread.
+     */
+    uint64_t get_static_sort_key_parts(SceneObjectHandle handle);
+
+    /**
+     * @warning Should only be called on the render thread.
+     */
+    uint64_t get_static_sort_key_parts(
+        SceneObjectHandle scene_object_handle, 
+        SubmeshHandle submesh_handle, 
+        MaterialHandle material_handle);
     
     /**
      * @returns The number of scene objects in the system
@@ -103,11 +159,16 @@ public:
     std::vector<TransformationHandle> transformation_handles;
     // std::vector<AnimationInstanceHandle> animation_instance_handles;
     std::vector<MaterialHandle> material_handles;
-    std::vector<RenderPipelineBitmap> pipeline_flags;
+    std::vector<RenderPipelineFlags> pipeline_flags;
     std::vector<uint64_t> static_sort_key_parts;
 
 private:
     SceneObjectHandle* get_next_n_handles(size_t n);
+
+    RenderPipelineFlags calculate_pipeline_flags(
+        SubmeshHandle submesh_handle,
+        // AnimationInstanceHandle animation_instance_handle,
+        MaterialProperties material_properties);
 
     SubmeshSystem const* submesh_system;
     TransformationSystem const* transformation_system;

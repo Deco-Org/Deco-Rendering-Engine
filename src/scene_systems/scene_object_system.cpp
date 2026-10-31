@@ -86,6 +86,7 @@ void SceneObjectSystem::drain_additions_input_buffer()
         transformation_handles.resize(max_handle + 1);
         // animation_instance_handles.resize(max_handle + 1);
         material_handles.resize(max_handle + 1);
+        static_sort_key_parts.resize(max_handle + 1);
     }
 
     for (size_t i = 0; i < n; ++i)
@@ -96,6 +97,10 @@ void SceneObjectSystem::drain_additions_input_buffer()
         transformation_handles[i] = entry->scene_object.transformation_handle;
         // animation_instance_handles[i] = entry->scene_object.animation_instance_handle;
         material_handles[i] = entry->scene_object.material_handle;
+        static_sort_key_parts[i] = get_static_sort_key_parts(
+            entry->handle,
+            entry->scene_object.submesh_handle,
+            entry->scene_object.material_handle);
     }
 
     delete[] entries;
@@ -138,6 +143,42 @@ std::vector<SceneObjectHandle> SceneObjectSystem::get_items_and_drain_output_buf
     return handles;
 }
 
+uint64_t SceneObjectSystem::get_static_sort_key_parts(SceneObjectHandle handle)
+{
+    MaterialHandle material_handle = material_handles[handle];
+    // material_system->material_properties[material_handle] 
+    return 0;
+}
+
+uint64_t SceneObjectSystem::get_static_sort_key_parts(SceneObjectHandle scene_object_handle, SubmeshHandle submesh_handle, MaterialHandle material_handle)
+{
+    uint64_t static_sort_key = static_cast<uint64_t>(-1);
+    if (material_system)
+    {
+        static_sort_key = 0;
+        MaterialProperties material_properties = material_system->material_properties[material_handle];
+        RenderPipelineFlags flags = calculate_pipeline_flags(submesh_handle, material_properties);
+    
+        static_sort_key |= static_cast<uint64_t>(material_properties) << SortKeyBitMappings::Shifts::Transparency;
+        
+        if (MaterialProperties::Transparent == (MaterialProperties::Transparent & material_properties))
+        {
+            static_sort_key |= static_cast<uint64_t>(flags) << static_cast<uint64_t>(SortKeyBitMappings::Shifts::TransparentShifts::PipelineFlags);
+        }
+        else
+        {
+            static_sort_key |= static_cast<uint64_t>(flags) << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::PipelineFlags);
+
+            uint64_t reduced_material_handle = static_cast<uint64_t>(material_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::MaterialHandle)) - 1);
+            static_sort_key |= reduced_material_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::MaterialHandle);
+
+            uint64_t reduced_submesh_handle = static_cast<uint64_t>(submesh_handle) & ((static_cast<uint64_t>(1U) << static_cast<uint64_t>(SortKeyBitMappings::Widths::SubmeshHandle)) - 1);
+            static_sort_key |= reduced_submesh_handle << static_cast<uint64_t>(SortKeyBitMappings::Shifts::OpaqueShifts::SubmeshHandle);
+        }
+    }
+    return static_sort_key;
+}
+
 size_t SceneObjectSystem::count() const
 {
     return number_of_objects;
@@ -168,4 +209,27 @@ SceneObjectHandle* SceneObjectSystem::get_next_n_handles(size_t n)
         }
     }
     return handles;
+}
+
+RenderPipelineFlags SceneObjectSystem::calculate_pipeline_flags(
+    SubmeshHandle submesh_handle,
+    // AnimationInstanceHandle animation_instance_handle,
+    MaterialProperties material_properties)
+{
+    RenderPipelineFlags flags = RenderPipelineFlags::None;
+    if (MaterialProperties::Transparent == (MaterialProperties::Transparent & material_properties))
+    {
+        flags |= RenderPipelineFlags::Translucent;
+    }
+
+    if (MaterialProperties::Toon == (MaterialProperties::Toon & material_properties))
+    {
+        flags |= RenderPipelineFlags::Toon;
+    }
+
+    // if (INVALID_ANIMATION_INSTANCE_HANDLE != animation_instance_handle)
+    // {
+    //     flags |= RenderPipelineFlags::Skinned;
+    // }
+    return flags;
 }

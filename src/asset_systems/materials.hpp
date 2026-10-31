@@ -31,8 +31,8 @@ enum class MaterialProperties : uint8_t
     PBR = 0 << 0,
     Toon = 1 << 0,
 
-    Opaque = 0 << 1,
-    Transparent = 1 << 1,
+    Opaque = static_cast<std::underlying_type_t<MaterialProperties>>(MaterialOpticalProperties::Opaque),
+    Transparent = static_cast<std::underlying_type_t<MaterialProperties>>(MaterialOpticalProperties::Transparent),
     UnknownOpticalProperties = 1 << 2,
 
     Unknown = static_cast<std::underlying_type_t<MaterialProperties>>(-1),
