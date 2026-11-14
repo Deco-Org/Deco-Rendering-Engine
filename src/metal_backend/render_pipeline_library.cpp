@@ -101,7 +101,7 @@ MTL4::RenderPipelineDescriptor* RenderPipelineLibrary::configure_render_pipeline
 MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_vertex_shader_configuration(RenderPipelineBitmap pipeline_flags)
 {
     bool is_skinned = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Skinned) != RenderPipelineFlags::None;
-    bool is_translucent = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Translucent) != RenderPipelineFlags::None;
+    bool is_translucent = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Transparent) != RenderPipelineFlags::None;
 
     MTL4::LibraryFunctionDescriptor* base_function_descriptor = MTL4::LibraryFunctionDescriptor::alloc()->init();
     const MTL::Library* library = ShaderLoader::load_shader_library(device);
@@ -124,7 +124,7 @@ MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_vertex_shader_c
 
 MTL4::SpecializedFunctionDescriptor* RenderPipelineLibrary::make_fragment_shader_configuration(RenderPipelineBitmap pipeline_flags)
 {
-    bool is_translucent = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Translucent) != RenderPipelineFlags::None;
+    bool is_translucent = (static_cast<RenderPipelineFlags>(pipeline_flags) & RenderPipelineFlags::Transparent) != RenderPipelineFlags::None;
 
     MTL4::LibraryFunctionDescriptor* base_function_descriptor = MTL4::LibraryFunctionDescriptor::alloc()->init();
     const MTL::Library* library = ShaderLoader::load_shader_library(device);

@@ -221,7 +221,7 @@ RenderPipelineFlags SceneObjectSystem::calculate_pipeline_flags(
     RenderPipelineFlags flags = RenderPipelineFlags::None;
     if (MaterialProperties::Transparent == (MaterialProperties::Transparent & material_properties))
     {
-        flags |= RenderPipelineFlags::Translucent;
+        flags |= RenderPipelineFlags::Transparent;
     }
 
     if (MaterialProperties::Toon == (MaterialProperties::Toon & material_properties))
