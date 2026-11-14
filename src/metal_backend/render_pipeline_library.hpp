@@ -20,11 +20,23 @@ enum class RenderPipelineFlags : RenderPipelineBitmap
     Skinned = 1 << 1,
 
     // Opaque = 0 << 2,
-    Translucent = 1 << 2,
+    Transparent = 1 << 2,
     
     FlagCount = 3,
     PipelineCount = 1 << FlagCount
 };
+
+constexpr RenderPipelineFlags operator|(RenderPipelineFlags a, RenderPipelineFlags b)
+{
+    using underlying = std::underlying_type_t<RenderPipelineFlags>;
+    return static_cast<RenderPipelineFlags>(static_cast<underlying>(a) | static_cast<underlying>(b));
+}
+
+constexpr RenderPipelineFlags operator|=(RenderPipelineFlags& left, RenderPipelineFlags right)
+{
+    left = left | right;
+    return left;
+}
 
 class RenderPipelineLibrary
 {

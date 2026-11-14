@@ -22,6 +22,7 @@ add_library(rendering_engine STATIC
     src/metal_backend/residency_manager.cpp
     src/metal_backend/render_pipeline_library.cpp
     src/metal_backend/shader_loader.cpp
+    src/scene_systems/scene_object_system.cpp
 )
 
 target_include_directories(rendering_engine

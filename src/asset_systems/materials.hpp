@@ -15,8 +15,46 @@ enum class MaterialType : uint8_t
 {
     PBR = 0,
     Toon = 1,
-    Unknown = (uint8_t)(-1)
+    Unknown = static_cast<std::underlying_type_t<MaterialType>>(-1),
 };
+
+enum class MaterialOpticalProperties : uint8_t
+{
+    Opaque = 0 << 1,
+    Transparent = 1 << 1,
+    
+    Unknown = static_cast<std::underlying_type_t<MaterialOpticalProperties>>(-1),
+};
+
+enum class MaterialProperties : uint8_t
+{
+    PBR = 0 << 0,
+    Toon = 1 << 0,
+
+    Opaque = static_cast<std::underlying_type_t<MaterialProperties>>(MaterialOpticalProperties::Opaque),
+    Transparent = static_cast<std::underlying_type_t<MaterialProperties>>(MaterialOpticalProperties::Transparent),
+    UnknownOpticalProperties = 1 << 2,
+
+    Unknown = static_cast<std::underlying_type_t<MaterialProperties>>(-1),
+};
+
+constexpr MaterialProperties operator&(MaterialProperties a, MaterialProperties b)
+{
+    using underlying = std::underlying_type_t<MaterialProperties>;
+    return static_cast<MaterialProperties>(static_cast<underlying>(a) & static_cast<underlying>(b));
+}
+
+constexpr MaterialProperties operator|(MaterialProperties a, MaterialProperties b)
+{
+    using underlying = std::underlying_type_t<MaterialProperties>;
+    return static_cast<MaterialProperties>(static_cast<underlying>(a) | static_cast<underlying>(b));
+}
+
+constexpr MaterialProperties operator|=(MaterialProperties& left, MaterialProperties right)
+{
+    left = left | right;
+    return left;
+}
 
 enum class ORMChannel: uint8_t
 {
